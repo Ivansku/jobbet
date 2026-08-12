@@ -3,6 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { SignOutButton } from '../sign-out-button'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Field } from '@/components/ui/field'
+import { Eyebrow } from '@/components/ui/eyebrow'
 
 export default function OnboardingPage() {
   const supabase = createClient()
@@ -31,31 +36,31 @@ export default function OnboardingPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6">
-      <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="text-2xl font-semibold">Skapa ditt företag</h1>
-        <p className="max-w-sm text-sm text-neutral-600">
-          Du blir automatiskt admin för företaget du skapar.
-        </p>
+    <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-4">
+      <div className="w-full max-w-sm rounded-xl border border-border-subtle bg-surface p-8 shadow-sm">
+        <div className="text-center">
+          <Eyebrow>Kom igång</Eyebrow>
+          <h1 className="mt-1 text-xl font-semibold tracking-tight">Skapa ditt företag</h1>
+          <p className="mt-1 text-sm text-stone-500">
+            Du blir automatiskt admin för företaget du skapar.
+          </p>
+        </div>
+        <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
+          <Field label="Företagsnamn" htmlFor="foretag-namn" error={error ?? undefined}>
+            <Input
+              id="foretag-namn"
+              value={namn}
+              onChange={(e) => setNamn(e.target.value)}
+              placeholder="T.ex. Mitt AB"
+              autoFocus
+            />
+          </Field>
+          <Button type="submit" variant="primary" loading={loading} disabled={!namn.trim()}>
+            Skapa företag
+          </Button>
+        </form>
       </div>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <input
-          type="text"
-          value={namn}
-          onChange={(e) => setNamn(e.target.value)}
-          placeholder="Företagsnamn"
-          className="w-72 rounded-md border px-3 py-2"
-          autoFocus
-        />
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading || !namn.trim()}
-          className="rounded-md bg-black px-4 py-2 text-white hover:bg-neutral-800 disabled:opacity-50"
-        >
-          {loading ? 'Skapar…' : 'Skapa företag'}
-        </button>
-      </form>
+      <SignOutButton />
     </main>
   )
 }

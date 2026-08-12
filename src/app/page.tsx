@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { SignOutButton } from './sign-out-button'
+import { AppNav } from './nav'
 
 export default async function Home() {
   const supabase = await createClient()
@@ -14,12 +14,14 @@ export default async function Home() {
     .single()
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4">
-      <h1 className="text-2xl font-semibold">jobbet</h1>
-      <p>
-        Inloggad som {person?.namn ?? user?.email} ({person?.roll ?? 'okänd roll'})
-      </p>
-      <SignOutButton />
-    </main>
+    <>
+      <AppNav />
+      <main className="flex flex-1 flex-col items-center justify-center gap-1 p-6">
+        <h1 className="text-2xl font-semibold tracking-tight">jobbet</h1>
+        <p className="text-sm text-stone-500">
+          Inloggad som {person?.namn ?? user?.email} · {person?.roll ?? 'okänd roll'}
+        </p>
+      </main>
+    </>
   )
 }
