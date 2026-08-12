@@ -38,9 +38,9 @@ When a bug is hard to reproduce or the root cause is unclear:
 
 # Workflow rules
 
-- After completing work, always commit AND push to remote (`git push`). Do not stop at commit only.
-- Vercel deploys automatically from `main`. Never push directly to `main` if a change is not ready to deploy.
 - Commit between features/logical units of work rather than batching everything into one commit at the end of a session, so the git log stays readable and bisectable.
+- Do NOT push automatically after every commit. Only push when the user explicitly asks, or when Claude recommends it and the user agrees (e.g. wrapping up a session, ready to deploy).
+- Vercel deploys automatically from `main`. Never push directly to `main` if a change is not ready to deploy.
 
 # Database rules
 
