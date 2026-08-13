@@ -77,7 +77,7 @@ export default async function UppgifterPage({
       supabase
         .from('uppgift')
         .select(
-          'id, titel, beskrivning, status, prioritet, deadline, person_id, kund_id, typ_id, uppgiftsprojekt_id, serie_id, sortordning, tidsatgang_timmar'
+          'id, titel, beskrivning, status, prioritet, deadline, person_id, kund_id, typ_id, uppgiftsprojekt_id, serie_id, sortordning, tidsatgang_timmar, klockslag'
         )
         .or(`deadline.is.null,and(deadline.gte.${weekDates[0]},deadline.lte.${sundayISO})`)
         .order('sortordning'),
@@ -88,7 +88,7 @@ export default async function UppgifterPage({
       supabase
         .from('uppgift_serie')
         .select(
-          'id, titel, beskrivning, person_id, kund_id, typ_id, uppgiftsprojekt_id, prioritet, veckodagar, intervall_veckor, slut_datum, tidsatgang_timmar'
+          'id, titel, beskrivning, person_id, kund_id, typ_id, uppgiftsprojekt_id, prioritet, veckodagar, intervall_veckor, slut_datum, tidsatgang_timmar, klockslag'
         )
         .order('titel'),
     ])

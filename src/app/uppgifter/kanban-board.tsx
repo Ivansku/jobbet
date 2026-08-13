@@ -54,6 +54,7 @@ type Uppgift = {
   serie_id: string | null
   sortordning: number
   tidsatgang_timmar: number | null
+  klockslag: string | null
 }
 type Serie = {
   id: string
@@ -68,6 +69,7 @@ type Serie = {
   intervall_veckor: number
   slut_datum: string | null
   tidsatgang_timmar: number | null
+  klockslag: string | null
 }
 type Kolumn = { key: string; label: string; datum: string | null }
 
@@ -237,6 +239,14 @@ export function KanbanBoard({
         const foregaende = sorteradeIKolumn[malIndex - 1]
         nyOrdning = foregaende ? (foregaende.sortordning + malUppgift.sortordning) / 2 : malUppgift.sortordning - 1
       }
+    }
+
+    // Tidsatta kort ska alltid ligga i kronologisk ordning — oavsett var man
+    // släpper dem hamnar de i sitt korrekta klockslags-läge samma dag, istället
+    // för på droppositionen. Otidsatta kort behåller den fria drag-ordningen ovan.
+    const aktivtKort = uppgifterVy.find((u) => u.id === id)
+    if (aktivtKort?.klockslag && malDatum) {
+      nyOrdning = new Date(`${malDatum}T${aktivtKort.klockslag.slice(0, 5)}:00Z`).getTime() / 1000
     }
 
     startTransition(() => {
@@ -523,6 +533,9 @@ function KortInnehall({
       )}
       <div className="flex items-start justify-between gap-2">
         <p className={`text-sm font-medium break-words text-foreground ${klar ? 'line-through' : ''}`}>
+          {u.klockslag && (
+            <span className="mr-1.5 font-normal text-stone-400">{u.klockslag.slice(0, 5)}</span>
+          )}
           {u.titel}
         </p>
         <input
@@ -594,6 +607,7 @@ function UppgiftFormular({
   const [deadline, setDeadline] = useState(existing?.deadline ?? initialDeadline ?? '')
   const [status, setStatus] = useState(existing?.status ?? 'oppen')
   const [tidsatgang, setTidsatgang] = useState(existing?.tidsatgang_timmar?.toString() ?? '')
+  const [klockslag, setKlockslag] = useState(existing?.klockslag?.slice(0, 5) ?? '')
   const [aterkommande, setAterkommande] = useState(false)
   const [veckodagar, setVeckodagar] = useState<number[]>([])
   const [intervallVeckor, setIntervallVeckor] = useState(1)
@@ -609,6 +623,7 @@ function UppgiftFormular({
     setSparar(true)
 
     const tidsatgangTimmar = tidsatgang.trim() ? Number(tidsatgang) : null
+    const klockslagVarde = klockslag || null
 
     if (existing && aterkommande) {
       await gorUppgiftAterkommande(existing.id, {
@@ -624,6 +639,7 @@ function UppgiftFormular({
         intervallVeckor,
         slutDatum: slutDatum || null,
         tidsatgangTimmar,
+        klockslag: klockslagVarde,
       })
     } else if (existing) {
       await uppdateraUppgift(existing.id, {
@@ -637,6 +653,7 @@ function UppgiftFormular({
         deadline: deadline || null,
         status,
         tidsatgangTimmar,
+        klockslag: klockslagVarde,
       })
     } else if (aterkommande) {
       await skapaUppgiftSerie({
@@ -652,6 +669,7 @@ function UppgiftFormular({
         intervallVeckor,
         slutDatum: slutDatum || null,
         tidsatgangTimmar,
+        klockslag: klockslagVarde,
       })
     } else {
       await skapaUppgift({
@@ -665,6 +683,7 @@ function UppgiftFormular({
         deadline: deadline || null,
         status,
         tidsatgangTimmar,
+        klockslag: klockslagVarde,
       })
     }
 
@@ -822,15 +841,26 @@ function UppgiftFormular({
           </Field>
         </div>
 
-        <Field label={aterkommande ? 'Startdatum' : 'Dag'} htmlFor="uppgift-deadline">
-          <Input
-            type="date"
-            id="uppgift-deadline"
-            value={deadline ?? ''}
-            onChange={(e) => setDeadline(e.target.value)}
-            required={aterkommande}
-          />
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={aterkommande ? 'Startdatum' : 'Dag'} htmlFor="uppgift-deadline">
+            <Input
+              type="date"
+              id="uppgift-deadline"
+              value={deadline ?? ''}
+              onChange={(e) => setDeadline(e.target.value)}
+              required={aterkommande}
+            />
+          </Field>
+
+          <Field label={aterkommande ? 'Klockslag (för alla förekomster)' : 'Klockslag'} htmlFor="uppgift-klockslag">
+            <Input
+              type="time"
+              id="uppgift-klockslag"
+              value={klockslag}
+              onChange={(e) => setKlockslag(e.target.value)}
+            />
+          </Field>
+        </div>
 
         {!existing?.serie_id && (
           <div className="rounded-lg border border-border-subtle p-3">

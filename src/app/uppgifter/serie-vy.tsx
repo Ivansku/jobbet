@@ -28,6 +28,7 @@ type Serie = {
   intervall_veckor: number
   slut_datum: string | null
   tidsatgang_timmar: number | null
+  klockslag: string | null
 }
 
 const VECKODAGAR_KORT = ['Mån', 'Tis', 'Ons', 'Tors', 'Fre']
@@ -138,6 +139,7 @@ export function SerieFormular({
   const [intervallVeckor, setIntervallVeckor] = useState(serie.intervall_veckor)
   const [slutDatum, setSlutDatum] = useState(serie.slut_datum ?? '')
   const [tidsatgang, setTidsatgang] = useState(serie.tidsatgang_timmar?.toString() ?? '')
+  const [klockslag, setKlockslag] = useState(serie.klockslag?.slice(0, 5) ?? '')
   const [sparar, setSparar] = useState(false)
   const [visaAvsluta, setVisaAvsluta] = useState(false)
   const [visaTaBort, setVisaTaBort] = useState(false)
@@ -159,6 +161,7 @@ export function SerieFormular({
       intervallVeckor,
       slutDatum: slutDatum || null,
       tidsatgangTimmar: tidsatgang.trim() ? Number(tidsatgang) : null,
+      klockslag: klockslag || null,
     })
     setSparar(false)
     onClose()
@@ -284,6 +287,16 @@ export function SerieFormular({
               placeholder="T.ex. 1.5"
             />
             <p className="text-xs text-stone-400">Kopieras in i nya förekomster som standardvärde</p>
+          </Field>
+
+          <Field label="Klockslag" htmlFor="serie-klockslag">
+            <Input
+              type="time"
+              id="serie-klockslag"
+              value={klockslag}
+              onChange={(e) => setKlockslag(e.target.value)}
+            />
+            <p className="text-xs text-stone-400">Styr ordningen bland andra tidsatta uppgifter samma dag</p>
           </Field>
         </div>
 

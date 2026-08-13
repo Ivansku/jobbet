@@ -27,6 +27,15 @@ function todayISODate() {
   return `${y}-${m}-${d}`
 }
 
+// Uppgifter med klockslag ska alltid hamna i kronologisk ordning bland andra
+// tidsatta uppgifter samma dag, utan att man behöver dra dem dit manuellt.
+// sortordning återanvänds som den delade sorteringsnyckeln (precis som idag),
+// men sätts deterministiskt till dag+klockslagets epoktid istället för "nu".
+function beraknaSortordning(deadline: string | null, klockslag: string | null): number | undefined {
+  if (!deadline || !klockslag) return undefined
+  return new Date(`${deadline}T${klockslag}:00Z`).getTime() / 1000
+}
+
 export async function skapaUppgift(input: {
   titel: string
   beskrivning: string
@@ -38,11 +47,13 @@ export async function skapaUppgift(input: {
   deadline: string | null
   status: string
   tidsatgangTimmar: number | null
+  klockslag: string | null
 }) {
   const foretagId = await currentForetagId()
   if (!foretagId) return
 
   const supabase = await createClient()
+  const sortordning = beraknaSortordning(input.deadline, input.klockslag)
   await supabase.from('uppgift').insert({
     foretag_id: foretagId,
     titel: input.titel,
@@ -55,6 +66,8 @@ export async function skapaUppgift(input: {
     deadline: input.deadline,
     status: input.status,
     tidsatgang_timmar: input.tidsatgangTimmar,
+    klockslag: input.klockslag,
+    ...(sortordning !== undefined ? { sortordning } : {}),
   })
 
   revalidatePath('/uppgifter')
@@ -73,6 +86,7 @@ export async function skapaUppgiftSerie(input: {
   intervallVeckor: number
   slutDatum: string | null
   tidsatgangTimmar: number | null
+  klockslag: string | null
 }) {
   if (input.veckodagar.length === 0) return
   const foretagId = await currentForetagId()
@@ -93,6 +107,7 @@ export async function skapaUppgiftSerie(input: {
     intervall_veckor: input.intervallVeckor,
     slut_datum: input.slutDatum,
     tidsatgang_timmar: input.tidsatgangTimmar,
+    klockslag: input.klockslag,
   })
 
   await supabase.rpc('generera_serie_forekomster', { p_foretag_id: foretagId })
@@ -115,6 +130,7 @@ export async function gorUppgiftAterkommande(
     intervallVeckor: number
     slutDatum: string | null
     tidsatgangTimmar: number | null
+    klockslag: string | null
   }
 ) {
   if (input.veckodagar.length === 0) return
@@ -139,6 +155,7 @@ export async function gorUppgiftAterkommande(
       intervall_veckor: input.intervallVeckor,
       slut_datum: input.slutDatum,
       tidsatgang_timmar: input.tidsatgangTimmar,
+      klockslag: input.klockslag,
       // hindrar att startdatumet genereras en gång till — den befintliga
       // uppgiften utgör redan den förekomsten
       senast_genererad_datum: input.startDatum,
@@ -148,6 +165,7 @@ export async function gorUppgiftAterkommande(
 
   if (!serie) return
 
+  const sortordning = beraknaSortordning(input.startDatum, input.klockslag)
   await supabase
     .from('uppgift')
     .update({
@@ -160,6 +178,8 @@ export async function gorUppgiftAterkommande(
       uppgiftsprojekt_id: input.uppgiftsprojektId || null,
       prioritet: input.prioritet,
       deadline: input.startDatum,
+      klockslag: input.klockslag,
+      ...(sortordning !== undefined ? { sortordning } : {}),
     })
     .eq('id', uppgiftId)
 
@@ -182,6 +202,7 @@ export async function uppdateraSerie(
     intervallVeckor: number
     slutDatum: string | null
     tidsatgangTimmar: number | null
+    klockslag: string | null
   }
 ) {
   if (input.veckodagar.length === 0) return
@@ -205,6 +226,7 @@ export async function uppdateraSerie(
       intervall_veckor: input.intervallVeckor,
       slut_datum: input.slutDatum,
       tidsatgang_timmar: input.tidsatgangTimmar,
+      klockslag: input.klockslag,
       senast_genererad_datum: idag,
     })
     .eq('id', id)
@@ -251,9 +273,11 @@ export async function uppdateraUppgift(
     deadline: string | null
     status: string
     tidsatgangTimmar: number | null
+    klockslag: string | null
   }
 ) {
   const supabase = await createClient()
+  const sortordning = beraknaSortordning(input.deadline, input.klockslag)
   await supabase
     .from('uppgift')
     .update({
@@ -267,6 +291,8 @@ export async function uppdateraUppgift(
       deadline: input.deadline,
       status: input.status,
       tidsatgang_timmar: input.tidsatgangTimmar,
+      klockslag: input.klockslag,
+      ...(sortordning !== undefined ? { sortordning } : {}),
     })
     .eq('id', id)
 
