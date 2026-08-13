@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Field } from '@/components/ui/field'
-import { Input, Textarea, Select } from '@/components/ui/input'
+import { Input, Select } from '@/components/ui/input'
+import { MarkdownEditor } from '@/components/ui/markdown-editor'
 import { EmptyState } from '@/components/ui/empty-state'
 import { VeckodagValjare } from './veckodag-valjare'
 import { KundValjare } from './kund-valjare'
@@ -218,12 +219,7 @@ export function SerieFormular({
         </Field>
 
         <Field label="Beskrivning" htmlFor="serie-beskrivning">
-          <Textarea
-            id="serie-beskrivning"
-            value={beskrivning}
-            onChange={(e) => setBeskrivning(e.target.value)}
-            rows={3}
-          />
+          <MarkdownEditor id="serie-beskrivning" value={beskrivning} onChange={setBeskrivning} />
         </Field>
 
         <div className="grid grid-cols-2 gap-3">

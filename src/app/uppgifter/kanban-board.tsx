@@ -31,7 +31,8 @@ import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Field } from '@/components/ui/field'
-import { Input, Textarea, Select } from '@/components/ui/input'
+import { Input, Select } from '@/components/ui/input'
+import { MarkdownEditor } from '@/components/ui/markdown-editor'
 import { VeckodagValjare } from './veckodag-valjare'
 import { KundValjare } from './kund-valjare'
 import { SerieVy, SerieFormular } from './serie-vy'
@@ -747,12 +748,7 @@ function UppgiftFormular({
         </Field>
 
         <Field label="Beskrivning" htmlFor="uppgift-beskrivning">
-          <Textarea
-            id="uppgift-beskrivning"
-            value={beskrivning ?? ''}
-            onChange={(e) => setBeskrivning(e.target.value)}
-            rows={3}
-          />
+          <MarkdownEditor id="uppgift-beskrivning" value={beskrivning ?? ''} onChange={setBeskrivning} />
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
