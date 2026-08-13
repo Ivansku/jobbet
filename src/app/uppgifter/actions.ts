@@ -37,6 +37,7 @@ export async function skapaUppgift(input: {
   prioritet: string
   deadline: string | null
   status: string
+  tidsatgangTimmar: number | null
 }) {
   const foretagId = await currentForetagId()
   if (!foretagId) return
@@ -53,6 +54,7 @@ export async function skapaUppgift(input: {
     prioritet: input.prioritet,
     deadline: input.deadline,
     status: input.status,
+    tidsatgang_timmar: input.tidsatgangTimmar,
   })
 
   revalidatePath('/uppgifter')
@@ -242,6 +244,7 @@ export async function uppdateraUppgift(
     prioritet: string
     deadline: string | null
     status: string
+    tidsatgangTimmar: number | null
   }
 ) {
   const supabase = await createClient()
@@ -257,6 +260,7 @@ export async function uppdateraUppgift(
       prioritet: input.prioritet,
       deadline: input.deadline,
       status: input.status,
+      tidsatgang_timmar: input.tidsatgangTimmar,
     })
     .eq('id', id)
 

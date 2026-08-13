@@ -53,6 +53,7 @@ type Uppgift = {
   uppgiftsprojekt_id: string | null
   serie_id: string | null
   sortordning: number
+  tidsatgang_timmar: number | null
 }
 type Serie = {
   id: string
@@ -512,20 +513,25 @@ function KortInnehall({
           onChange={onToggleStatus ? () => onToggleStatus(u) : undefined}
         />
       </div>
-      {(forsenad || vantar || ansvarigNamn) && (
+      {(forsenad || vantar || ansvarigNamn || u.tidsatgang_timmar) && (
         <div className="mt-1.5 flex items-center justify-between gap-1">
           <div className="flex flex-wrap gap-1">
             {forsenad && <Badge tone="danger">Försenad</Badge>}
             {vantar && <Badge tone="warning">Väntar</Badge>}
           </div>
-          {ansvarigNamn && (
-            <span
-              title={ansvarigNamn}
-              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-100 text-[10px] font-semibold text-accent-700 dark:bg-accent-900 dark:text-accent-300"
-            >
-              {initialer(ansvarigNamn)}
-            </span>
-          )}
+          <div className="flex shrink-0 items-center gap-1">
+            {!!u.tidsatgang_timmar && (
+              <span className="text-[10px] font-medium text-stone-400">{u.tidsatgang_timmar}h</span>
+            )}
+            {ansvarigNamn && (
+              <span
+                title={ansvarigNamn}
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-100 text-[10px] font-semibold text-accent-700 dark:bg-accent-900 dark:text-accent-300"
+              >
+                {initialer(ansvarigNamn)}
+              </span>
+            )}
+          </div>
         </div>
       )}
     </>
@@ -560,6 +566,7 @@ function UppgiftFormular({
   const [prioritet, setPrioritet] = useState(existing?.prioritet ?? 'lag')
   const [deadline, setDeadline] = useState(existing?.deadline ?? initialDeadline ?? '')
   const [status, setStatus] = useState(existing?.status ?? 'oppen')
+  const [tidsatgang, setTidsatgang] = useState(existing?.tidsatgang_timmar?.toString() ?? '')
   const [aterkommande, setAterkommande] = useState(false)
   const [veckodagar, setVeckodagar] = useState<number[]>([])
   const [intervallVeckor, setIntervallVeckor] = useState(1)
@@ -573,6 +580,8 @@ function UppgiftFormular({
     if (!titel.trim()) return
     if (aterkommande && (!deadline || veckodagar.length === 0)) return
     setSparar(true)
+
+    const tidsatgangTimmar = tidsatgang.trim() ? Number(tidsatgang) : null
 
     if (existing && aterkommande) {
       await gorUppgiftAterkommande(existing.id, {
@@ -599,6 +608,7 @@ function UppgiftFormular({
         prioritet,
         deadline: deadline || null,
         status,
+        tidsatgangTimmar,
       })
     } else if (aterkommande) {
       await skapaUppgiftSerie({
@@ -625,6 +635,7 @@ function UppgiftFormular({
         prioritet,
         deadline: deadline || null,
         status,
+        tidsatgangTimmar,
       })
     }
 
@@ -743,6 +754,20 @@ function UppgiftFormular({
                 <option value="vantar">Väntar</option>
                 <option value="klar">Klar</option>
               </Select>
+            </Field>
+          )}
+
+          {!aterkommande && (
+            <Field label="Tidsåtgång (timmar)" htmlFor="uppgift-tidsatgang">
+              <Input
+                type="number"
+                id="uppgift-tidsatgang"
+                min={0}
+                step={0.5}
+                value={tidsatgang}
+                onChange={(e) => setTidsatgang(e.target.value)}
+                placeholder="T.ex. 0.5"
+              />
             </Field>
           )}
         </div>
