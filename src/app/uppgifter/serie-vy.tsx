@@ -27,6 +27,7 @@ type Serie = {
   veckodagar: number[]
   intervall_veckor: number
   slut_datum: string | null
+  tidsatgang_timmar: number | null
 }
 
 const VECKODAGAR_KORT = ['Mån', 'Tis', 'Ons', 'Tors', 'Fre']
@@ -111,7 +112,7 @@ export function SerieVy({
   )
 }
 
-function SerieFormular({
+export function SerieFormular({
   serie,
   personer,
   kunder,
@@ -136,6 +137,7 @@ function SerieFormular({
   const [veckodagar, setVeckodagar] = useState<number[]>(serie.veckodagar)
   const [intervallVeckor, setIntervallVeckor] = useState(serie.intervall_veckor)
   const [slutDatum, setSlutDatum] = useState(serie.slut_datum ?? '')
+  const [tidsatgang, setTidsatgang] = useState(serie.tidsatgang_timmar?.toString() ?? '')
   const [sparar, setSparar] = useState(false)
   const [visaAvsluta, setVisaAvsluta] = useState(false)
   const [visaTaBort, setVisaTaBort] = useState(false)
@@ -156,6 +158,7 @@ function SerieFormular({
       veckodagar,
       intervallVeckor,
       slutDatum: slutDatum || null,
+      tidsatgangTimmar: tidsatgang.trim() ? Number(tidsatgang) : null,
     })
     setSparar(false)
     onClose()
@@ -268,6 +271,19 @@ function SerieFormular({
               <option value="medel">Medel</option>
               <option value="hog">Hög</option>
             </Select>
+          </Field>
+
+          <Field label="Tidsåtgång (timmar)" htmlFor="serie-tidsatgang">
+            <Input
+              type="number"
+              id="serie-tidsatgang"
+              min={0}
+              step={0.5}
+              value={tidsatgang}
+              onChange={(e) => setTidsatgang(e.target.value)}
+              placeholder="T.ex. 1.5"
+            />
+            <p className="text-xs text-stone-400">Kopieras in i nya förekomster som standardvärde</p>
           </Field>
         </div>
 

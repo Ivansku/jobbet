@@ -72,6 +72,7 @@ export async function skapaUppgiftSerie(input: {
   veckodagar: number[]
   intervallVeckor: number
   slutDatum: string | null
+  tidsatgangTimmar: number | null
 }) {
   if (input.veckodagar.length === 0) return
   const foretagId = await currentForetagId()
@@ -91,6 +92,7 @@ export async function skapaUppgiftSerie(input: {
     veckodagar: input.veckodagar,
     intervall_veckor: input.intervallVeckor,
     slut_datum: input.slutDatum,
+    tidsatgang_timmar: input.tidsatgangTimmar,
   })
 
   await supabase.rpc('generera_serie_forekomster', { p_foretag_id: foretagId })
@@ -112,6 +114,7 @@ export async function gorUppgiftAterkommande(
     veckodagar: number[]
     intervallVeckor: number
     slutDatum: string | null
+    tidsatgangTimmar: number | null
   }
 ) {
   if (input.veckodagar.length === 0) return
@@ -135,6 +138,7 @@ export async function gorUppgiftAterkommande(
       veckodagar: input.veckodagar,
       intervall_veckor: input.intervallVeckor,
       slut_datum: input.slutDatum,
+      tidsatgang_timmar: input.tidsatgangTimmar,
       // hindrar att startdatumet genereras en gång till — den befintliga
       // uppgiften utgör redan den förekomsten
       senast_genererad_datum: input.startDatum,
@@ -177,6 +181,7 @@ export async function uppdateraSerie(
     veckodagar: number[]
     intervallVeckor: number
     slutDatum: string | null
+    tidsatgangTimmar: number | null
   }
 ) {
   if (input.veckodagar.length === 0) return
@@ -199,6 +204,7 @@ export async function uppdateraSerie(
       veckodagar: input.veckodagar,
       intervall_veckor: input.intervallVeckor,
       slut_datum: input.slutDatum,
+      tidsatgang_timmar: input.tidsatgangTimmar,
       senast_genererad_datum: idag,
     })
     .eq('id', id)

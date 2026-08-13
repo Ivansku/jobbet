@@ -88,7 +88,7 @@ export default async function UppgifterPage({
       supabase
         .from('uppgift_serie')
         .select(
-          'id, titel, beskrivning, person_id, kund_id, typ_id, uppgiftsprojekt_id, prioritet, veckodagar, intervall_veckor, slut_datum'
+          'id, titel, beskrivning, person_id, kund_id, typ_id, uppgiftsprojekt_id, prioritet, veckodagar, intervall_veckor, slut_datum, tidsatgang_timmar'
         )
         .order('titel'),
     ])

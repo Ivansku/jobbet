@@ -34,7 +34,7 @@ import { Field } from '@/components/ui/field'
 import { Input, Textarea, Select } from '@/components/ui/input'
 import { VeckodagValjare } from './veckodag-valjare'
 import { KundValjare } from './kund-valjare'
-import { SerieVy } from './serie-vy'
+import { SerieVy, SerieFormular } from './serie-vy'
 
 type Person = { id: string; namn: string }
 type Kund = { id: string; namn: string }
@@ -67,6 +67,7 @@ type Serie = {
   veckodagar: number[]
   intervall_veckor: number
   slut_datum: string | null
+  tidsatgang_timmar: number | null
 }
 type Kolumn = { key: string; label: string; datum: string | null }
 
@@ -122,6 +123,15 @@ export function KanbanBoard({
   const [redigerar, setRedigerar] = useState<Uppgift | 'ny' | null>(null)
   const [nyDatum, setNyDatum] = useState<string | null>(null)
   const [aktivId, setAktivId] = useState<string | null>(null)
+  const [redigerarSerie, setRedigerarSerie] = useState<Serie | null>(null)
+
+  function oppnaSerieRedigering(serieId: string) {
+    const serie = serier.find((s) => s.id === serieId)
+    if (serie) {
+      setRedigerar(null)
+      setRedigerarSerie(serie)
+    }
+  }
 
   // Optimistisk lokal patch så ett kort hamnar rätt direkt vid drag/klarmarkering,
   // istället för att hoppa tillbaka i väntan på serverns svar och en omladdning av sidan.
@@ -328,9 +338,22 @@ export function KanbanBoard({
           kunder={kunder}
           typer={typer}
           projekt={projekt}
+          serier={serier}
           currentPersonId={currentPersonId}
           initialDeadline={nyDatum}
+          onEditSerie={oppnaSerieRedigering}
           onClose={() => setRedigerar(null)}
+        />
+      )}
+
+      {redigerarSerie && (
+        <SerieFormular
+          serie={redigerarSerie}
+          personer={personer}
+          kunder={kunder}
+          typer={typer}
+          projekt={projekt}
+          onClose={() => setRedigerarSerie(null)}
         />
       )}
     </DndContext>
@@ -544,8 +567,10 @@ function UppgiftFormular({
   kunder,
   typer,
   projekt,
+  serier,
   currentPersonId,
   initialDeadline,
+  onEditSerie,
   onClose,
 }: {
   existing: Uppgift | null
@@ -553,8 +578,10 @@ function UppgiftFormular({
   kunder: Kund[]
   typer: Typ[]
   projekt: Projekt[]
+  serier: Serie[]
   currentPersonId: string | null
   initialDeadline: string | null
+  onEditSerie: (serieId: string) => void
   onClose: () => void
 }) {
   const [titel, setTitel] = useState(existing?.titel ?? '')
@@ -596,6 +623,7 @@ function UppgiftFormular({
         veckodagar,
         intervallVeckor,
         slutDatum: slutDatum || null,
+        tidsatgangTimmar,
       })
     } else if (existing) {
       await uppdateraUppgift(existing.id, {
@@ -623,6 +651,7 @@ function UppgiftFormular({
         veckodagar,
         intervallVeckor,
         slutDatum: slutDatum || null,
+        tidsatgangTimmar,
       })
     } else {
       await skapaUppgift({
@@ -668,6 +697,26 @@ function UppgiftFormular({
         <h2 id="uppgift-formular-title" className="text-lg font-semibold">
           {existing ? 'Redigera uppgift' : 'Ny uppgift'}
         </h2>
+
+        {existing?.serie_id && (
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-border-subtle bg-stone-50 px-3 py-2 text-xs text-stone-500 dark:bg-stone-800">
+            <span>
+              Del av serien &quot;{serier.find((s) => s.id === existing.serie_id)?.titel ?? ''}&quot;. Ändringar här
+              gäller bara den här uppgiften.
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                const serieId = existing.serie_id
+                onClose()
+                if (serieId) onEditSerie(serieId)
+              }}
+              className="shrink-0 font-medium text-orange-600 hover:underline dark:text-orange-400"
+            >
+              Redigera serie
+            </button>
+          </div>
+        )}
 
         <Field label="Titel" htmlFor="uppgift-titel">
           <Input
@@ -757,19 +806,20 @@ function UppgiftFormular({
             </Field>
           )}
 
-          {!aterkommande && (
-            <Field label="Tidsåtgång (timmar)" htmlFor="uppgift-tidsatgang">
-              <Input
-                type="number"
-                id="uppgift-tidsatgang"
-                min={0}
-                step={0.5}
-                value={tidsatgang}
-                onChange={(e) => setTidsatgang(e.target.value)}
-                placeholder="T.ex. 0.5"
-              />
-            </Field>
-          )}
+          <Field
+            label={aterkommande ? 'Tidsåtgång (standard för serien)' : 'Tidsåtgång (timmar)'}
+            htmlFor="uppgift-tidsatgang"
+          >
+            <Input
+              type="number"
+              id="uppgift-tidsatgang"
+              min={0}
+              step={0.5}
+              value={tidsatgang}
+              onChange={(e) => setTidsatgang(e.target.value)}
+              placeholder="T.ex. 0.5"
+            />
+          </Field>
         </div>
 
         <Field label={aterkommande ? 'Startdatum' : 'Dag'} htmlFor="uppgift-deadline">
