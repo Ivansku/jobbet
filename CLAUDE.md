@@ -54,7 +54,7 @@ This project uses Supabase with Row Level Security. Claude may use Supabase MCP 
 
 ## Column constraints
 
-- `uppgift.status` has a CHECK constraint: allowed values are `öppen`, `pågår`, `klar`. Verify before inserting new values or ALTER the constraint first.
+- `uppgift.status` has a CHECK constraint: allowed values are `öppen`, `pågår`, `väntar`, `klar`. Verify before inserting new values or ALTER the constraint first.
 - `uppgift.prioritet` has a CHECK constraint: allowed values are `låg`, `medel`, `hög`.
 - `person.roll` has a CHECK constraint: allowed values are `admin`, `medlem`.
 - Before inserting a new value into any enum-like column, check if a CHECK constraint exists and verify the value is allowed — or ALTER the constraint first.

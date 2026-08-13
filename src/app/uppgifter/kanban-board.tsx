@@ -1,7 +1,10 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useOptimistic, useState, useTransition } from 'react'
 import {
+  closestCenter,
+  pointerWithin,
+  rectIntersection,
   DndContext,
   DragOverlay,
   MouseSensor,
@@ -10,12 +13,14 @@ import {
   useDroppable,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
 import {
   skapaUppgift,
   skapaUppgiftSerie,
+  gorUppgiftAterkommande,
   uppdateraUppgift,
   flyttaUppgift,
   uppdateraStatus,
@@ -28,11 +33,13 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Field } from '@/components/ui/field'
 import { Input, Textarea, Select } from '@/components/ui/input'
 import { VeckodagValjare } from './veckodag-valjare'
+import { KundValjare } from './kund-valjare'
 import { SerieVy } from './serie-vy'
 
 type Person = { id: string; namn: string }
 type Kund = { id: string; namn: string }
 type Typ = { id: string; namn: string }
+type Projekt = { id: string; namn: string }
 type Uppgift = {
   id: string
   titel: string
@@ -43,6 +50,9 @@ type Uppgift = {
   person_id: string | null
   kund_id: string | null
   typ_id: string | null
+  uppgiftsprojekt_id: string | null
+  serie_id: string | null
+  sortordning: number
 }
 type Serie = {
   id: string
@@ -51,6 +61,7 @@ type Serie = {
   person_id: string | null
   kund_id: string | null
   typ_id: string | null
+  uppgiftsprojekt_id: string | null
   prioritet: string
   veckodagar: number[]
   intervall_veckor: number
@@ -60,18 +71,23 @@ type Kolumn = { key: string; label: string; datum: string | null }
 
 const VECKODAGAR = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag']
 
-const PRIORITET_META: Record<
-  string,
-  { label: string; tone: 'neutral' | 'warning' | 'danger'; border: string }
-> = {
-  lag: { label: 'Låg', tone: 'neutral', border: 'border-l-stone-300 dark:border-l-stone-600' },
-  medel: { label: 'Medel', tone: 'warning', border: 'border-l-amber-400 dark:border-l-amber-500' },
-  hog: { label: 'Hög', tone: 'danger', border: 'border-l-red-400 dark:border-l-red-500' },
+// Prioritet syns bara som en dämpad kantfärg på kortet (ingen separat badge/text) —
+// tillräckligt urskiljbart utan att konkurrera om uppmärksamhet med resten av kortet.
+const PRIORITET_BORDER: Record<string, string> = {
+  lag: 'border-l-stone-300 dark:border-l-stone-600',
+  medel: 'border-l-amber-400 dark:border-l-amber-500',
+  hog: 'border-l-red-400 dark:border-l-red-500',
 }
 
 function kortDatum(iso: string) {
   const [, m, d] = iso.split('-')
   return `${parseInt(d, 10)}/${parseInt(m, 10)}`
+}
+
+function initialer(namn: string) {
+  const delar = namn.trim().split(/\s+/)
+  if (delar.length === 1) return delar[0].slice(0, 2).toUpperCase()
+  return (delar[0][0] + delar[delar.length - 1][0]).toUpperCase()
 }
 
 export function KanbanBoard({
@@ -81,6 +97,7 @@ export function KanbanBoard({
   personer,
   kunder,
   typer,
+  projekt,
   serier,
   currentPersonId,
   prevVeckaHref,
@@ -93,6 +110,7 @@ export function KanbanBoard({
   personer: Person[]
   kunder: Kund[]
   typer: Typ[]
+  projekt: Projekt[]
   serier: Serie[]
   currentPersonId: string | null
   prevVeckaHref: string
@@ -101,7 +119,21 @@ export function KanbanBoard({
 }) {
   const [, startTransition] = useTransition()
   const [redigerar, setRedigerar] = useState<Uppgift | 'ny' | null>(null)
+  const [nyDatum, setNyDatum] = useState<string | null>(null)
   const [aktivId, setAktivId] = useState<string | null>(null)
+
+  // Optimistisk lokal patch så ett kort hamnar rätt direkt vid drag/klarmarkering,
+  // istället för att hoppa tillbaka i väntan på serverns svar och en omladdning av sidan.
+  const [uppgifterVy, patchUppgiftOptimistiskt] = useOptimistic(
+    uppgifter,
+    (state, { id, patch }: { id: string; patch: Partial<Uppgift> }) =>
+      state.map((u) => (u.id === id ? { ...u, ...patch } : u))
+  )
+
+  function oppnaNy(datum: string | null) {
+    setNyDatum(datum)
+    setRedigerar('ny')
+  }
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -111,14 +143,39 @@ export function KanbanBoard({
   const personMap = new Map(personer.map((p) => [p.id, p.namn]))
   const kundMap = new Map(kunder.map((k) => [k.id, k.namn]))
   const typMap = new Map(typer.map((t) => [t.id, t.namn]))
+  const projektMap = new Map(projekt.map((p) => [p.id, p.namn]))
   const weekDateSet = new Set(weekDates)
+
+  // Vilken kolumn en uppgift hör hemma i just nu — samma regel som filtreringen
+  // nedan använder, men som en delad funktion så drag-and-drop-logiken kan fråga
+  // "vilken lista tillhör kortet jag släppte på?".
+  function kolumnForUppgift(u: Uppgift): string | null {
+    return u.deadline && weekDateSet.has(u.deadline) ? u.deadline : null
+  }
 
   const kolumner: Kolumn[] = [
     { key: 'oplanerad', label: 'Oplanerad', datum: null },
     ...weekDates.map((datum, i) => ({ key: datum, label: VECKODAGAR[i], datum })),
   ]
+  const kolumnNycklar = new Set(kolumner.map((k) => k.key))
 
-  const aktivUppgift = aktivId ? (uppgifter.find((u) => u.id === aktivId) ?? null) : null
+  // Kolumnen är ett droppbart mål lika stort som hela listan, vilket annars kan "vinna"
+  // över ett specifikt kort när man släpper mellan två kort — man hamnar då längst ner
+  // i stället för mellan korten. Prioriterar därför träffar på kort (via pekarens
+  // position) före hela kolumnen, och faller bara tillbaka på kolumnen när inget
+  // kort träffas alls (dvs. verkligen tom yta).
+  const collisionDetectionStrategy: CollisionDetection = (args) => {
+    const kortContainers = args.droppableContainers.filter((c) => !kolumnNycklar.has(String(c.id)))
+    const kortTraffar = pointerWithin({ ...args, droppableContainers: kortContainers })
+    if (kortTraffar.length > 0) return kortTraffar
+
+    const traffar = rectIntersection(args)
+    if (traffar.length > 0) return traffar
+
+    return closestCenter(args)
+  }
+
+  const aktivUppgift = aktivId ? (uppgifterVy.find((u) => u.id === aktivId) ?? null) : null
 
   function handleDragStart(event: DragStartEvent) {
     setAktivId(String(event.active.id))
@@ -128,16 +185,60 @@ export function KanbanBoard({
     setAktivId(null)
     const { active, over } = event
     if (!over) return
-    const kolumn = kolumner.find((k) => k.key === over.id)
-    if (!kolumn) return
+    const id = String(active.id)
+    const overId = String(over.id)
+    if (id === overId) return
+
+    // Släppt direkt i en kolumn (tom yta eller "+ Ny uppgift"-området) — lägg sist i den listan.
+    // Släppt på ett annat kort — kliv in före eller efter det beroende på vilken halva av
+    // kortet du släppte på (annars gick det aldrig att flytta ett kort förbi sin närmaste
+    // granne, bara "framför" — att släppa ovanpå nästa kort blev då en no-op).
+    const kolumnTraff = kolumner.find((k) => k.key === overId)
+    let malDatum: string | null
+    let sorteradeIKolumn: Uppgift[]
+    let nyOrdning: number
+
+    if (kolumnTraff) {
+      malDatum = kolumnTraff.datum
+      sorteradeIKolumn = uppgifterVy
+        .filter((u) => u.id !== id && kolumnForUppgift(u) === malDatum)
+        .sort((a, b) => a.sortordning - b.sortordning)
+      const sista = sorteradeIKolumn[sorteradeIKolumn.length - 1]
+      nyOrdning = sista ? sista.sortordning + 1 : 0
+    } else {
+      const malUppgift = uppgifterVy.find((u) => u.id === overId)
+      if (!malUppgift) return
+      malDatum = kolumnForUppgift(malUppgift)
+      sorteradeIKolumn = uppgifterVy
+        .filter((u) => u.id !== id && kolumnForUppgift(u) === malDatum)
+        .sort((a, b) => a.sortordning - b.sortordning)
+      const malIndex = sorteradeIKolumn.findIndex((u) => u.id === overId)
+
+      const activeRect = active.rect.current.translated
+      const overRect = over.rect
+      const infogaEfter =
+        !!activeRect && activeRect.top + activeRect.height / 2 > overRect.top + overRect.height / 2
+
+      if (infogaEfter) {
+        const nasta = sorteradeIKolumn[malIndex + 1]
+        nyOrdning = nasta ? (malUppgift.sortordning + nasta.sortordning) / 2 : malUppgift.sortordning + 1
+      } else {
+        const foregaende = sorteradeIKolumn[malIndex - 1]
+        nyOrdning = foregaende ? (foregaende.sortordning + malUppgift.sortordning) / 2 : malUppgift.sortordning - 1
+      }
+    }
+
     startTransition(() => {
-      flyttaUppgift(String(active.id), kolumn.datum)
+      patchUppgiftOptimistiskt({ id, patch: { deadline: malDatum, sortordning: nyOrdning } })
+      flyttaUppgift(id, malDatum, nyOrdning)
     })
   }
 
   function toggleStatus(u: Uppgift) {
+    const nyStatus = u.status === 'klar' ? 'oppen' : 'klar'
     startTransition(() => {
-      uppdateraStatus(u.id, u.status === 'klar' ? 'oppen' : 'klar')
+      patchUppgiftOptimistiskt({ id: u.id, patch: { status: nyStatus } })
+      uppdateraStatus(u.id, nyStatus)
     })
   }
 
@@ -145,6 +246,7 @@ export function KanbanBoard({
     <DndContext
       id="uppgifter-kanban"
       sensors={sensors}
+      collisionDetection={collisionDetectionStrategy}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
@@ -171,27 +273,29 @@ export function KanbanBoard({
             </a>
           </div>
           <div className="flex gap-2">
-            <SerieVy serier={serier} personer={personer} kunder={kunder} typer={typer} />
-            <Button variant="primary" onClick={() => setRedigerar('ny')}>
+            <SerieVy serier={serier} personer={personer} kunder={kunder} typer={typer} projekt={projekt} />
+            <Button variant="primary" onClick={() => oppnaNy(null)}>
               Ny uppgift
             </Button>
           </div>
         </div>
 
-        <div className="grid grid-flow-col auto-cols-[85%] gap-4 overflow-x-auto pb-2 snap-x snap-mandatory sm:auto-cols-[280px] md:grid-flow-row md:auto-cols-auto md:grid-cols-6 md:overflow-visible">
+        <div className="grid grid-flow-col auto-cols-[85%] items-start gap-4 overflow-x-auto pb-2 snap-x snap-mandatory sm:auto-cols-[280px] md:grid-flow-row md:auto-cols-auto md:grid-cols-6 md:overflow-visible">
           {kolumner.map((kol) => (
             <KanbanColumn
               key={kol.key}
               kol={kol}
               today={today}
-              uppgifter={uppgifter.filter((u) =>
-                kol.datum === null ? !u.deadline || !weekDateSet.has(u.deadline) : u.deadline === kol.datum
-              )}
+              uppgifter={uppgifterVy
+                .filter((u) => kolumnForUppgift(u) === kol.datum)
+                .sort((a, b) => a.sortordning - b.sortordning)}
               personMap={personMap}
               kundMap={kundMap}
               typMap={typMap}
+              projektMap={projektMap}
               onSelect={setRedigerar}
               onToggleStatus={toggleStatus}
+              onAddNew={oppnaNy}
             />
           ))}
         </div>
@@ -201,16 +305,16 @@ export function KanbanBoard({
         {aktivUppgift ? (
           <div
             className={`rounded-xl border border-border-subtle border-l-4 bg-surface p-3 shadow-lg ${
-              (PRIORITET_META[aktivUppgift.prioritet] ?? PRIORITET_META.medel).border
-            }`}
+              (PRIORITET_BORDER[aktivUppgift.prioritet] ?? PRIORITET_BORDER.medel)
+            } ${aktivUppgift.status === 'klar' ? 'opacity-60' : ''}`}
           >
-            <p className="text-sm font-medium break-words text-foreground">{aktivUppgift.titel}</p>
-            <KortBadges
+            <KortInnehall
               uppgift={aktivUppgift}
               today={today}
               personMap={personMap}
               kundMap={kundMap}
               typMap={typMap}
+              projektMap={projektMap}
             />
           </div>
         ) : null}
@@ -222,7 +326,9 @@ export function KanbanBoard({
           personer={personer}
           kunder={kunder}
           typer={typer}
+          projekt={projekt}
           currentPersonId={currentPersonId}
+          initialDeadline={nyDatum}
           onClose={() => setRedigerar(null)}
         />
       )}
@@ -237,8 +343,10 @@ function KanbanColumn({
   personMap,
   kundMap,
   typMap,
+  projektMap,
   onSelect,
   onToggleStatus,
+  onAddNew,
 }: {
   kol: Kolumn
   today: string
@@ -246,8 +354,10 @@ function KanbanColumn({
   personMap: Map<string, string>
   kundMap: Map<string, string>
   typMap: Map<string, string>
+  projektMap: Map<string, string>
   onSelect: (u: Uppgift) => void
   onToggleStatus: (u: Uppgift) => void
+  onAddNew: (datum: string | null) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: kol.key })
   const arIdag = kol.datum === today
@@ -267,7 +377,7 @@ function KanbanColumn({
         {arIdag && <span className="h-1.5 w-1.5 rounded-full bg-accent-600" aria-label="Idag" />}
       </h2>
 
-      <div className="flex max-h-[65vh] flex-col gap-2 overflow-y-auto">
+      <div className="flex max-h-[65vh] flex-1 flex-col gap-2 overflow-y-auto">
         {uppgifter.length === 0 ? (
           <p className="py-4 text-center text-xs text-stone-400">Inga uppgifter</p>
         ) : (
@@ -279,11 +389,20 @@ function KanbanColumn({
               personMap={personMap}
               kundMap={kundMap}
               typMap={typMap}
+              projektMap={projektMap}
               onSelect={onSelect}
               onToggleStatus={onToggleStatus}
             />
           ))
         )}
+
+        <button
+          type="button"
+          onClick={() => onAddNew(kol.datum)}
+          className="mt-auto rounded-lg px-2 py-1.5 text-center text-xs text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-700 dark:hover:text-stone-300"
+        >
+          + Ny uppgift
+        </button>
       </div>
     </div>
   )
@@ -295,6 +414,7 @@ function KanbanCard({
   personMap,
   kundMap,
   typMap,
+  projektMap,
   onSelect,
   onToggleStatus,
 }: {
@@ -303,11 +423,17 @@ function KanbanCard({
   personMap: Map<string, string>
   kundMap: Map<string, string>
   typMap: Map<string, string>
+  projektMap: Map<string, string>
   onSelect: (u: Uppgift) => void
   onToggleStatus: (u: Uppgift) => void
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: u.id })
-  const meta = PRIORITET_META[u.prioritet] ?? PRIORITET_META.medel
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({ id: u.id })
+  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: u.id })
+  const setNodeRef = (node: HTMLElement | null) => {
+    setDragRef(node)
+    setDropRef(node)
+  }
+  const border = PRIORITET_BORDER[u.prioritet] ?? PRIORITET_BORDER.medel
   const klar = u.status === 'klar'
 
   return (
@@ -316,53 +442,93 @@ function KanbanCard({
       {...listeners}
       {...attributes}
       onClick={() => onSelect(u)}
-      className={`cursor-pointer rounded-xl border border-border-subtle border-l-4 bg-surface p-3 shadow-sm transition-shadow hover:shadow-md ${meta.border} ${
+      className={`cursor-pointer rounded-xl border border-border-subtle border-l-4 bg-surface p-3 shadow-sm transition-shadow hover:shadow-md ${border} ${
         klar ? 'opacity-60' : ''
-      } ${isDragging ? 'opacity-30' : ''}`}
+      } ${isDragging ? 'opacity-30' : ''} ${isOver ? 'ring-2 ring-accent-400' : ''}`}
     >
-      <div className="mb-1.5 flex items-start justify-between gap-2">
-        <p className={`text-sm font-medium break-words text-foreground ${klar ? 'line-through' : ''}`}>
-          {u.titel}
-        </p>
-        <input
-          type="checkbox"
-          checked={klar}
-          aria-label={klar ? 'Markera som ej klar' : 'Markera som klar'}
-          className="mt-0.5 h-4 w-4 shrink-0 accent-success-600"
-          onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
-          onChange={() => onToggleStatus(u)}
-        />
-      </div>
-      <KortBadges uppgift={u} today={today} personMap={personMap} kundMap={kundMap} typMap={typMap} />
+      <KortInnehall
+        uppgift={u}
+        today={today}
+        personMap={personMap}
+        kundMap={kundMap}
+        typMap={typMap}
+        projektMap={projektMap}
+        onToggleStatus={onToggleStatus}
+      />
     </div>
   )
 }
 
-function KortBadges({
+function KortInnehall({
   uppgift: u,
   today,
   personMap,
   kundMap,
   typMap,
+  projektMap,
+  onToggleStatus,
 }: {
   uppgift: Uppgift
   today: string
   personMap: Map<string, string>
   kundMap: Map<string, string>
   typMap: Map<string, string>
+  projektMap: Map<string, string>
+  onToggleStatus?: (u: Uppgift) => void
 }) {
-  const meta = PRIORITET_META[u.prioritet] ?? PRIORITET_META.medel
+  const klar = u.status === 'klar'
+  const vantar = u.status === 'vantar'
   const forsenad = !!u.deadline && u.deadline < today && u.status !== 'klar'
+  const ansvarigNamn = u.person_id ? personMap.get(u.person_id) : undefined
+
+  // Kompakt "brödsmula" (Kund · Projekt · Typ) istället för en badge per fält —
+  // ger samma överblick som den gamla "Kunden: Projekt: Typ - text"-konventionen,
+  // men som kontext ovanför titeln snarare än utspritt i badges.
+  const kontext = [
+    u.kund_id && kundMap.get(u.kund_id),
+    u.uppgiftsprojekt_id && projektMap.get(u.uppgiftsprojekt_id),
+    u.typ_id && typMap.get(u.typ_id),
+  ].filter((v): v is string => Boolean(v))
 
   return (
-    <div className="flex flex-wrap gap-1">
-      {forsenad && <Badge tone="danger">Försenad</Badge>}
-      <Badge tone={meta.tone}>{meta.label}</Badge>
-      {u.typ_id && typMap.get(u.typ_id) && <Badge tone="neutral">{typMap.get(u.typ_id)}</Badge>}
-      {u.person_id && personMap.get(u.person_id) && <Badge tone="accent">{personMap.get(u.person_id)}</Badge>}
-      {u.kund_id && kundMap.get(u.kund_id) && <Badge tone="neutral">{kundMap.get(u.kund_id)}</Badge>}
-    </div>
+    <>
+      {kontext.length > 0 && (
+        <p className="mb-0.5 truncate text-[11px] font-medium tracking-wide text-stone-400">
+          {kontext.join(' · ')}
+        </p>
+      )}
+      <div className="flex items-start justify-between gap-2">
+        <p className={`text-sm font-medium break-words text-foreground ${klar ? 'line-through' : ''}`}>
+          {u.titel}
+        </p>
+        <input
+          type="checkbox"
+          checked={klar}
+          readOnly={!onToggleStatus}
+          aria-label={klar ? 'Markera som ej klar' : 'Markera som klar'}
+          className="mt-0.5 h-4 w-4 shrink-0 accent-success-600"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          onChange={onToggleStatus ? () => onToggleStatus(u) : undefined}
+        />
+      </div>
+      {(forsenad || vantar || ansvarigNamn) && (
+        <div className="mt-1.5 flex items-center justify-between gap-1">
+          <div className="flex flex-wrap gap-1">
+            {forsenad && <Badge tone="danger">Försenad</Badge>}
+            {vantar && <Badge tone="warning">Väntar</Badge>}
+          </div>
+          {ansvarigNamn && (
+            <span
+              title={ansvarigNamn}
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-100 text-[10px] font-semibold text-accent-700 dark:bg-accent-900 dark:text-accent-300"
+            >
+              {initialer(ansvarigNamn)}
+            </span>
+          )}
+        </div>
+      )}
+    </>
   )
 }
 
@@ -371,14 +537,18 @@ function UppgiftFormular({
   personer,
   kunder,
   typer,
+  projekt,
   currentPersonId,
+  initialDeadline,
   onClose,
 }: {
   existing: Uppgift | null
   personer: Person[]
   kunder: Kund[]
   typer: Typ[]
+  projekt: Projekt[]
   currentPersonId: string | null
+  initialDeadline: string | null
   onClose: () => void
 }) {
   const [titel, setTitel] = useState(existing?.titel ?? '')
@@ -386,8 +556,9 @@ function UppgiftFormular({
   const [personId, setPersonId] = useState(existing?.person_id ?? currentPersonId ?? '')
   const [kundId, setKundId] = useState(existing?.kund_id ?? '')
   const [typId, setTypId] = useState(existing?.typ_id ?? '')
+  const [uppgiftsprojektId, setUppgiftsprojektId] = useState(existing?.uppgiftsprojekt_id ?? '')
   const [prioritet, setPrioritet] = useState(existing?.prioritet ?? 'lag')
-  const [deadline, setDeadline] = useState(existing?.deadline ?? '')
+  const [deadline, setDeadline] = useState(existing?.deadline ?? initialDeadline ?? '')
   const [status, setStatus] = useState(existing?.status ?? 'oppen')
   const [aterkommande, setAterkommande] = useState(false)
   const [veckodagar, setVeckodagar] = useState<number[]>([])
@@ -400,16 +571,31 @@ function UppgiftFormular({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!titel.trim()) return
-    if (!existing && aterkommande && (!deadline || veckodagar.length === 0)) return
+    if (aterkommande && (!deadline || veckodagar.length === 0)) return
     setSparar(true)
 
-    if (existing) {
+    if (existing && aterkommande) {
+      await gorUppgiftAterkommande(existing.id, {
+        titel: titel.trim(),
+        beskrivning,
+        personId,
+        kundId,
+        typId,
+        uppgiftsprojektId,
+        prioritet,
+        startDatum: deadline,
+        veckodagar,
+        intervallVeckor,
+        slutDatum: slutDatum || null,
+      })
+    } else if (existing) {
       await uppdateraUppgift(existing.id, {
         titel: titel.trim(),
         beskrivning,
         personId,
         kundId,
         typId,
+        uppgiftsprojektId,
         prioritet,
         deadline: deadline || null,
         status,
@@ -421,6 +607,7 @@ function UppgiftFormular({
         personId,
         kundId,
         typId,
+        uppgiftsprojektId,
         prioritet,
         startDatum: deadline,
         veckodagar,
@@ -434,8 +621,10 @@ function UppgiftFormular({
         personId,
         kundId,
         typId,
+        uppgiftsprojektId,
         prioritet,
         deadline: deadline || null,
+        status,
       })
     }
 
@@ -505,14 +694,7 @@ function UppgiftFormular({
           </Field>
 
           <Field label="Kund" htmlFor="uppgift-kund">
-            <Select id="uppgift-kund" value={kundId ?? ''} onChange={(e) => setKundId(e.target.value)}>
-              <option value="">Ingen</option>
-              {kunder.map((k) => (
-                <option key={k.id} value={k.id}>
-                  {k.namn}
-                </option>
-              ))}
-            </Select>
+            <KundValjare id="uppgift-kund" kunder={kunder} value={kundId ?? ''} onChange={setKundId} />
           </Field>
 
           <Field label="Typ" htmlFor="uppgift-typ">
@@ -521,6 +703,21 @@ function UppgiftFormular({
               {typer.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.namn}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
+          <Field label="Projekt" htmlFor="uppgift-projekt">
+            <Select
+              id="uppgift-projekt"
+              value={uppgiftsprojektId ?? ''}
+              onChange={(e) => setUppgiftsprojektId(e.target.value)}
+            >
+              <option value="">Inget</option>
+              {projekt.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.namn}
                 </option>
               ))}
             </Select>
@@ -538,28 +735,29 @@ function UppgiftFormular({
             </Select>
           </Field>
 
-          <Field label={aterkommande ? 'Startdatum' : 'Dag'} htmlFor="uppgift-deadline">
-            <Input
-              type="date"
-              id="uppgift-deadline"
-              value={deadline ?? ''}
-              onChange={(e) => setDeadline(e.target.value)}
-              required={aterkommande}
-            />
-          </Field>
+          {!aterkommande && (
+            <Field label="Status" htmlFor="uppgift-status">
+              <Select id="uppgift-status" value={status} onChange={(e) => setStatus(e.target.value)}>
+                <option value="oppen">Öppen</option>
+                <option value="pagar">Pågår</option>
+                <option value="vantar">Väntar</option>
+                <option value="klar">Klar</option>
+              </Select>
+            </Field>
+          )}
         </div>
 
-        {existing && (
-          <Field label="Status" htmlFor="uppgift-status">
-            <Select id="uppgift-status" value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="oppen">Öppen</option>
-              <option value="pagar">Pågår</option>
-              <option value="klar">Klar</option>
-            </Select>
-          </Field>
-        )}
+        <Field label={aterkommande ? 'Startdatum' : 'Dag'} htmlFor="uppgift-deadline">
+          <Input
+            type="date"
+            id="uppgift-deadline"
+            value={deadline ?? ''}
+            onChange={(e) => setDeadline(e.target.value)}
+            required={aterkommande}
+          />
+        </Field>
 
-        {!existing && (
+        {!existing?.serie_id && (
           <div className="rounded-lg border border-border-subtle p-3">
             <label className="flex items-center gap-2 text-sm font-medium">
               <input
@@ -570,6 +768,11 @@ function UppgiftFormular({
               />
               Återkommande uppgift
             </label>
+            {existing && aterkommande && (
+              <p className="mt-1 text-xs text-stone-400">
+                Den här uppgiften blir den första förekomsten i en ny serie.
+              </p>
+            )}
 
             {aterkommande && (
               <div className="mt-3 flex flex-col gap-3">
@@ -622,9 +825,7 @@ function UppgiftFormular({
               type="submit"
               variant="primary"
               loading={sparar}
-              disabled={
-                !titel.trim() || (!existing && aterkommande && (!deadline || veckodagar.length === 0))
-              }
+              disabled={!titel.trim() || (aterkommande && (!deadline || veckodagar.length === 0))}
             >
               {existing ? 'Spara' : 'Skapa'}
             </Button>

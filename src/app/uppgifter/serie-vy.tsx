@@ -9,10 +9,12 @@ import { Field } from '@/components/ui/field'
 import { Input, Textarea, Select } from '@/components/ui/input'
 import { EmptyState } from '@/components/ui/empty-state'
 import { VeckodagValjare } from './veckodag-valjare'
+import { KundValjare } from './kund-valjare'
 
 type Person = { id: string; namn: string }
 type Kund = { id: string; namn: string }
 type Typ = { id: string; namn: string }
+type Projekt = { id: string; namn: string }
 type Serie = {
   id: string
   titel: string
@@ -20,6 +22,7 @@ type Serie = {
   person_id: string | null
   kund_id: string | null
   typ_id: string | null
+  uppgiftsprojekt_id: string | null
   prioritet: string
   veckodagar: number[]
   intervall_veckor: number
@@ -40,11 +43,13 @@ export function SerieVy({
   personer,
   kunder,
   typer,
+  projekt,
 }: {
   serier: Serie[]
   personer: Person[]
   kunder: Kund[]
   typer: Typ[]
+  projekt: Projekt[]
 }) {
   const [visaLista, setVisaLista] = useState(false)
   const [redigerar, setRedigerar] = useState<Serie | null>(null)
@@ -98,6 +103,7 @@ export function SerieVy({
           personer={personer}
           kunder={kunder}
           typer={typer}
+          projekt={projekt}
           onClose={() => setRedigerar(null)}
         />
       )}
@@ -110,12 +116,14 @@ function SerieFormular({
   personer,
   kunder,
   typer,
+  projekt,
   onClose,
 }: {
   serie: Serie
   personer: Person[]
   kunder: Kund[]
   typer: Typ[]
+  projekt: Projekt[]
   onClose: () => void
 }) {
   const [titel, setTitel] = useState(serie.titel)
@@ -123,6 +131,7 @@ function SerieFormular({
   const [personId, setPersonId] = useState(serie.person_id ?? '')
   const [kundId, setKundId] = useState(serie.kund_id ?? '')
   const [typId, setTypId] = useState(serie.typ_id ?? '')
+  const [uppgiftsprojektId, setUppgiftsprojektId] = useState(serie.uppgiftsprojekt_id ?? '')
   const [prioritet, setPrioritet] = useState(serie.prioritet)
   const [veckodagar, setVeckodagar] = useState<number[]>(serie.veckodagar)
   const [intervallVeckor, setIntervallVeckor] = useState(serie.intervall_veckor)
@@ -142,6 +151,7 @@ function SerieFormular({
       personId,
       kundId,
       typId,
+      uppgiftsprojektId,
       prioritet,
       veckodagar,
       intervallVeckor,
@@ -223,14 +233,7 @@ function SerieFormular({
           </Field>
 
           <Field label="Kund" htmlFor="serie-kund">
-            <Select id="serie-kund" value={kundId} onChange={(e) => setKundId(e.target.value)}>
-              <option value="">Ingen</option>
-              {kunder.map((k) => (
-                <option key={k.id} value={k.id}>
-                  {k.namn}
-                </option>
-              ))}
-            </Select>
+            <KundValjare id="serie-kund" kunder={kunder} value={kundId} onChange={setKundId} />
           </Field>
 
           <Field label="Typ" htmlFor="serie-typ">
@@ -239,6 +242,21 @@ function SerieFormular({
               {typer.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.namn}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
+          <Field label="Projekt" htmlFor="serie-projekt">
+            <Select
+              id="serie-projekt"
+              value={uppgiftsprojektId}
+              onChange={(e) => setUppgiftsprojektId(e.target.value)}
+            >
+              <option value="">Inget</option>
+              {projekt.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.namn}
                 </option>
               ))}
             </Select>

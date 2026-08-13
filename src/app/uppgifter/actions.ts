@@ -33,8 +33,10 @@ export async function skapaUppgift(input: {
   personId: string
   kundId: string
   typId: string
+  uppgiftsprojektId: string
   prioritet: string
   deadline: string | null
+  status: string
 }) {
   const foretagId = await currentForetagId()
   if (!foretagId) return
@@ -47,8 +49,10 @@ export async function skapaUppgift(input: {
     person_id: input.personId || null,
     kund_id: input.kundId || null,
     typ_id: input.typId || null,
+    uppgiftsprojekt_id: input.uppgiftsprojektId || null,
     prioritet: input.prioritet,
     deadline: input.deadline,
+    status: input.status,
   })
 
   revalidatePath('/uppgifter')
@@ -60,6 +64,7 @@ export async function skapaUppgiftSerie(input: {
   personId: string
   kundId: string
   typId: string
+  uppgiftsprojektId: string
   prioritet: string
   startDatum: string
   veckodagar: number[]
@@ -78,12 +83,79 @@ export async function skapaUppgiftSerie(input: {
     person_id: input.personId || null,
     kund_id: input.kundId || null,
     typ_id: input.typId || null,
+    uppgiftsprojekt_id: input.uppgiftsprojektId || null,
     prioritet: input.prioritet,
     start_datum: input.startDatum,
     veckodagar: input.veckodagar,
     intervall_veckor: input.intervallVeckor,
     slut_datum: input.slutDatum,
   })
+
+  await supabase.rpc('generera_serie_forekomster', { p_foretag_id: foretagId })
+
+  revalidatePath('/uppgifter')
+}
+
+export async function gorUppgiftAterkommande(
+  uppgiftId: string,
+  input: {
+    titel: string
+    beskrivning: string
+    personId: string
+    kundId: string
+    typId: string
+    uppgiftsprojektId: string
+    prioritet: string
+    startDatum: string
+    veckodagar: number[]
+    intervallVeckor: number
+    slutDatum: string | null
+  }
+) {
+  if (input.veckodagar.length === 0) return
+  const foretagId = await currentForetagId()
+  if (!foretagId) return
+
+  const supabase = await createClient()
+
+  const { data: serie } = await supabase
+    .from('uppgift_serie')
+    .insert({
+      foretag_id: foretagId,
+      titel: input.titel,
+      beskrivning: input.beskrivning || null,
+      person_id: input.personId || null,
+      kund_id: input.kundId || null,
+      typ_id: input.typId || null,
+      uppgiftsprojekt_id: input.uppgiftsprojektId || null,
+      prioritet: input.prioritet,
+      start_datum: input.startDatum,
+      veckodagar: input.veckodagar,
+      intervall_veckor: input.intervallVeckor,
+      slut_datum: input.slutDatum,
+      // hindrar att startdatumet genereras en gång till — den befintliga
+      // uppgiften utgör redan den förekomsten
+      senast_genererad_datum: input.startDatum,
+    })
+    .select('id')
+    .single()
+
+  if (!serie) return
+
+  await supabase
+    .from('uppgift')
+    .update({
+      serie_id: serie.id,
+      titel: input.titel,
+      beskrivning: input.beskrivning || null,
+      person_id: input.personId || null,
+      kund_id: input.kundId || null,
+      typ_id: input.typId || null,
+      uppgiftsprojekt_id: input.uppgiftsprojektId || null,
+      prioritet: input.prioritet,
+      deadline: input.startDatum,
+    })
+    .eq('id', uppgiftId)
 
   await supabase.rpc('generera_serie_forekomster', { p_foretag_id: foretagId })
 
@@ -98,6 +170,7 @@ export async function uppdateraSerie(
     personId: string
     kundId: string
     typId: string
+    uppgiftsprojektId: string
     prioritet: string
     veckodagar: number[]
     intervallVeckor: number
@@ -119,6 +192,7 @@ export async function uppdateraSerie(
       person_id: input.personId || null,
       kund_id: input.kundId || null,
       typ_id: input.typId || null,
+      uppgiftsprojekt_id: input.uppgiftsprojektId || null,
       prioritet: input.prioritet,
       veckodagar: input.veckodagar,
       intervall_veckor: input.intervallVeckor,
@@ -164,6 +238,7 @@ export async function uppdateraUppgift(
     personId: string
     kundId: string
     typId: string
+    uppgiftsprojektId: string
     prioritet: string
     deadline: string | null
     status: string
@@ -178,6 +253,7 @@ export async function uppdateraUppgift(
       person_id: input.personId || null,
       kund_id: input.kundId || null,
       typ_id: input.typId || null,
+      uppgiftsprojekt_id: input.uppgiftsprojektId || null,
       prioritet: input.prioritet,
       deadline: input.deadline,
       status: input.status,
@@ -187,9 +263,9 @@ export async function uppdateraUppgift(
   revalidatePath('/uppgifter')
 }
 
-export async function flyttaUppgift(id: string, deadline: string | null) {
+export async function flyttaUppgift(id: string, deadline: string | null, sortordning: number) {
   const supabase = await createClient()
-  await supabase.from('uppgift').update({ deadline }).eq('id', id)
+  await supabase.from('uppgift').update({ deadline, sortordning }).eq('id', id)
   revalidatePath('/uppgifter')
 }
 
