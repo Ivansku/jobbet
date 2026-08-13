@@ -241,14 +241,6 @@ export function KanbanBoard({
       }
     }
 
-    // Tidsatta kort ska alltid ligga i kronologisk ordning — oavsett var man
-    // släpper dem hamnar de i sitt korrekta klockslags-läge samma dag, istället
-    // för på droppositionen. Otidsatta kort behåller den fria drag-ordningen ovan.
-    const aktivtKort = uppgifterVy.find((u) => u.id === id)
-    if (aktivtKort?.klockslag && malDatum) {
-      nyOrdning = new Date(`${malDatum}T${aktivtKort.klockslag.slice(0, 5)}:00Z`).getTime() / 1000
-    }
-
     startTransition(() => {
       patchUppgiftOptimistiskt({ id, patch: { deadline: malDatum, sortordning: nyOrdning } })
       flyttaUppgift(id, malDatum, nyOrdning)
@@ -461,7 +453,14 @@ function KanbanCard({
   onSelect: (u: Uppgift) => void
   onToggleStatus: (u: Uppgift) => void
 }) {
-  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({ id: u.id })
+  // Klockslagsatta kort positioneras automatiskt i kronologisk ordning — att låta dem
+  // dras skulle bara resultera i att de studsar tillbaka till sin klockslags-plats,
+  // vilket känns trasigt snarare än avsiktligt. De går fortfarande att flytta till en
+  // annan dag, men bara via formuläret (Dag-fältet), inte genom att dra kortet.
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
+    id: u.id,
+    disabled: !!u.klockslag,
+  })
   const { setNodeRef: setDropRef, isOver } = useDroppable({ id: u.id })
   const setNodeRef = (node: HTMLElement | null) => {
     setDragRef(node)
