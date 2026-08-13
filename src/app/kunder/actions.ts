@@ -5,13 +5,13 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function skapaKund(namn: string) {
   const namnTrimmat = namn.trim()
-  if (!namnTrimmat) return
+  if (!namnTrimmat) return null
 
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return
+  if (!user) return null
 
   const { data: person } = await supabase
     .from('person')
@@ -19,10 +19,17 @@ export async function skapaKund(namn: string) {
     .eq('auth_user_id', user.id)
     .single()
 
-  if (!person?.foretag_id) return
+  if (!person?.foretag_id) return null
 
-  await supabase.from('kund').insert({ foretag_id: person.foretag_id, namn: namnTrimmat })
+  const { data: kund } = await supabase
+    .from('kund')
+    .insert({ foretag_id: person.foretag_id, namn: namnTrimmat })
+    .select('id, namn')
+    .single()
+
   revalidatePath('/kunder')
+  revalidatePath('/uppgifter')
+  return kund
 }
 
 export async function uppdateraKund(id: string, namn: string) {
