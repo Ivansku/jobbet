@@ -41,7 +41,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
-        className="w-full max-w-md rounded-xl border border-border-subtle bg-surface p-6 shadow-lg"
+        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border border-border-subtle bg-surface p-6 shadow-lg"
       >
         {children}
       </div>
