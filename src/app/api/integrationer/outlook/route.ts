@@ -51,6 +51,93 @@ function arRadering(actionType?: string): boolean {
   return !!actionType && RADERINGS_VARDEN.has(actionType.trim().toLowerCase())
 }
 
+// Outlooks deltagarfält kommer som en semikolon-separerad lista.
+function parsaDeltagarlista(rad?: string): string[] {
+  if (!rad) return []
+  return [
+    ...new Set(
+      rad
+        .split(';')
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean)
+    ),
+  ]
+}
+
+// Bästa gissning på för- och efternamn utifrån mailadressens lokaldel
+// (t.ex. "anna.svensson@kund.se" → "Anna" "Svensson") — bara en startpunkt,
+// går alltid att rätta i Kund-vyn eller Personer-vyn efteråt.
+function gissaNamnFranEpost(epost: string): { fornamn: string | null; efternamn: string | null } {
+  const lokalDel = epost.split('@')[0] ?? ''
+  const delar = lokalDel.split(/[._-]+/).filter(Boolean)
+  const kapitalisera = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
+  if (delar.length === 0) return { fornamn: null, efternamn: null }
+  if (delar.length === 1) return { fornamn: kapitalisera(delar[0]), efternamn: null }
+  return { fornamn: kapitalisera(delar[0]), efternamn: kapitalisera(delar.slice(1).join(' ')) }
+}
+
+// Matchar/skapar kontaktpersoner för mötets deltagare och synkar
+// uppgift_deltagare (radera + återskapa hela listan, samma mönster som
+// server actions-varianten i uppgifter/actions.ts). Interna QNOVA-mail
+// (samma domän som epost_domain) filtreras alltid bort — kollegor är inte
+// kundkontakter. Kräver en kund att koppla kontakterna till.
+async function synkaDeltagareFranOutlook(
+  supabase: ReturnType<typeof createServiceClient>,
+  uppgiftId: string,
+  foretagId: string,
+  kundId: string | null,
+  epostDomain: string | null,
+  requiredAttendees?: string,
+  optionalAttendees?: string
+) {
+  if (!kundId) return
+
+  const listor: { epost: string; typ: 'obligatorisk' | 'valfri' }[] = [
+    ...parsaDeltagarlista(requiredAttendees).map((epost) => ({ epost, typ: 'obligatorisk' as const })),
+    ...parsaDeltagarlista(optionalAttendees).map((epost) => ({ epost, typ: 'valfri' as const })),
+  ].filter(({ epost }) => {
+    if (!epostDomain) return true
+    return epost.split('@')[1]?.toLowerCase() !== epostDomain.toLowerCase()
+  })
+
+  const kopplingar: { kontaktperson_id: string; typ: 'obligatorisk' | 'valfri' }[] = []
+
+  for (const { epost, typ } of listor) {
+    const { data: befintlig } = await supabase
+      .from('kontaktperson')
+      .select('id')
+      .eq('kund_id', kundId)
+      .ilike('epost', epost)
+      .maybeSingle()
+
+    if (befintlig) {
+      kopplingar.push({ kontaktperson_id: befintlig.id, typ })
+      continue
+    }
+
+    const { fornamn, efternamn } = gissaNamnFranEpost(epost)
+    const { data: ny } = await supabase
+      .from('kontaktperson')
+      .insert({ foretag_id: foretagId, kund_id: kundId, fornamn, efternamn, epost })
+      .select('id')
+      .single()
+
+    if (ny) kopplingar.push({ kontaktperson_id: ny.id, typ })
+  }
+
+  await supabase.from('uppgift_deltagare').delete().eq('uppgift_id', uppgiftId)
+  if (kopplingar.length > 0) {
+    await supabase.from('uppgift_deltagare').insert(
+      kopplingar.map((k) => ({
+        uppgift_id: uppgiftId,
+        kontaktperson_id: k.kontaktperson_id,
+        foretag_id: foretagId,
+        typ: k.typ,
+      }))
+    )
+  }
+}
+
 // bodyPreview kan komma antingen som ren text eller som Outlook-mötets fulla
 // HTML-body (taggar, Teams-möteslänkar, signaturer) — Markdown-redigeraren
 // tolkar aldrig inbäddad HTML (medveten säkerhetsspärr), så okonverterad HTML
@@ -122,6 +209,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Okänd användare' }, { status: 404 })
   }
   const foretagId = person.foretag_id
+
+  const { data: foretag } = await supabase.from('foretag').select('epost_domain').eq('id', foretagId).single()
+  const epostDomain = foretag?.epost_domain ?? null
 
   // En avbokning i Outlook tar bort motsvarande uppgift helt — kräver bara
   // eventId, inte mötesdetaljerna (som ofta saknas i en delete-trigger).
@@ -210,6 +300,15 @@ export async function POST(request: NextRequest) {
 
   if (befintligUppgift) {
     await supabase.from('uppgift').update(falt).eq('id', befintligUppgift.id)
+    await synkaDeltagareFranOutlook(
+      supabase,
+      befintligUppgift.id,
+      foretagId,
+      kundId,
+      epostDomain,
+      requiredAttendees,
+      optionalAttendees
+    )
     return NextResponse.json({ ok: true, uppgiftId: befintligUppgift.id, action: 'updated' })
   }
 
@@ -228,6 +327,16 @@ export async function POST(request: NextRequest) {
   if (error || !nyUppgift) {
     return NextResponse.json({ error: 'Kunde inte skapa uppgiften' }, { status: 500 })
   }
+
+  await synkaDeltagareFranOutlook(
+    supabase,
+    nyUppgift.id,
+    foretagId,
+    kundId,
+    epostDomain,
+    requiredAttendees,
+    optionalAttendees
+  )
 
   return NextResponse.json({ ok: true, uppgiftId: nyUppgift.id, action: 'created' })
 }
