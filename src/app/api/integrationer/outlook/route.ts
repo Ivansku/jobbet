@@ -264,6 +264,29 @@ export async function POST(request: NextRequest) {
         .single()
       kundId = nyKund?.id ?? null
     }
+  } else {
+    // Fallback när ämnet inte går att tolka (t.ex. Calendly-genererade rubriker
+    // som "Åsa Thulin and Ivan Zarkov"): om en deltagare redan är en känd
+    // kontaktperson, härled kunden från den kopplingen istället. Obligatoriska
+    // deltagare provas före valfria; första träffen vinner.
+    const kandidater = [
+      ...parsaDeltagarlista(requiredAttendees),
+      ...parsaDeltagarlista(optionalAttendees),
+    ].filter((epost) => !epostDomain || epost.split('@')[1]?.toLowerCase() !== epostDomain.toLowerCase())
+
+    for (const epost of kandidater) {
+      const { data: matchandeKontakt } = await supabase
+        .from('kontaktperson')
+        .select('kund_id')
+        .eq('foretag_id', foretagId)
+        .ilike('epost', epost)
+        .maybeSingle()
+
+      if (matchandeKontakt) {
+        kundId = matchandeKontakt.kund_id
+        break
+      }
+    }
   }
 
   const { data: typ } = await supabase
