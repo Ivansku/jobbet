@@ -40,11 +40,14 @@ import { VeckodagValjare } from './veckodag-valjare'
 import { KundValjare } from './kund-valjare'
 import { DeltagareValjare } from './deltagare-valjare'
 import { SerieVy, SerieFormular } from './serie-vy'
+import { MotesanteckningarSektion } from './motesanteckningar-sektion'
+import { TidigareMotenSektion } from './tidigare-moten-sektion'
 
 type Person = { id: string; namn: string }
 type Kund = { id: string; namn: string }
-type Typ = { id: string; namn: string }
+type Typ = { id: string; namn: string; visar_motesanteckningar: boolean }
 type Projekt = { id: string; namn: string }
+type Anteckningsblock = { id: string; namn: string; genererar_uppgift: boolean }
 type Uppgift = {
   id: string
   titel: string
@@ -132,6 +135,7 @@ export function KanbanBoard({
   projekt,
   serier,
   kontaktpersoner,
+  block,
   currentPersonId,
   foretagId,
   prevVeckaHref,
@@ -147,6 +151,7 @@ export function KanbanBoard({
   projekt: Projekt[]
   serier: Serie[]
   kontaktpersoner: Kontaktperson[]
+  block: Anteckningsblock[]
   currentPersonId: string | null
   foretagId: string | null
   prevVeckaHref: string
@@ -453,6 +458,7 @@ export function KanbanBoard({
           projekt={projekt}
           serier={serier}
           kontaktpersoner={kontaktpersoner}
+          block={block}
           currentPersonId={currentPersonId}
           initialDeadline={nyDatum}
           onEditSerie={oppnaSerieRedigering}
@@ -693,6 +699,7 @@ function UppgiftFormular({
   projekt,
   serier,
   kontaktpersoner,
+  block,
   currentPersonId,
   initialDeadline,
   onEditSerie,
@@ -705,6 +712,7 @@ function UppgiftFormular({
   projekt: Projekt[]
   serier: Serie[]
   kontaktpersoner: Kontaktperson[]
+  block: Anteckningsblock[]
   currentPersonId: string | null
   initialDeadline: string | null
   onEditSerie: (serieId: string) => void
@@ -995,6 +1003,18 @@ function UppgiftFormular({
               />
             </Field>
           )}
+
+        {existing?.id && typer.find((t) => t.id === typId)?.visar_motesanteckningar && (
+          <MotesanteckningarSektion uppgiftId={existing.id} blocks={block} status={status} />
+        )}
+
+        {existing?.id && kundId && typer.find((t) => t.id === typId)?.visar_motesanteckningar && (
+          <TidigareMotenSektion
+            kundId={kundId}
+            excludeUppgiftId={existing.id}
+            kundNamn={kunder.find((k) => k.id === kundId)?.namn ?? ''}
+          />
+        )}
 
         {!existing?.serie_id && (
           <div className="rounded-lg border border-border-subtle p-3">

@@ -83,6 +83,7 @@ export default async function UppgifterPage({
     { data: projekt },
     { data: serier },
     { data: kontaktpersoner },
+    { data: block },
   ] = await Promise.all([
     aktuellPerson?.foretag_id
       ? supabase.rpc('generera_serie_forekomster', { p_foretag_id: aktuellPerson.foretag_id })
@@ -96,7 +97,7 @@ export default async function UppgifterPage({
       .order('sortordning'),
     supabase.from('person').select('id, namn').order('namn'),
     supabase.from('kund').select('id, namn').order('namn'),
-    supabase.from('uppgiftstyp').select('id, namn').order('namn'),
+    supabase.from('uppgiftstyp').select('id, namn, visar_motesanteckningar').order('namn'),
     supabase.from('uppgiftsprojekt').select('id, namn').order('namn'),
     supabase
       .from('uppgift_serie')
@@ -105,6 +106,11 @@ export default async function UppgifterPage({
       )
       .order('titel'),
     supabase.from('kontaktperson').select('id, kund_id, fornamn, efternamn, epost').order('fornamn'),
+    supabase
+      .from('anteckningsblock')
+      .select('id, namn, genererar_uppgift')
+      .eq('aktiv', true)
+      .order('sortordning'),
   ])
 
   const prevVecka = new Date(monday)
@@ -127,6 +133,7 @@ export default async function UppgifterPage({
           projekt={projekt ?? []}
           serier={serier ?? []}
           kontaktpersoner={kontaktpersoner ?? []}
+          block={block ?? []}
           currentPersonId={aktuellPerson?.id ?? null}
           foretagId={aktuellPerson?.foretag_id ?? null}
           prevVeckaHref={`/uppgifter?vecka=${formatISODate(prevVecka)}`}
