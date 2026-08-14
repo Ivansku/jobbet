@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 
 export function Modal({
   onClose,
@@ -19,11 +19,22 @@ export function Modal({
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [onClose])
 
+  // En vanlig onClick stänger även när man t.ex. drar för att markera text i
+  // ett fält och råkar släppa musen utanför dialogrutan — click-eventets mål
+  // blir då bakgrunden (närmsta gemensamma förälder till mousedown- och
+  // mouseup-elementen), inte fältet man faktiskt höll på med. Kräver därför
+  // att BÅDE mousedown och mouseup sker direkt på bakgrunden för att stänga.
+  const mousedownPaBakgrund = useRef(false)
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
+      onMouseDown={(e) => {
+        mousedownPaBakgrund.current = e.target === e.currentTarget
+      }}
+      onMouseUp={(e) => {
+        if (mousedownPaBakgrund.current && e.target === e.currentTarget) onClose()
+        mousedownPaBakgrund.current = false
       }}
     >
       <div
