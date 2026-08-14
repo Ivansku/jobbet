@@ -11,6 +11,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { DeleteIconButton } from '@/components/ui/delete-icon-button'
 import { MailtoIconLink } from '@/components/ui/mailto-icon-link'
+import { KundMotesanteckningarSektion } from './kund-motesanteckningar-sektion'
 
 type Kund = { id: string; namn: string }
 type Kontaktperson = {
@@ -235,6 +236,8 @@ function KundFormular({
             initialKontaktId={initialKontaktId}
           />
         )}
+
+        {existing && <KundMotesanteckningarSektion kundId={existing.id} />}
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>

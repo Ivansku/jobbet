@@ -46,3 +46,29 @@ export async function taBortKund(id: string) {
   await supabase.from('kund').delete().eq('id', id)
   revalidatePath('/kunder')
 }
+
+export async function hamtaMotesanteckningarForKund(kundId: string) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('uppgift')
+    .select(
+      'id, titel, deadline, typ:typ_id!inner(visar_motesanteckningar), uppgift_anteckning(innehall, block:block_id(namn, sortordning))'
+    )
+    .eq('kund_id', kundId)
+    .eq('typ.visar_motesanteckningar', true)
+    .order('deadline', { ascending: false })
+
+  return (data ?? []).map((u) => ({
+    id: u.id,
+    titel: u.titel,
+    deadline: u.deadline,
+    block: (u.uppgift_anteckning ?? [])
+      .filter((a) => a.innehall?.trim())
+      .map((a) => ({
+        namn: a.block?.[0]?.namn ?? '',
+        sortordning: a.block?.[0]?.sortordning ?? 0,
+        innehall: a.innehall ?? '',
+      }))
+      .sort((a, b) => a.sortordning - b.sortordning),
+  }))
+}
