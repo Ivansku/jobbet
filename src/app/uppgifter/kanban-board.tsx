@@ -96,6 +96,20 @@ function initialer(namn: string) {
   return (delar[0][0] + delar[delar.length - 1][0]).toUpperCase()
 }
 
+function isoTillUTC(iso: string): number {
+  const [y, m, d] = iso.split('-').map(Number)
+  return Date.UTC(y, m - 1, d)
+}
+
+// Servern skickar bara med uppgifter inom veckan som visas (mån-sön) eller utan
+// datum — realtime-händelser har ingen sådan gräns inbyggd (t.ex. genererar
+// Outlook-webhooken eller serie-genereringen ofta förekomster för helt andra
+// veckor). Utan den här kontrollen läcker sånt rakt in i Oplanerad-listan.
+function inomVisadVecka(deadline: string, mandagTid: number, sondagTid: number): boolean {
+  const datum = isoTillUTC(deadline)
+  return datum >= mandagTid && datum <= sondagTid
+}
+
 export function KanbanBoard({
   weekDates,
   today,
@@ -152,6 +166,9 @@ export function KanbanBoard({
     setLiveUppgifter(uppgifter)
   }
 
+  const mandagTid = isoTillUTC(weekDates[0])
+  const sondagTid = mandagTid + 6 * 86400000
+
   useEffect(() => {
     if (!foretagId) return
     const supabase = createClient()
@@ -170,13 +187,16 @@ export function KanbanBoard({
           }
 
           const rad = payload.new as Record<string, unknown>
+          const deadline = (rad.deadline as string | null) ?? null
+          const horHemma = deadline === null || inomVisadVecka(deadline, mandagTid, sondagTid)
+
           const uppdaterad: Uppgift = {
             id: rad.id as string,
             titel: rad.titel as string,
             beskrivning: (rad.beskrivning as string | null) ?? null,
             status: rad.status as string,
             prioritet: rad.prioritet as string,
-            deadline: (rad.deadline as string | null) ?? null,
+            deadline,
             person_id: (rad.person_id as string | null) ?? null,
             kund_id: (rad.kund_id as string | null) ?? null,
             typ_id: (rad.typ_id as string | null) ?? null,
@@ -187,11 +207,17 @@ export function KanbanBoard({
             klockslag: (rad.klockslag as string | null) ?? null,
           }
 
-          setLiveUppgifter((state) =>
-            state.some((u) => u.id === uppdaterad.id)
+          setLiveUppgifter((state) => {
+            const finns = state.some((u) => u.id === uppdaterad.id)
+            if (!horHemma) {
+              // Hör inte hemma i den här veckans vy — ta bort om den redan fanns
+              // (t.ex. flyttad till en annan vecka), lägg aldrig till en ny.
+              return finns ? state.filter((u) => u.id !== uppdaterad.id) : state
+            }
+            return finns
               ? state.map((u) => (u.id === uppdaterad.id ? uppdaterad : u))
               : [...state, uppdaterad]
-          )
+          })
         }
       )
       .subscribe()
@@ -199,7 +225,7 @@ export function KanbanBoard({
     return () => {
       supabase.removeChannel(kanal)
     }
-  }, [foretagId])
+  }, [foretagId, mandagTid, sondagTid])
 
   // Optimistisk lokal patch ovanpå liveUppgifter så ett kort hamnar rätt direkt
   // vid drag/klarmarkering, istället för att hoppa tillbaka i väntan på serverns svar.
