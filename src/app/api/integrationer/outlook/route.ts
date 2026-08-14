@@ -3,10 +3,12 @@ import { timingSafeEqual } from 'crypto'
 import { createServiceClient } from '@/lib/supabase/service'
 import { beraknaSortordning } from '@/lib/sortordning'
 
-// Möten skrivs enligt konventionen "Kund, QNOVA - Titel" — allt före
-// avdelaren taggas som Kund (och skapas om den inte redan finns), resten
-// blir Titel. Matchar avdelaren inte alls blir hela ämnet Titel oförändrat.
-const KUND_AVDELARE = ', QNOVA - '
+// Möten skrivs enligt konventionen "Kund, QNOVA - Titel" — men "QNOVA, Kund - Titel"
+// förekommer också (ordningen varierar tydligen i praktiken). Provar båda, i den
+// ordningen, mot första förekomsten av " - ". Matchar inget alls blir hela ämnet
+// Titel oförändrat, ingen Kund taggas.
+const KUND_FORST = /^(.+?),\s*QNOVA\s*-\s*(.+)$/i
+const QNOVA_FORST = /^QNOVA\s*,\s*(.+?)\s*-\s*(.+)$/i
 
 function sakerJamforelse(a: string, b: string): boolean {
   const bufA = Buffer.from(a)
@@ -33,9 +35,15 @@ function stockholmDatumOchKlockslag(iso: string) {
 }
 
 function parsaAmne(subject: string): { kundNamn: string | null; titel: string } {
-  const idx = subject.indexOf(KUND_AVDELARE)
-  if (idx === -1) return { kundNamn: null, titel: subject.trim() }
-  return { kundNamn: subject.slice(0, idx).trim(), titel: subject.slice(idx + KUND_AVDELARE.length).trim() }
+  const trimmad = subject.trim()
+
+  const kundForst = trimmad.match(KUND_FORST)
+  if (kundForst) return { kundNamn: kundForst[1].trim(), titel: kundForst[2].trim() }
+
+  const qnovaForst = trimmad.match(QNOVA_FORST)
+  if (qnovaForst) return { kundNamn: qnovaForst[1].trim(), titel: qnovaForst[2].trim() }
+
+  return { kundNamn: null, titel: trimmad }
 }
 
 const RADERINGS_VARDEN = new Set(['deleted', 'delete', 'cancelled', 'canceled', 'removed'])
@@ -210,7 +218,7 @@ export async function POST(request: NextRequest) {
     .insert({
       foretag_id: foretagId,
       status: 'oppen',
-      prioritet: 'medel',
+      prioritet: 'lag',
       outlook_event_id: eventId,
       ...falt,
     })
