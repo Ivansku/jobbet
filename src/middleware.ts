@@ -58,6 +58,9 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // api/ undantas medvetet — API-routes (t.ex. webhooks som PowerAutomate anropar)
+    // har ingen webbläsarsession att skicka med och sköter sin egen autentisering
+    // (delad hemlighet i en header) istället för cookie-baserad Supabase-session.
+    '/((?!api/|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

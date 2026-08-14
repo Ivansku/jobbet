@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { beraknaSortordning } from '@/lib/sortordning'
 
 async function currentForetagId() {
   const supabase = await createClient()
@@ -27,14 +28,6 @@ function todayISODate() {
   return `${y}-${m}-${d}`
 }
 
-// Uppgifter med klockslag ska alltid hamna i kronologisk ordning bland andra
-// tidsatta uppgifter samma dag, utan att man behöver dra dem dit manuellt.
-// sortordning återanvänds som den delade sorteringsnyckeln (precis som idag),
-// men sätts deterministiskt till dag+klockslagets epoktid istället för "nu".
-function beraknaSortordning(deadline: string | null, klockslag: string | null): number | undefined {
-  if (!deadline || !klockslag) return undefined
-  return new Date(`${deadline}T${klockslag}:00Z`).getTime() / 1000
-}
 
 export async function skapaUppgift(input: {
   titel: string
