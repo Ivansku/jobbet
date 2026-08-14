@@ -73,12 +73,18 @@ export async function POST(request: NextRequest) {
   const supabase = createServiceClient()
 
   // Mailboxägarens e-post avgör både Ansvarig och foretag_id — kommer aldrig
-  // som indata i övrigt, så tenant-gränsen sätts alltid härifrån.
-  const { data: person } = await supabase
+  // som indata i övrigt, så tenant-gränsen sätts alltid härifrån. epost_outlook
+  // finns eftersom inloggnings-mailen (epost, Google) och Outlook-mailen ofta
+  // skiljer sig åt — matchar mot båda utan att röra inloggnings-mailen.
+  const { data: viaOutlook } = await supabase
     .from('person')
     .select('id, foretag_id')
-    .ilike('epost', ownerEmail)
+    .ilike('epost_outlook', ownerEmail)
     .maybeSingle()
+  const { data: viaEpost } = viaOutlook
+    ? { data: null }
+    : await supabase.from('person').select('id, foretag_id').ilike('epost', ownerEmail).maybeSingle()
+  const person = viaOutlook ?? viaEpost
 
   if (!person?.foretag_id) {
     return NextResponse.json({ error: 'Okänd användare' }, { status: 404 })
