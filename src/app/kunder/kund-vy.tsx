@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { DeleteIconButton } from '@/components/ui/delete-icon-button'
+import { MailtoIconLink } from '@/components/ui/mailto-icon-link'
 
 type Kund = { id: string; namn: string }
 type Kontaktperson = {
@@ -100,10 +101,10 @@ export function KundVy({ kunder, kontaktpersoner }: { kunder: Kund[]; kontaktper
                       {kontakter.map((kp) => {
                         const planerat = planeratDatum(kp)
                         return (
-                          <li key={kp.id}>
+                          <li key={kp.id} className="flex items-center pr-2">
                             <button
                               onClick={() => oppnaKund(kund, kp.id)}
-                              className="flex w-full items-center justify-between px-4 py-2 pl-6 text-left text-xs transition-colors hover:bg-stone-100 dark:hover:bg-stone-800"
+                              className="flex min-w-0 flex-1 items-center justify-between px-4 py-2 pl-6 text-left text-xs transition-colors hover:bg-stone-100 dark:hover:bg-stone-800"
                             >
                               <span className="truncate text-stone-600 dark:text-stone-300">{kontaktNamn(kp)}</span>
                               <span className="shrink-0 text-stone-400">
@@ -115,6 +116,7 @@ export function KundVy({ kunder, kontaktpersoner }: { kunder: Kund[]; kontaktper
                                 )}
                               </span>
                             </button>
+                            {kp.epost && <MailtoIconLink epost={kp.epost} namn={kontaktNamn(kp)} />}
                           </li>
                         )
                       })}
