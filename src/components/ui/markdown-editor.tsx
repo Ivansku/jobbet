@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Markdown } from 'tiptap-markdown'
@@ -38,6 +39,20 @@ export function MarkdownEditor({
       onBlur?.(editor.storage.markdown.getMarkdown())
     },
   })
+
+  // useEditor() rör aldrig själva dokumentet när `value` ändras efter att editorn
+  // väl skapats (Tiptaps interna setOptions uppdaterar bara konfiguration, inte
+  // innehållet) — utan detta visas evigt det innehåll som fanns vid första
+  // renderingen. Kritiskt för fält vars `value` sätts asynkront efter montering
+  // (t.ex. mötesanteckningar som hämtas efter att fältet redan visats tomt).
+  // Jämförelsen mot editorns eget innehåll gör att detta inte stör användarens
+  // egen skrivning — då är `value` redan samma sak som det som just skrevs.
+  useEffect(() => {
+    if (!editor) return
+    if (editor.storage.markdown.getMarkdown() !== value) {
+      editor.commands.setContent(value, { emitUpdate: false })
+    }
+  }, [value, editor])
 
   return (
     <div className="w-full rounded-lg border border-border-subtle bg-surface px-3 py-2 focus-within:border-accent-500 focus-within:ring-2 focus-within:ring-accent-500/40">
