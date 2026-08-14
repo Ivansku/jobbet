@@ -28,6 +28,27 @@ function todayISODate() {
   return `${y}-${m}-${d}`
 }
 
+// Skriver alltid över hela deltagarlistan för uppgiften (radera + återskapa)
+// istället för att diffa — enklast att hålla korrekt när man kan både lägga
+// till och ta bort deltagare i samma redigering.
+async function synkaDeltagare(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  uppgiftId: string,
+  foretagId: string,
+  deltagareIds: string[]
+) {
+  await supabase.from('uppgift_deltagare').delete().eq('uppgift_id', uppgiftId)
+  if (deltagareIds.length === 0) return
+  await supabase.from('uppgift_deltagare').insert(
+    deltagareIds.map((kontaktpersonId) => ({
+      uppgift_id: uppgiftId,
+      kontaktperson_id: kontaktpersonId,
+      foretag_id: foretagId,
+      typ: 'obligatorisk',
+    }))
+  )
+}
+
 
 export async function skapaUppgift(input: {
   titel: string
@@ -41,27 +62,36 @@ export async function skapaUppgift(input: {
   status: string
   tidsatgangTimmar: number | null
   klockslag: string | null
+  deltagareIds: string[]
 }) {
   const foretagId = await currentForetagId()
   if (!foretagId) return
 
   const supabase = await createClient()
   const sortordning = beraknaSortordning(input.deadline, input.klockslag)
-  await supabase.from('uppgift').insert({
-    foretag_id: foretagId,
-    titel: input.titel,
-    beskrivning: input.beskrivning || null,
-    person_id: input.personId || null,
-    kund_id: input.kundId || null,
-    typ_id: input.typId || null,
-    uppgiftsprojekt_id: input.uppgiftsprojektId || null,
-    prioritet: input.prioritet,
-    deadline: input.deadline,
-    status: input.status,
-    tidsatgang_timmar: input.tidsatgangTimmar,
-    klockslag: input.klockslag,
-    ...(sortordning !== undefined ? { sortordning } : {}),
-  })
+  const { data: nyUppgift } = await supabase
+    .from('uppgift')
+    .insert({
+      foretag_id: foretagId,
+      titel: input.titel,
+      beskrivning: input.beskrivning || null,
+      person_id: input.personId || null,
+      kund_id: input.kundId || null,
+      typ_id: input.typId || null,
+      uppgiftsprojekt_id: input.uppgiftsprojektId || null,
+      prioritet: input.prioritet,
+      deadline: input.deadline,
+      status: input.status,
+      tidsatgang_timmar: input.tidsatgangTimmar,
+      klockslag: input.klockslag,
+      ...(sortordning !== undefined ? { sortordning } : {}),
+    })
+    .select('id')
+    .single()
+
+  if (nyUppgift && input.deltagareIds.length > 0) {
+    await synkaDeltagare(supabase, nyUppgift.id, foretagId, input.deltagareIds)
+  }
 
   revalidatePath('/uppgifter')
 }
@@ -267,8 +297,12 @@ export async function uppdateraUppgift(
     status: string
     tidsatgangTimmar: number | null
     klockslag: string | null
+    deltagareIds: string[]
   }
 ) {
+  const foretagId = await currentForetagId()
+  if (!foretagId) return
+
   const supabase = await createClient()
   const sortordning = beraknaSortordning(input.deadline, input.klockslag)
   await supabase
@@ -288,6 +322,8 @@ export async function uppdateraUppgift(
       ...(sortordning !== undefined ? { sortordning } : {}),
     })
     .eq('id', id)
+
+  await synkaDeltagare(supabase, id, foretagId, input.deltagareIds)
 
   revalidatePath('/uppgifter')
 }

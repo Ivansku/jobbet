@@ -4,13 +4,19 @@ import { KundVy } from './kund-vy'
 
 export default async function KunderPage() {
   const supabase = await createClient()
-  const { data: kunder } = await supabase.from('kund').select('id, namn').order('namn')
+  const [{ data: kunder }, { data: kontaktpersoner }] = await Promise.all([
+    supabase.from('kund').select('id, namn').order('namn'),
+    supabase
+      .from('kontaktperson')
+      .select('id, kund_id, fornamn, efternamn, epost, senast_kontaktad')
+      .order('fornamn'),
+  ])
 
   return (
     <>
       <AppNav />
       <main className="mx-auto w-full max-w-xl flex-1 p-6 md:p-8">
-        <KundVy kunder={kunder ?? []} />
+        <KundVy kunder={kunder ?? []} kontaktpersoner={kontaktpersoner ?? []} />
       </main>
     </>
   )

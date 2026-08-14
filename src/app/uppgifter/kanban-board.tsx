@@ -36,6 +36,7 @@ import { MarkdownEditor } from '@/components/ui/markdown-editor'
 import { createClient } from '@/lib/supabase/client'
 import { VeckodagValjare } from './veckodag-valjare'
 import { KundValjare } from './kund-valjare'
+import { DeltagareValjare } from './deltagare-valjare'
 import { SerieVy, SerieFormular } from './serie-vy'
 
 type Person = { id: string; namn: string }
@@ -57,6 +58,14 @@ type Uppgift = {
   sortordning: number
   tidsatgang_timmar: number | null
   klockslag: string | null
+  uppgift_deltagare: { kontaktperson_id: string }[]
+}
+type Kontaktperson = {
+  id: string
+  kund_id: string
+  fornamn: string | null
+  efternamn: string | null
+  epost: string | null
 }
 type Serie = {
   id: string
@@ -119,6 +128,7 @@ export function KanbanBoard({
   typer,
   projekt,
   serier,
+  kontaktpersoner,
   currentPersonId,
   foretagId,
   prevVeckaHref,
@@ -133,6 +143,7 @@ export function KanbanBoard({
   typer: Typ[]
   projekt: Projekt[]
   serier: Serie[]
+  kontaktpersoner: Kontaktperson[]
   currentPersonId: string | null
   foretagId: string | null
   prevVeckaHref: string
@@ -190,31 +201,36 @@ export function KanbanBoard({
           const deadline = (rad.deadline as string | null) ?? null
           const horHemma = deadline === null || inomVisadVecka(deadline, mandagTid, sondagTid)
 
-          const uppdaterad: Uppgift = {
-            id: rad.id as string,
-            titel: rad.titel as string,
-            beskrivning: (rad.beskrivning as string | null) ?? null,
-            status: rad.status as string,
-            prioritet: rad.prioritet as string,
-            deadline,
-            person_id: (rad.person_id as string | null) ?? null,
-            kund_id: (rad.kund_id as string | null) ?? null,
-            typ_id: (rad.typ_id as string | null) ?? null,
-            uppgiftsprojekt_id: (rad.uppgiftsprojekt_id as string | null) ?? null,
-            serie_id: (rad.serie_id as string | null) ?? null,
-            sortordning: rad.sortordning as number,
-            tidsatgang_timmar: (rad.tidsatgang_timmar as number | null) ?? null,
-            klockslag: (rad.klockslag as string | null) ?? null,
-          }
-
           setLiveUppgifter((state) => {
-            const finns = state.some((u) => u.id === uppdaterad.id)
+            const befintlig = state.find((u) => u.id === rad.id)
             if (!horHemma) {
               // Hör inte hemma i den här veckans vy — ta bort om den redan fanns
               // (t.ex. flyttad till en annan vecka), lägg aldrig till en ny.
-              return finns ? state.filter((u) => u.id !== uppdaterad.id) : state
+              return befintlig ? state.filter((u) => u.id !== rad.id) : state
             }
-            return finns
+
+            // postgres_changes har ingen koppling till uppgift_deltagare (det är en
+            // egen tabell) — behåll det vi redan visste om deltagare för kortet,
+            // eller tomt för ett helt nytt kort (uppdateras vid nästa sidladdning).
+            const uppdaterad: Uppgift = {
+              id: rad.id as string,
+              titel: rad.titel as string,
+              beskrivning: (rad.beskrivning as string | null) ?? null,
+              status: rad.status as string,
+              prioritet: rad.prioritet as string,
+              deadline,
+              person_id: (rad.person_id as string | null) ?? null,
+              kund_id: (rad.kund_id as string | null) ?? null,
+              typ_id: (rad.typ_id as string | null) ?? null,
+              uppgiftsprojekt_id: (rad.uppgiftsprojekt_id as string | null) ?? null,
+              serie_id: (rad.serie_id as string | null) ?? null,
+              sortordning: rad.sortordning as number,
+              tidsatgang_timmar: (rad.tidsatgang_timmar as number | null) ?? null,
+              klockslag: (rad.klockslag as string | null) ?? null,
+              uppgift_deltagare: befintlig?.uppgift_deltagare ?? [],
+            }
+
+            return befintlig
               ? state.map((u) => (u.id === uppdaterad.id ? uppdaterad : u))
               : [...state, uppdaterad]
           })
@@ -433,6 +449,7 @@ export function KanbanBoard({
           typer={typer}
           projekt={projekt}
           serier={serier}
+          kontaktpersoner={kontaktpersoner}
           currentPersonId={currentPersonId}
           initialDeadline={nyDatum}
           onEditSerie={oppnaSerieRedigering}
@@ -672,6 +689,7 @@ function UppgiftFormular({
   typer,
   projekt,
   serier,
+  kontaktpersoner,
   currentPersonId,
   initialDeadline,
   onEditSerie,
@@ -683,6 +701,7 @@ function UppgiftFormular({
   typer: Typ[]
   projekt: Projekt[]
   serier: Serie[]
+  kontaktpersoner: Kontaktperson[]
   currentPersonId: string | null
   initialDeadline: string | null
   onEditSerie: (serieId: string) => void
@@ -693,6 +712,9 @@ function UppgiftFormular({
   const [personId, setPersonId] = useState(existing?.person_id ?? currentPersonId ?? '')
   const [kundId, setKundId] = useState(existing?.kund_id ?? '')
   const [typId, setTypId] = useState(existing?.typ_id ?? '')
+  const [deltagareIds, setDeltagareIds] = useState<string[]>(
+    existing?.uppgift_deltagare.map((d) => d.kontaktperson_id) ?? []
+  )
   const [uppgiftsprojektId, setUppgiftsprojektId] = useState(existing?.uppgiftsprojekt_id ?? '')
   const [prioritet, setPrioritet] = useState(existing?.prioritet ?? 'lag')
   const [deadline, setDeadline] = useState(existing?.deadline ?? initialDeadline ?? '')
@@ -745,6 +767,7 @@ function UppgiftFormular({
         status,
         tidsatgangTimmar,
         klockslag: klockslagVarde,
+        deltagareIds,
       })
     } else if (aterkommande) {
       await skapaUppgiftSerie({
@@ -775,6 +798,7 @@ function UppgiftFormular({
         status,
         tidsatgangTimmar,
         klockslag: klockslagVarde,
+        deltagareIds,
       })
     }
 
@@ -947,6 +971,19 @@ function UppgiftFormular({
             />
           </Field>
         </div>
+
+        {!aterkommande &&
+          kundId &&
+          ['Möte', 'Maildialog'].includes(typer.find((t) => t.id === typId)?.namn ?? '') && (
+            <Field label="Deltagare" htmlFor="uppgift-deltagare">
+              <DeltagareValjare
+                kontaktpersoner={kontaktpersoner}
+                kundId={kundId}
+                value={deltagareIds}
+                onChange={setDeltagareIds}
+              />
+            </Field>
+          )}
 
         {!existing?.serie_id && (
           <div className="rounded-lg border border-border-subtle p-3">

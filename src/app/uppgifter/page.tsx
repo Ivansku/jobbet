@@ -72,26 +72,34 @@ export default async function UppgifterPage({
     await supabase.rpc('generera_serie_forekomster', { p_foretag_id: aktuellPerson.foretag_id })
   }
 
-  const [{ data: uppgifter }, { data: personer }, { data: kunder }, { data: typer }, { data: projekt }, { data: serier }] =
-    await Promise.all([
-      supabase
-        .from('uppgift')
-        .select(
-          'id, titel, beskrivning, status, prioritet, deadline, person_id, kund_id, typ_id, uppgiftsprojekt_id, serie_id, sortordning, tidsatgang_timmar, klockslag'
-        )
-        .or(`deadline.is.null,and(deadline.gte.${weekDates[0]},deadline.lte.${sundayISO})`)
-        .order('sortordning'),
-      supabase.from('person').select('id, namn').order('namn'),
-      supabase.from('kund').select('id, namn').order('namn'),
-      supabase.from('uppgiftstyp').select('id, namn').order('namn'),
-      supabase.from('uppgiftsprojekt').select('id, namn').order('namn'),
-      supabase
-        .from('uppgift_serie')
-        .select(
-          'id, titel, beskrivning, person_id, kund_id, typ_id, uppgiftsprojekt_id, prioritet, veckodagar, intervall_veckor, slut_datum, tidsatgang_timmar, klockslag'
-        )
-        .order('titel'),
-    ])
+  const [
+    { data: uppgifter },
+    { data: personer },
+    { data: kunder },
+    { data: typer },
+    { data: projekt },
+    { data: serier },
+    { data: kontaktpersoner },
+  ] = await Promise.all([
+    supabase
+      .from('uppgift')
+      .select(
+        'id, titel, beskrivning, status, prioritet, deadline, person_id, kund_id, typ_id, uppgiftsprojekt_id, serie_id, sortordning, tidsatgang_timmar, klockslag, uppgift_deltagare(kontaktperson_id)'
+      )
+      .or(`deadline.is.null,and(deadline.gte.${weekDates[0]},deadline.lte.${sundayISO})`)
+      .order('sortordning'),
+    supabase.from('person').select('id, namn').order('namn'),
+    supabase.from('kund').select('id, namn').order('namn'),
+    supabase.from('uppgiftstyp').select('id, namn').order('namn'),
+    supabase.from('uppgiftsprojekt').select('id, namn').order('namn'),
+    supabase
+      .from('uppgift_serie')
+      .select(
+        'id, titel, beskrivning, person_id, kund_id, typ_id, uppgiftsprojekt_id, prioritet, veckodagar, intervall_veckor, slut_datum, tidsatgang_timmar, klockslag'
+      )
+      .order('titel'),
+    supabase.from('kontaktperson').select('id, kund_id, fornamn, efternamn, epost').order('fornamn'),
+  ])
 
   const prevVecka = new Date(monday)
   prevVecka.setUTCDate(prevVecka.getUTCDate() - 7)
@@ -112,6 +120,7 @@ export default async function UppgifterPage({
           typer={typer ?? []}
           projekt={projekt ?? []}
           serier={serier ?? []}
+          kontaktpersoner={kontaktpersoner ?? []}
           currentPersonId={aktuellPerson?.id ?? null}
           foretagId={aktuellPerson?.foretag_id ?? null}
           prevVeckaHref={`/uppgifter?vecka=${formatISODate(prevVecka)}`}
