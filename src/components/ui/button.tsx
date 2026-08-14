@@ -6,7 +6,7 @@ type Size = 'md' | 'sm'
 
 const VARIANT_CLASSES: Record<Variant, string> = {
   primary:
-    'rounded-full bg-[image:var(--gradient-brand-button)] text-white font-semibold shadow-sm hover:shadow-md hover:brightness-110 active:brightness-95 disabled:hover:brightness-100 disabled:hover:shadow-sm',
+    'rounded-lg bg-[image:var(--gradient-brand-button)] text-white font-semibold shadow-sm hover:shadow-md hover:brightness-110 active:brightness-95 disabled:hover:brightness-100 disabled:hover:shadow-sm',
   secondary:
     'rounded-lg border border-stone-300 bg-surface text-foreground shadow-sm hover:bg-stone-100 hover:border-stone-400 dark:border-stone-600 dark:hover:bg-stone-800',
   danger:

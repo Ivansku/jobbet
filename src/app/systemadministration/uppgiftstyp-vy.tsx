@@ -8,6 +8,7 @@ import { Field } from '@/components/ui/field'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
+import { DeleteIconButton } from '@/components/ui/delete-icon-button'
 
 type Uppgiftstyp = { id: string; namn: string }
 
@@ -98,9 +99,17 @@ function TypFormular({ existing, onClose }: { existing: Uppgiftstyp | null; onCl
   return (
     <Modal onClose={onClose} labelledBy="typ-formular-title">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <h2 id="typ-formular-title" className="text-lg font-semibold">
-          {existing ? 'Redigera uppgiftstyp' : 'Ny uppgiftstyp'}
-        </h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 id="typ-formular-title" className="text-lg font-semibold">
+            {existing ? 'Redigera uppgiftstyp' : 'Ny uppgiftstyp'}
+          </h2>
+          {existing && (
+            <DeleteIconButton
+              label={`Ta bort uppgiftstypen "${existing.namn}"`}
+              onClick={() => setVisaBekraftelse(true)}
+            />
+          )}
+        </div>
         <Field label="Namn" htmlFor="typ-namn">
           <Input
             id="typ-namn"
@@ -111,22 +120,13 @@ function TypFormular({ existing, onClose }: { existing: Uppgiftstyp | null; onCl
             autoFocus
           />
         </Field>
-        <div className="flex items-center justify-between gap-2">
-          {existing ? (
-            <Button type="button" variant="danger" size="sm" onClick={() => setVisaBekraftelse(true)}>
-              Ta bort
-            </Button>
-          ) : (
-            <span />
-          )}
-          <div className="flex gap-2">
-            <Button type="button" variant="secondary" onClick={onClose}>
-              Avbryt
-            </Button>
-            <Button type="submit" variant="primary" loading={sparar} disabled={!namn.trim()}>
-              {existing ? 'Spara' : 'Skapa'}
-            </Button>
-          </div>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Avbryt
+          </Button>
+          <Button type="submit" variant="primary" loading={sparar} disabled={!namn.trim()}>
+            {existing ? 'Spara' : 'Skapa'}
+          </Button>
         </div>
       </form>
     </Modal>

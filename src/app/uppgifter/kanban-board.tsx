@@ -30,6 +30,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { DeleteIconButton } from '@/components/ui/delete-icon-button'
 import { Field } from '@/components/ui/field'
 import { Input, Select } from '@/components/ui/input'
 import { MarkdownEditor } from '@/components/ui/markdown-editor'
@@ -829,9 +830,17 @@ function UppgiftFormular({
   return (
     <Modal onClose={onClose} labelledBy="uppgift-formular-title">
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <h2 id="uppgift-formular-title" className="text-lg font-semibold">
-          {existing ? 'Redigera uppgift' : 'Ny uppgift'}
-        </h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 id="uppgift-formular-title" className="text-lg font-semibold">
+            {existing ? 'Redigera uppgift' : 'Ny uppgift'}
+          </h2>
+          {existing && (
+            <DeleteIconButton
+              label={`Ta bort uppgiften "${existing.titel}"`}
+              onClick={() => setVisaBekraftelse(true)}
+            />
+          )}
+        </div>
 
         {existing?.serie_id && (
           <div className="flex items-center justify-between gap-3 rounded-lg border border-border-subtle bg-stone-50 px-3 py-2 text-xs text-stone-500 dark:bg-stone-800">
@@ -1037,27 +1046,18 @@ function UppgiftFormular({
           </div>
         )}
 
-        <div className="mt-1 flex items-center justify-between gap-2">
-          {existing ? (
-            <Button type="button" variant="danger" size="sm" onClick={() => setVisaBekraftelse(true)}>
-              Ta bort
-            </Button>
-          ) : (
-            <span />
-          )}
-          <div className="flex gap-2">
-            <Button type="button" variant="secondary" onClick={onClose}>
-              Avbryt
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              loading={sparar}
-              disabled={!titel.trim() || (aterkommande && (!deadline || veckodagar.length === 0))}
-            >
-              {existing ? 'Spara' : 'Skapa'}
-            </Button>
-          </div>
+        <div className="mt-1 flex justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Avbryt
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            loading={sparar}
+            disabled={!titel.trim() || (aterkommande && (!deadline || veckodagar.length === 0))}
+          >
+            {existing ? 'Spara' : 'Skapa'}
+          </Button>
         </div>
       </form>
     </Modal>

@@ -5,6 +5,7 @@ import { uppdateraSerie, avslutaSerie, taBortSerie } from './actions'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { DeleteIconButton } from '@/components/ui/delete-icon-button'
 import { Field } from '@/components/ui/field'
 import { Input, Select } from '@/components/ui/input'
 import { MarkdownEditor } from '@/components/ui/markdown-editor'
@@ -213,9 +214,12 @@ export function SerieFormular({
   return (
     <Modal onClose={onClose} labelledBy="serie-formular-title">
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <h2 id="serie-formular-title" className="text-lg font-semibold">
-          Redigera serie
-        </h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 id="serie-formular-title" className="text-lg font-semibold">
+            Redigera serie
+          </h2>
+          <DeleteIconButton label={`Ta bort serien "${serie.titel}"`} onClick={() => setVisaTaBort(true)} />
+        </div>
 
         <Field label="Titel" htmlFor="serie-titel">
           <Input id="serie-titel" value={titel} onChange={(e) => setTitel(e.target.value)} required autoFocus />
@@ -338,14 +342,9 @@ export function SerieFormular({
         </div>
 
         <div className="mt-1 flex items-center justify-between gap-2">
-          <div className="flex gap-2">
-            <Button type="button" variant="secondary" size="sm" onClick={() => setVisaAvsluta(true)}>
-              Avsluta serien
-            </Button>
-            <Button type="button" variant="danger" size="sm" onClick={() => setVisaTaBort(true)}>
-              Ta bort serien
-            </Button>
-          </div>
+          <Button type="button" variant="secondary" size="sm" onClick={() => setVisaAvsluta(true)}>
+            Avsluta serien
+          </Button>
           <div className="flex gap-2">
             <Button type="button" variant="secondary" onClick={onClose}>
               Avbryt

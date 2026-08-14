@@ -9,6 +9,7 @@ import { Field } from '@/components/ui/field'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
+import { DeleteIconButton } from '@/components/ui/delete-icon-button'
 
 type Kund = { id: string; namn: string }
 type Kontaktperson = {
@@ -194,9 +195,14 @@ function KundFormular({
   return (
     <Modal onClose={onClose} labelledBy="kund-formular-title">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <h2 id="kund-formular-title" className="text-lg font-semibold">
-          {existing ? 'Redigera kund' : 'Ny kund'}
-        </h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 id="kund-formular-title" className="text-lg font-semibold">
+            {existing ? 'Redigera kund' : 'Ny kund'}
+          </h2>
+          {existing && (
+            <DeleteIconButton label={`Ta bort kunden "${existing.namn}"`} onClick={() => setVisaBekraftelse(true)} />
+          )}
+        </div>
         <Field label="Namn" htmlFor="kund-namn">
           <Input
             id="kund-namn"
@@ -216,27 +222,13 @@ function KundFormular({
           />
         )}
 
-        <div className="flex items-center justify-between gap-2">
-          {existing ? (
-            <Button
-              type="button"
-              variant="danger"
-              size="sm"
-              onClick={() => setVisaBekraftelse(true)}
-            >
-              Ta bort
-            </Button>
-          ) : (
-            <span />
-          )}
-          <div className="flex gap-2">
-            <Button type="button" variant="secondary" onClick={onClose}>
-              Avbryt
-            </Button>
-            <Button type="submit" variant="primary" loading={sparar} disabled={!namn.trim()}>
-              {existing ? 'Spara' : 'Skapa'}
-            </Button>
-          </div>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Avbryt
+          </Button>
+          <Button type="submit" variant="primary" loading={sparar} disabled={!namn.trim()}>
+            {existing ? 'Spara' : 'Skapa'}
+          </Button>
         </div>
       </form>
     </Modal>
@@ -343,6 +335,12 @@ function KontaktpersonFormular({
 
   return (
     <div className="mt-3 flex flex-col gap-3 rounded-lg border border-border-subtle p-3">
+      {existing && (
+        <div className="flex items-center justify-between gap-2">
+          <h4 className="text-xs font-semibold text-stone-500">Redigera kontakt</h4>
+          <DeleteIconButton label={`Ta bort ${kontaktNamn(existing)}`} onClick={handleTaBort} loading={tarBort} />
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-2">
         <Field label="Förnamn" htmlFor="kontakt-fornamn">
           <Input id="kontakt-fornamn" value={fornamn ?? ''} onChange={(e) => setFornamn(e.target.value)} autoFocus />
@@ -364,22 +362,13 @@ function KontaktpersonFormular({
           />
         </Field>
       )}
-      <div className="flex items-center justify-between gap-2">
-        {existing ? (
-          <Button type="button" variant="danger" size="sm" loading={tarBort} onClick={handleTaBort}>
-            Ta bort
-          </Button>
-        ) : (
-          <span />
-        )}
-        <div className="flex gap-2">
-          <Button type="button" variant="secondary" size="sm" onClick={onClose}>
-            Avbryt
-          </Button>
-          <Button type="button" variant="primary" size="sm" loading={sparar} onClick={handleSpara}>
-            Spara
-          </Button>
-        </div>
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+          Avbryt
+        </Button>
+        <Button type="button" variant="primary" size="sm" loading={sparar} onClick={handleSpara}>
+          Spara
+        </Button>
       </div>
     </div>
   )

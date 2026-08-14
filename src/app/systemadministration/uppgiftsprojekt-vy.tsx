@@ -8,6 +8,7 @@ import { Field } from '@/components/ui/field'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
+import { DeleteIconButton } from '@/components/ui/delete-icon-button'
 
 type Uppgiftsprojekt = { id: string; namn: string }
 
@@ -104,9 +105,17 @@ function ProjektFormular({
   return (
     <Modal onClose={onClose} labelledBy="projekt-formular-title">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <h2 id="projekt-formular-title" className="text-lg font-semibold">
-          {existing ? 'Redigera projekt' : 'Nytt projekt'}
-        </h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 id="projekt-formular-title" className="text-lg font-semibold">
+            {existing ? 'Redigera projekt' : 'Nytt projekt'}
+          </h2>
+          {existing && (
+            <DeleteIconButton
+              label={`Ta bort projektet "${existing.namn}"`}
+              onClick={() => setVisaBekraftelse(true)}
+            />
+          )}
+        </div>
         <Field label="Namn" htmlFor="projekt-namn">
           <Input
             id="projekt-namn"
@@ -117,22 +126,13 @@ function ProjektFormular({
             autoFocus
           />
         </Field>
-        <div className="flex items-center justify-between gap-2">
-          {existing ? (
-            <Button type="button" variant="danger" size="sm" onClick={() => setVisaBekraftelse(true)}>
-              Ta bort
-            </Button>
-          ) : (
-            <span />
-          )}
-          <div className="flex gap-2">
-            <Button type="button" variant="secondary" onClick={onClose}>
-              Avbryt
-            </Button>
-            <Button type="submit" variant="primary" loading={sparar} disabled={!namn.trim()}>
-              {existing ? 'Spara' : 'Skapa'}
-            </Button>
-          </div>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Avbryt
+          </Button>
+          <Button type="submit" variant="primary" loading={sparar} disabled={!namn.trim()}>
+            {existing ? 'Spara' : 'Skapa'}
+          </Button>
         </div>
       </form>
     </Modal>
