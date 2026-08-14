@@ -38,6 +38,11 @@ function parsaAmne(subject: string): { kundNamn: string | null; titel: string } 
   return { kundNamn: subject.slice(0, idx).trim(), titel: subject.slice(idx + KUND_AVDELARE.length).trim() }
 }
 
+const RADERINGS_VARDEN = new Set(['deleted', 'delete', 'cancelled', 'canceled', 'removed'])
+function arRadering(actionType?: string): boolean {
+  return !!actionType && RADERINGS_VARDEN.has(actionType.trim().toLowerCase())
+}
+
 export async function POST(request: NextRequest) {
   const hemlighet = process.env.OUTLOOK_WEBHOOK_SECRET
   const angiven = request.headers.get('x-webhook-secret')
@@ -54,10 +59,6 @@ export async function POST(request: NextRequest) {
     ownerEmail?: string
     requiredAttendees?: string
     optionalAttendees?: string
-    // actionType tas emot men används inte än — vi vill bestämma vad en
-    // avbokning/borttagning i Outlook faktiskt ska göra med uppgiften innan
-    // vi bygger den logiken. Skapande/uppdatering avgörs redan självständigt
-    // via outlook_event_id nedan, oavsett vad actionType säger.
     actionType?: string
   }
   try {
@@ -66,19 +67,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Ogiltig JSON' }, { status: 400 })
   }
 
-  const { eventId, subject, start, end, bodyPreview, requiredAttendees, optionalAttendees } = body
-  // Flödet är knutet till en enda mailbox, så ownerEmail är valfri idag och
-  // faller tillbaka på standardanvändaren — men går att skicka explicit
-  // senare om fler kollegor kopplar in egna flöden mot samma endpoint.
-  const ownerEmail = body.ownerEmail || process.env.OUTLOOK_WEBHOOK_DEFAULT_EPOST
-  if (!eventId || !subject || !start || !end || !ownerEmail) {
+  const { eventId, subject, start, end, bodyPreview, ownerEmail, requiredAttendees, optionalAttendees, actionType } =
+    body
+  if (!eventId || !ownerEmail) {
     return NextResponse.json({ error: 'Saknar obligatoriska fält' }, { status: 400 })
-  }
-
-  const startMs = new Date(start).getTime()
-  const slutMs = new Date(end).getTime()
-  if (Number.isNaN(startMs) || Number.isNaN(slutMs)) {
-    return NextResponse.json({ error: 'Ogiltigt datumformat' }, { status: 400 })
   }
 
   const supabase = createServiceClient()
@@ -101,6 +93,34 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Okänd användare' }, { status: 404 })
   }
   const foretagId = person.foretag_id
+
+  // En avbokning i Outlook tar bort motsvarande uppgift helt — kräver bara
+  // eventId, inte mötesdetaljerna (som ofta saknas i en delete-trigger).
+  if (arRadering(actionType)) {
+    const { data: befintligUppgift } = await supabase
+      .from('uppgift')
+      .select('id')
+      .eq('foretag_id', foretagId)
+      .eq('outlook_event_id', eventId)
+      .maybeSingle()
+
+    if (!befintligUppgift) {
+      return NextResponse.json({ ok: true, action: 'ingen_matchning' })
+    }
+
+    await supabase.from('uppgift').delete().eq('id', befintligUppgift.id)
+    return NextResponse.json({ ok: true, uppgiftId: befintligUppgift.id, action: 'deleted' })
+  }
+
+  if (!subject || !start || !end) {
+    return NextResponse.json({ error: 'Saknar obligatoriska fält' }, { status: 400 })
+  }
+
+  const startMs = new Date(start).getTime()
+  const slutMs = new Date(end).getTime()
+  if (Number.isNaN(startMs) || Number.isNaN(slutMs)) {
+    return NextResponse.json({ error: 'Ogiltigt datumformat' }, { status: 400 })
+  }
 
   const { datum, klockslag } = stockholmDatumOchKlockslag(start)
   const tidsatgangTimmar = Math.round(((slutMs - startMs) / 3600000) * 4) / 4
