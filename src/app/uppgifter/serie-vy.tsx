@@ -285,7 +285,6 @@ export function SerieFormular({
               onChange={(e) => setTidsatgang(e.target.value)}
               placeholder="T.ex. 1.5"
             />
-            <p className="text-xs text-stone-400">Kopieras in i nya förekomster som standardvärde</p>
           </Field>
 
           <Field label="Klockslag" htmlFor="serie-klockslag">
@@ -295,7 +294,6 @@ export function SerieFormular({
               value={klockslag}
               onChange={(e) => setKlockslag(e.target.value)}
             />
-            <p className="text-xs text-stone-400">Styr ordningen bland andra tidsatta uppgifter samma dag</p>
           </Field>
         </div>
 
@@ -336,7 +334,6 @@ export function SerieFormular({
               min={startDatum || undefined}
               onChange={(e) => setSlutDatum(e.target.value)}
             />
-            <p className="text-xs text-stone-400">Lämna tomt för att köra utan slutdatum</p>
           </Field>
         </div>
 

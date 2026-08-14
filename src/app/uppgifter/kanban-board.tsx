@@ -1031,7 +1031,6 @@ function UppgiftFormular({
                     min={deadline || undefined}
                     onChange={(e) => setSlutDatum(e.target.value)}
                   />
-                  <p className="text-xs text-stone-400">Lämna tomt för att köra utan slutdatum</p>
                 </Field>
               </div>
             )}
