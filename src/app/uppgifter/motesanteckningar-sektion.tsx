@@ -8,7 +8,7 @@ import {
   byggKundsammanfattning,
 } from './actions'
 import { Field } from '@/components/ui/field'
-import { Textarea } from '@/components/ui/input'
+import { MarkdownEditor } from '@/components/ui/markdown-editor'
 import { Button } from '@/components/ui/button'
 import { buildMailto } from '@/lib/mailto'
 import { mondagAvVecka } from './vecka-helpers'
@@ -31,21 +31,62 @@ export function MotesanteckningarSektion({
   blocks: Block[]
   status: string
 }) {
-  const [anteckningar, setAnteckningar] = useState<Anteckning[] | null>(null)
+  const [anteckningar, setAnteckningar] = useState<Anteckning[]>([])
   const [genererar, setGenererar] = useState(false)
   const [genereringsMeddelande, setGenereringsMeddelande] = useState<string | null>(null)
   const [skickar, setSkickar] = useState(false)
+  const [erFullskarm, setErFullskarm] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
   const pendingRef = useRef<Map<string, string>>(new Map())
 
+  // Sektionen renderas direkt (utan att vänta på hämtningen) så att "Mötesanteckningar"
+  // syns omedelbart när typen väljs — annars uppstod en märkbar fördröjning innan hela
+  // rutan dök upp. Om användaren hinner skriva innan hämtningen svarar behåller vi det
+  // lokalt skrivna istället för att låta serverns (äldre) svar skriva över det.
   useEffect(() => {
     let aktiv = true
     hamtaAnteckningarForUppgift(uppgiftId).then((rader) => {
-      if (aktiv) setAnteckningar(rader)
+      if (!aktiv) return
+      setAnteckningar(() => {
+        const fraServern = rader.map((r) => {
+          const lokalt = pendingRef.current.get(r.block_id)
+          return lokalt !== undefined ? { ...r, innehall: lokalt } : r
+        })
+        const saknasLokalt = Array.from(pendingRef.current.entries())
+          .filter(([blockId]) => !rader.some((r) => r.block_id === blockId))
+          .map(([blockId, innehall]) => ({
+            block_id: blockId,
+            innehall,
+            uppgift_id_genererad: null,
+            genererad_titel: null,
+            genererad_deadline: null,
+          }))
+        return [...fraServern, ...saknasLokalt]
+      })
     })
     return () => {
       aktiv = false
     }
   }, [uppgiftId])
+
+  // Sant helskärmsläge (Fullscreen API) istället för en CSS-overlay — döljer hela
+  // webbläsarens gränssnitt, inte bara resten av appen. Escape stänger enbart
+  // helskärmen (se guarden mot att också stänga formuläret i modal.tsx).
+  useEffect(() => {
+    function handleFullscreenChange() {
+      setErFullskarm(document.fullscreenElement === rootRef.current)
+    }
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  function handleFullskarmToggle() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen()
+    } else {
+      rootRef.current?.requestFullscreen().catch(() => {})
+    }
+  }
 
   // Flush av allt osparat vid stängning/byte — även om debounce-timern inte hann
   // gå ut och blur inte hann triggas (t.ex. Escape-tangenten stänger modalen direkt).
@@ -59,16 +100,15 @@ export function MotesanteckningarSektion({
   }, [uppgiftId])
 
   function innehallForBlock(blockId: string) {
-    return anteckningar?.find((a) => a.block_id === blockId)?.innehall ?? ''
+    return anteckningar.find((a) => a.block_id === blockId)?.innehall ?? ''
   }
 
   function koppladGenereradForBlock(blockId: string) {
-    return anteckningar?.find((a) => a.block_id === blockId) ?? null
+    return anteckningar.find((a) => a.block_id === blockId) ?? null
   }
 
   function uppdateraLokalt(blockId: string, innehall: string) {
-    setAnteckningar((state) => {
-      const bas = state ?? []
+    setAnteckningar((bas) => {
       const finns = bas.some((a) => a.block_id === blockId)
       return finns
         ? bas.map((a) => (a.block_id === blockId ? { ...a, innehall } : a))
@@ -134,15 +174,21 @@ export function MotesanteckningarSektion({
     window.location.href = buildMailto(sammanfattning)
   }
 
-  if (anteckningar === null) {
-    return <p className="text-xs text-stone-400">Laddar anteckningar…</p>
-  }
-
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-border-subtle p-3">
+    <div
+      ref={rootRef}
+      className={
+        erFullskarm
+          ? 'flex flex-col gap-4 overflow-y-auto bg-surface p-6'
+          : 'flex flex-col gap-4 rounded-lg border border-border-subtle p-3'
+      }
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Mötesanteckningar</h3>
         <div className="flex gap-2">
+          <Button type="button" variant="secondary" size="sm" onClick={handleFullskarmToggle}>
+            {erFullskarm ? 'Stäng fullskärm' : 'Fullskärm'}
+          </Button>
           <Button type="button" variant="secondary" size="sm" loading={skickar} onClick={handleSkicka}>
             Skicka sammanfattning
           </Button>
@@ -160,12 +206,11 @@ export function MotesanteckningarSektion({
         const koppling = koppladGenereradForBlock(block.id)
         return (
           <Field key={block.id} label={block.namn} htmlFor={`block-${block.id}`}>
-            <Textarea
+            <MarkdownEditor
               id={`block-${block.id}`}
-              rows={3}
               value={innehallForBlock(block.id)}
-              onChange={(e) => handleChange(block.id, e.target.value)}
-              onBlur={(e) => handleBlur(block.id, e.target.value)}
+              onChange={(value) => handleChange(block.id, value)}
+              onBlur={(value) => handleBlur(block.id, value)}
             />
             {koppling?.uppgift_id_genererad && (
               <a

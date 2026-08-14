@@ -8,10 +8,12 @@ export function MarkdownEditor({
   id,
   value,
   onChange,
+  onBlur,
 }: {
   id?: string
   value: string
   onChange: (value: string) => void
+  onBlur?: (value: string) => void
 }) {
   const editor = useEditor({
     extensions: [
@@ -31,6 +33,9 @@ export function MarkdownEditor({
     },
     onUpdate: ({ editor }) => {
       onChange(editor.storage.markdown.getMarkdown())
+    },
+    onBlur: ({ editor }) => {
+      onBlur?.(editor.storage.markdown.getMarkdown())
     },
   })
 
