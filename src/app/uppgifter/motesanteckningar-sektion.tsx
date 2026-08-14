@@ -35,8 +35,7 @@ export function MotesanteckningarSektion({
   const [genererar, setGenererar] = useState(false)
   const [genereringsMeddelande, setGenereringsMeddelande] = useState<string | null>(null)
   const [skickar, setSkickar] = useState(false)
-  const [erFullskarm, setErFullskarm] = useState(false)
-  const rootRef = useRef<HTMLDivElement>(null)
+  const [expanderad, setExpanderad] = useState(false)
   const pendingRef = useRef<Map<string, string>>(new Map())
 
   // Sektionen renderas direkt (utan att vänta på hämtningen) så att "Mötesanteckningar"
@@ -69,24 +68,22 @@ export function MotesanteckningarSektion({
     }
   }, [uppgiftId])
 
-  // Sant helskärmsläge (Fullscreen API) istället för en CSS-overlay — döljer hela
-  // webbläsarens gränssnitt, inte bara resten av appen. Escape stänger enbart
-  // helskärmen (se guarden mot att också stänga formuläret i modal.tsx).
+  // Fyller webbläsarens innehållsyta (inte hela skärmen som F11/Fullscreen API) —
+  // fönstret behåller sina normala kontroller så det går att dra/flytta/docka det
+  // bredvid ett annat fönster under mötet. Escape fångas i capture-fasen, innan
+  // den hinner bubbla upp till modal.tsx:s egen Escape-lyssnare, så den bara
+  // stänger den här vyn och inte hela uppgiftsformuläret bakom den.
   useEffect(() => {
-    function handleFullscreenChange() {
-      setErFullskarm(document.fullscreenElement === rootRef.current)
+    if (!expanderad) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        setExpanderad(false)
+      }
     }
-    document.addEventListener('fullscreenchange', handleFullscreenChange)
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
-  }, [])
-
-  function handleFullskarmToggle() {
-    if (document.fullscreenElement) {
-      document.exitFullscreen()
-    } else {
-      rootRef.current?.requestFullscreen().catch(() => {})
-    }
-  }
+    document.addEventListener('keydown', handleKeyDown, { capture: true })
+    return () => document.removeEventListener('keydown', handleKeyDown, { capture: true })
+  }, [expanderad])
 
   // Flush av allt osparat vid stängning/byte — även om debounce-timern inte hann
   // gå ut och blur inte hann triggas (t.ex. Escape-tangenten stänger modalen direkt).
@@ -176,18 +173,17 @@ export function MotesanteckningarSektion({
 
   return (
     <div
-      ref={rootRef}
       className={
-        erFullskarm
-          ? 'flex flex-col gap-4 overflow-y-auto bg-surface p-6'
+        expanderad
+          ? 'fixed inset-0 z-[60] flex flex-col gap-4 overflow-y-auto bg-surface p-6'
           : 'flex flex-col gap-4 rounded-lg border border-border-subtle p-3'
       }
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Mötesanteckningar</h3>
         <div className="flex gap-2">
-          <Button type="button" variant="secondary" size="sm" onClick={handleFullskarmToggle}>
-            {erFullskarm ? 'Stäng fullskärm' : 'Fullskärm'}
+          <Button type="button" variant="secondary" size="sm" onClick={() => setExpanderad((v) => !v)}>
+            {expanderad ? 'Stäng' : 'Expandera'}
           </Button>
           <Button type="button" variant="secondary" size="sm" loading={skickar} onClick={handleSkicka}>
             Skicka sammanfattning

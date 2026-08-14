@@ -13,10 +13,7 @@ export function Modal({
 }) {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      // Om något inuti modalen (t.ex. mötesanteckningarnas helskärmsläge) äger
-      // helskärmen just nu ska Escape bara stänga den, inte modalen bakom den —
-      // webbläsaren hanterar redan det bytet, så vi ska inte lägga oss i.
-      if (e.key === 'Escape' && !document.fullscreenElement) onClose()
+      if (e.key === 'Escape') onClose()
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
