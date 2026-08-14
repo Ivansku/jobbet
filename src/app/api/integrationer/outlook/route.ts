@@ -52,6 +52,13 @@ export async function POST(request: NextRequest) {
     end?: string
     bodyPreview?: string
     ownerEmail?: string
+    requiredAttendees?: string
+    optionalAttendees?: string
+    // actionType tas emot men används inte än — vi vill bestämma vad en
+    // avbokning/borttagning i Outlook faktiskt ska göra med uppgiften innan
+    // vi bygger den logiken. Skapande/uppdatering avgörs redan självständigt
+    // via outlook_event_id nedan, oavsett vad actionType säger.
+    actionType?: string
   }
   try {
     body = await request.json()
@@ -59,7 +66,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Ogiltig JSON' }, { status: 400 })
   }
 
-  const { eventId, subject, start, end, bodyPreview, ownerEmail } = body
+  const { eventId, subject, start, end, bodyPreview, requiredAttendees, optionalAttendees } = body
+  // Flödet är knutet till en enda mailbox, så ownerEmail är valfri idag och
+  // faller tillbaka på standardanvändaren — men går att skicka explicit
+  // senare om fler kollegor kopplar in egna flöden mot samma endpoint.
+  const ownerEmail = body.ownerEmail || process.env.OUTLOOK_WEBHOOK_DEFAULT_EPOST
   if (!eventId || !subject || !start || !end || !ownerEmail) {
     return NextResponse.json({ error: 'Saknar obligatoriska fält' }, { status: 400 })
   }
@@ -134,6 +145,10 @@ export async function POST(request: NextRequest) {
     deadline: datum,
     klockslag,
     tidsatgang_timmar: tidsatgangTimmar,
+    // Sparas oparsat i väntan på en framtida koppling mellan deltagare och
+    // Kund-registret — ingen logik byggd på det här än.
+    obligatoriska_deltagare: requiredAttendees?.trim() || null,
+    valfria_deltagare: optionalAttendees?.trim() || null,
     ...(sortordning !== undefined ? { sortordning } : {}),
   }
 
