@@ -21,52 +21,44 @@ type Anteckning = {
   genererad_titel: string | null
   genererad_deadline: string | null
 }
+// Rå formen som redan följer med sidans uppgiftshämtning (samma mönster som
+// uppgift_deltagare) — kräver ingen egen nätverksrunda när formuläret öppnas.
+type InitialAnteckning = {
+  block_id: string
+  innehall: string
+  uppgift_id_genererad: string | null
+  genererad: { titel: string; deadline: string | null }[] | null
+}
+
+function tillAnteckning(a: InitialAnteckning): Anteckning {
+  return {
+    block_id: a.block_id,
+    innehall: a.innehall,
+    uppgift_id_genererad: a.uppgift_id_genererad,
+    genererad_titel: a.genererad?.[0]?.titel ?? null,
+    genererad_deadline: a.genererad?.[0]?.deadline ?? null,
+  }
+}
 
 export function MotesanteckningarSektion({
   uppgiftId,
   blocks,
   status,
+  initialAnteckningar,
 }: {
   uppgiftId: string
   blocks: Block[]
   status: string
+  initialAnteckningar: InitialAnteckning[]
 }) {
-  const [anteckningar, setAnteckningar] = useState<Anteckning[]>([])
+  const [anteckningar, setAnteckningar] = useState<Anteckning[]>(() =>
+    initialAnteckningar.map(tillAnteckning)
+  )
   const [genererar, setGenererar] = useState(false)
   const [genereringsMeddelande, setGenereringsMeddelande] = useState<string | null>(null)
   const [skickar, setSkickar] = useState(false)
   const [expanderad, setExpanderad] = useState(false)
   const pendingRef = useRef<Map<string, string>>(new Map())
-
-  // Sektionen renderas direkt (utan att vänta på hämtningen) så att "Mötesanteckningar"
-  // syns omedelbart när typen väljs — annars uppstod en märkbar fördröjning innan hela
-  // rutan dök upp. Om användaren hinner skriva innan hämtningen svarar behåller vi det
-  // lokalt skrivna istället för att låta serverns (äldre) svar skriva över det.
-  useEffect(() => {
-    let aktiv = true
-    hamtaAnteckningarForUppgift(uppgiftId).then((rader) => {
-      if (!aktiv) return
-      setAnteckningar(() => {
-        const fraServern = rader.map((r) => {
-          const lokalt = pendingRef.current.get(r.block_id)
-          return lokalt !== undefined ? { ...r, innehall: lokalt } : r
-        })
-        const saknasLokalt = Array.from(pendingRef.current.entries())
-          .filter(([blockId]) => !rader.some((r) => r.block_id === blockId))
-          .map(([blockId, innehall]) => ({
-            block_id: blockId,
-            innehall,
-            uppgift_id_genererad: null,
-            genererad_titel: null,
-            genererad_deadline: null,
-          }))
-        return [...fraServern, ...saknasLokalt]
-      })
-    })
-    return () => {
-      aktiv = false
-    }
-  }, [uppgiftId])
 
   // Fyller webbläsarens innehållsyta (inte hela skärmen som F11/Fullscreen API) —
   // fönstret behåller sina normala kontroller så det går att dra/flytta/docka det

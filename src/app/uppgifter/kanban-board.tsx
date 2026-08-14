@@ -48,6 +48,12 @@ type Kund = { id: string; namn: string }
 type Typ = { id: string; namn: string; visar_motesanteckningar: boolean }
 type Projekt = { id: string; namn: string }
 type Anteckningsblock = { id: string; namn: string; genererar_uppgift: boolean }
+type UppgiftAnteckning = {
+  block_id: string
+  innehall: string
+  uppgift_id_genererad: string | null
+  genererad: { titel: string; deadline: string | null }[] | null
+}
 type Uppgift = {
   id: string
   titel: string
@@ -64,6 +70,7 @@ type Uppgift = {
   tidsatgang_timmar: number | null
   klockslag: string | null
   uppgift_deltagare: { kontaktperson_id: string }[]
+  uppgift_anteckning: UppgiftAnteckning[]
 }
 type Kontaktperson = {
   id: string
@@ -217,9 +224,9 @@ export function KanbanBoard({
               return befintlig ? state.filter((u) => u.id !== rad.id) : state
             }
 
-            // postgres_changes har ingen koppling till uppgift_deltagare (det är en
-            // egen tabell) — behåll det vi redan visste om deltagare för kortet,
-            // eller tomt för ett helt nytt kort (uppdateras vid nästa sidladdning).
+            // postgres_changes har ingen koppling till uppgift_deltagare/uppgift_anteckning
+            // (egna tabeller) — behåll det vi redan visste om kortet, eller tomt för ett
+            // helt nytt kort (uppdateras vid nästa sidladdning).
             const uppdaterad: Uppgift = {
               id: rad.id as string,
               titel: rad.titel as string,
@@ -236,6 +243,7 @@ export function KanbanBoard({
               tidsatgang_timmar: (rad.tidsatgang_timmar as number | null) ?? null,
               klockslag: (rad.klockslag as string | null) ?? null,
               uppgift_deltagare: befintlig?.uppgift_deltagare ?? [],
+              uppgift_anteckning: befintlig?.uppgift_anteckning ?? [],
             }
 
             return befintlig
@@ -1005,7 +1013,12 @@ function UppgiftFormular({
           )}
 
         {existing?.id && typer.find((t) => t.id === typId)?.visar_motesanteckningar && (
-          <MotesanteckningarSektion uppgiftId={existing.id} blocks={block} status={status} />
+          <MotesanteckningarSektion
+            uppgiftId={existing.id}
+            blocks={block}
+            status={status}
+            initialAnteckningar={existing.uppgift_anteckning}
+          />
         )}
 
         {existing?.id && kundId && typer.find((t) => t.id === typId)?.visar_motesanteckningar && (

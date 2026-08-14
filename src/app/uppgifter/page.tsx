@@ -91,7 +91,7 @@ export default async function UppgifterPage({
     supabase
       .from('uppgift')
       .select(
-        'id, titel, beskrivning, status, prioritet, deadline, person_id, kund_id, typ_id, uppgiftsprojekt_id, serie_id, sortordning, tidsatgang_timmar, klockslag, uppgift_deltagare(kontaktperson_id)'
+        'id, titel, beskrivning, status, prioritet, deadline, person_id, kund_id, typ_id, uppgiftsprojekt_id, serie_id, sortordning, tidsatgang_timmar, klockslag, uppgift_deltagare(kontaktperson_id), uppgift_anteckning(block_id, innehall, uppgift_id_genererad, genererad:uppgift!uppgift_anteckning_uppgift_id_genererad_fkey(titel, deadline))'
       )
       .or(`deadline.is.null,and(deadline.gte.${weekDates[0]},deadline.lte.${sundayISO})`)
       .order('sortordning'),
