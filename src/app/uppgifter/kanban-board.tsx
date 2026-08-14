@@ -76,6 +76,7 @@ type Serie = {
   typ_id: string | null
   uppgiftsprojekt_id: string | null
   prioritet: string
+  start_datum: string
   veckodagar: number[]
   intervall_veckor: number
   slut_datum: string | null

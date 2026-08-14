@@ -221,6 +221,7 @@ export async function uppdateraSerie(
     typId: string
     uppgiftsprojektId: string
     prioritet: string
+    startDatum: string
     veckodagar: number[]
     intervallVeckor: number
     slutDatum: string | null
@@ -235,6 +236,13 @@ export async function uppdateraSerie(
   const supabase = await createClient()
   const idag = todayISODate()
 
+  // En serie som ännu inte börjat (startdatum efter idag) har inget att
+  // "redan ha genererat" — nollställs istället för att sättas till idag, annars
+  // trodde generera_serie_forekomster att allt fram till idag redan fanns och
+  // skulle (innan skyddet i själva SQL-funktionen) kunna börja generera
+  // förekomster före det tänkta startdatumet.
+  const senastGenererat = input.startDatum > idag ? null : idag
+
   await supabase
     .from('uppgift_serie')
     .update({
@@ -245,12 +253,13 @@ export async function uppdateraSerie(
       typ_id: input.typId || null,
       uppgiftsprojekt_id: input.uppgiftsprojektId || null,
       prioritet: input.prioritet,
+      start_datum: input.startDatum,
       veckodagar: input.veckodagar,
       intervall_veckor: input.intervallVeckor,
       slut_datum: input.slutDatum,
       tidsatgang_timmar: input.tidsatgangTimmar,
       klockslag: input.klockslag,
-      senast_genererad_datum: idag,
+      senast_genererad_datum: senastGenererat,
     })
     .eq('id', id)
 

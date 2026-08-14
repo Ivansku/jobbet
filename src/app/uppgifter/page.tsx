@@ -95,7 +95,7 @@ export default async function UppgifterPage({
     supabase
       .from('uppgift_serie')
       .select(
-        'id, titel, beskrivning, person_id, kund_id, typ_id, uppgiftsprojekt_id, prioritet, veckodagar, intervall_veckor, slut_datum, tidsatgang_timmar, klockslag'
+        'id, titel, beskrivning, person_id, kund_id, typ_id, uppgiftsprojekt_id, prioritet, start_datum, veckodagar, intervall_veckor, slut_datum, tidsatgang_timmar, klockslag'
       )
       .order('titel'),
     supabase.from('kontaktperson').select('id, kund_id, fornamn, efternamn, epost').order('fornamn'),

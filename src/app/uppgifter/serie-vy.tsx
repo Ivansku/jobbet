@@ -25,6 +25,7 @@ type Serie = {
   typ_id: string | null
   uppgiftsprojekt_id: string | null
   prioritet: string
+  start_datum: string
   veckodagar: number[]
   intervall_veckor: number
   slut_datum: string | null
@@ -84,8 +85,8 @@ export function SerieVy({
                     <span className="font-medium">{s.titel}</span>
                     <span className="text-xs text-stone-400">
                       {s.intervall_veckor > 1 ? `Var ${s.intervall_veckor}:e vecka: ` : ''}
-                      {veckodagarText(s.veckodagar)} ·{' '}
-                      {s.slut_datum ? `Pågår till ${s.slut_datum}` : 'Inget slutdatum'}
+                      {veckodagarText(s.veckodagar)} · Från {s.start_datum} ·{' '}
+                      {s.slut_datum ? `till ${s.slut_datum}` : 'inget slutdatum'}
                     </span>
                   </button>
                 </li>
@@ -136,6 +137,7 @@ export function SerieFormular({
   const [typId, setTypId] = useState(serie.typ_id ?? '')
   const [uppgiftsprojektId, setUppgiftsprojektId] = useState(serie.uppgiftsprojekt_id ?? '')
   const [prioritet, setPrioritet] = useState(serie.prioritet)
+  const [startDatum, setStartDatum] = useState(serie.start_datum)
   const [veckodagar, setVeckodagar] = useState<number[]>(serie.veckodagar)
   const [intervallVeckor, setIntervallVeckor] = useState(serie.intervall_veckor)
   const [slutDatum, setSlutDatum] = useState(serie.slut_datum ?? '')
@@ -148,7 +150,7 @@ export function SerieFormular({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!titel.trim() || veckodagar.length === 0) return
+    if (!titel.trim() || !startDatum || veckodagar.length === 0) return
     setSparar(true)
     await uppdateraSerie(serie.id, {
       titel: titel.trim(),
@@ -158,6 +160,7 @@ export function SerieFormular({
       typId,
       uppgiftsprojektId,
       prioritet,
+      startDatum,
       veckodagar,
       intervallVeckor,
       slutDatum: slutDatum || null,
@@ -314,15 +317,28 @@ export function SerieFormular({
           </div>
         </Field>
 
-        <Field label="Pågår till" htmlFor="serie-slutdatum-edit">
-          <Input
-            type="date"
-            id="serie-slutdatum-edit"
-            value={slutDatum}
-            onChange={(e) => setSlutDatum(e.target.value)}
-          />
-          <p className="text-xs text-stone-400">Lämna tomt för att köra utan slutdatum</p>
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Startdatum" htmlFor="serie-startdatum-edit">
+            <Input
+              type="date"
+              id="serie-startdatum-edit"
+              value={startDatum}
+              onChange={(e) => setStartDatum(e.target.value)}
+              required
+            />
+          </Field>
+
+          <Field label="Pågår till" htmlFor="serie-slutdatum-edit">
+            <Input
+              type="date"
+              id="serie-slutdatum-edit"
+              value={slutDatum}
+              min={startDatum || undefined}
+              onChange={(e) => setSlutDatum(e.target.value)}
+            />
+            <p className="text-xs text-stone-400">Lämna tomt för att köra utan slutdatum</p>
+          </Field>
+        </div>
 
         <div className="mt-1 flex items-center justify-between gap-2">
           <div className="flex gap-2">
@@ -341,7 +357,7 @@ export function SerieFormular({
               type="submit"
               variant="primary"
               loading={sparar}
-              disabled={!titel.trim() || veckodagar.length === 0}
+              disabled={!titel.trim() || !startDatum || veckodagar.length === 0}
             >
               Spara
             </Button>
