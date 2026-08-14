@@ -179,7 +179,7 @@ export function MotesanteckningarSektion({
           : 'flex flex-col gap-4 rounded-lg border border-border-subtle p-3'
       }
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Mötesanteckningar</h3>
         <div className="flex gap-2">
           <Button type="button" variant="secondary" size="sm" onClick={() => setExpanderad((v) => !v)}>
@@ -196,31 +196,36 @@ export function MotesanteckningarSektion({
         </div>
       </div>
 
-      {genereringsMeddelande && <p className="text-xs text-stone-400">{genereringsMeddelande}</p>}
+      {genereringsMeddelande && <p className="shrink-0 text-xs text-stone-400">{genereringsMeddelande}</p>}
 
       {blocks.map((block) => {
         const koppling = koppladGenereradForBlock(block.id)
         return (
-          <Field key={block.id} label={block.namn} htmlFor={`block-${block.id}`}>
-            <MarkdownEditor
-              id={`block-${block.id}`}
-              value={innehallForBlock(block.id)}
-              onChange={(value) => handleChange(block.id, value)}
-              onBlur={(value) => handleBlur(block.id, value)}
-            />
-            {koppling?.uppgift_id_genererad && (
-              <a
-                href={
-                  koppling.genererad_deadline
-                    ? `/uppgifter?vecka=${mondagAvVecka(koppling.genererad_deadline)}`
-                    : '/uppgifter'
-                }
-                className="mt-1 inline-block text-left text-xs font-medium text-accent-600 hover:underline dark:text-accent-400"
-              >
-                → Uppgift skapad: {koppling.genererad_titel}
-              </a>
-            )}
-          </Field>
+          // shrink-0 — annars klämmer flex-col-behållaren (som scrollar sig själv, se
+          // "expanderad" ovan) ihop blocken istället för att låta dem svämma över och
+          // faktiskt gå att scrolla till.
+          <div key={block.id} className="shrink-0">
+            <Field label={block.namn} htmlFor={`block-${block.id}`}>
+              <MarkdownEditor
+                id={`block-${block.id}`}
+                value={innehallForBlock(block.id)}
+                onChange={(value) => handleChange(block.id, value)}
+                onBlur={(value) => handleBlur(block.id, value)}
+              />
+              {koppling?.uppgift_id_genererad && (
+                <a
+                  href={
+                    koppling.genererad_deadline
+                      ? `/uppgifter?vecka=${mondagAvVecka(koppling.genererad_deadline)}`
+                      : '/uppgifter'
+                  }
+                  className="mt-1 inline-block text-left text-xs font-medium text-accent-600 hover:underline dark:text-accent-400"
+                >
+                  → Uppgift skapad: {koppling.genererad_titel}
+                </a>
+              )}
+            </Field>
+          </div>
         )
       })}
     </div>
