@@ -18,6 +18,7 @@ type Kontaktperson = {
   efternamn: string | null
   epost: string | null
   senast_kontaktad: string | null
+  uppgift_deltagare: { uppgift: { deadline: string | null; status: string }[] }[]
 }
 
 function kontaktNamn(k: Kontaktperson) {
@@ -25,8 +26,40 @@ function kontaktNamn(k: Kontaktperson) {
   return namn || k.epost || 'Namnlös kontakt'
 }
 
+// Tidigaste ej slutförda möte/maildialog personen är kopplad till — en separat
+// markering så man ser att kontakt är på väg även om Senast kontaktad ligger
+// långt bak i tiden.
+function planeratDatum(k: Kontaktperson): string | null {
+  const datum = k.uppgift_deltagare
+    .flatMap((d) => d.uppgift)
+    .filter((u) => u.status !== 'klar' && !!u.deadline)
+    .map((u) => u.deadline as string)
+    .sort()
+  return datum[0] ?? null
+}
+
 export function KundVy({ kunder, kontaktpersoner }: { kunder: Kund[]; kontaktpersoner: Kontaktperson[] }) {
   const [redigerar, setRedigerar] = useState<Kund | 'ny' | null>(null)
+  const [oppnaKontaktId, setOppnaKontaktId] = useState<string | null>(null)
+  const [sok, setSok] = useState('')
+
+  function oppnaKund(kund: Kund, kontaktId: string | null = null) {
+    setOppnaKontaktId(kontaktId)
+    setRedigerar(kund)
+  }
+
+  const sokterm = sok.trim().toLowerCase()
+  const kunderMedKontakter = kunder.map((k) => ({
+    kund: k,
+    kontakter: kontaktpersoner.filter((kp) => kp.kund_id === k.id),
+  }))
+  const filtrerade = sokterm
+    ? kunderMedKontakter.filter(
+        ({ kund, kontakter }) =>
+          kund.namn.toLowerCase().includes(sokterm) ||
+          kontakter.some((kp) => kontaktNamn(kp).toLowerCase().includes(sokterm))
+      )
+    : kunderMedKontakter
 
   return (
     <>
@@ -40,19 +73,57 @@ export function KundVy({ kunder, kontaktpersoner }: { kunder: Kund[]; kontaktper
       {kunder.length === 0 ? (
         <EmptyState title="Inga kunder ännu" description="Lägg till din första kund för att komma igång." />
       ) : (
-        <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle bg-surface">
-          {kunder.map((k) => (
-            <li key={k.id}>
-              <button
-                onClick={() => setRedigerar(k)}
-                className="flex w-full items-center justify-between px-4 py-3 text-left text-sm transition-colors hover:bg-stone-50 dark:hover:bg-stone-800"
-              >
-                <span className="truncate">{k.namn}</span>
-                <span className="text-xs text-stone-400">Redigera</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <>
+          <Input
+            value={sok}
+            onChange={(e) => setSok(e.target.value)}
+            placeholder="Sök kund eller person…"
+            className="mb-4"
+          />
+
+          {filtrerade.length === 0 ? (
+            <p className="py-6 text-center text-sm text-stone-400">Inga träffar.</p>
+          ) : (
+            <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle bg-surface">
+              {filtrerade.map(({ kund, kontakter }) => (
+                <li key={kund.id}>
+                  <button
+                    onClick={() => oppnaKund(kund)}
+                    className="flex w-full items-center justify-between px-4 py-3 text-left text-sm transition-colors hover:bg-stone-50 dark:hover:bg-stone-800"
+                  >
+                    <span className="truncate font-medium">{kund.namn}</span>
+                    <span className="text-xs text-stone-400">Redigera</span>
+                  </button>
+                  {kontakter.length > 0 && (
+                    <ul className="border-t border-border-subtle bg-stone-50/50 dark:bg-stone-900/30">
+                      {kontakter.map((kp) => {
+                        const planerat = planeratDatum(kp)
+                        return (
+                          <li key={kp.id}>
+                            <button
+                              onClick={() => oppnaKund(kund, kp.id)}
+                              className="flex w-full items-center justify-between px-4 py-2 pl-6 text-left text-xs transition-colors hover:bg-stone-100 dark:hover:bg-stone-800"
+                            >
+                              <span className="truncate text-stone-600 dark:text-stone-300">{kontaktNamn(kp)}</span>
+                              <span className="shrink-0 text-stone-400">
+                                {kp.senast_kontaktad ? `Kontaktad ${kp.senast_kontaktad}` : 'Aldrig kontaktad'}
+                                {planerat && (
+                                  <span className="ml-2 text-accent-600 dark:text-accent-400">
+                                    Planerat {planerat}
+                                  </span>
+                                )}
+                              </span>
+                            </button>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
 
       {redigerar && (
@@ -61,6 +132,7 @@ export function KundVy({ kunder, kontaktpersoner }: { kunder: Kund[]; kontaktper
           kontaktpersoner={
             redigerar === 'ny' ? [] : kontaktpersoner.filter((k) => k.kund_id === redigerar.id)
           }
+          initialKontaktId={oppnaKontaktId}
           onClose={() => setRedigerar(null)}
         />
       )}
@@ -71,10 +143,12 @@ export function KundVy({ kunder, kontaktpersoner }: { kunder: Kund[]; kontaktper
 function KundFormular({
   existing,
   kontaktpersoner,
+  initialKontaktId,
   onClose,
 }: {
   existing: Kund | null
   kontaktpersoner: Kontaktperson[]
+  initialKontaktId: string | null
   onClose: () => void
 }) {
   const [namn, setNamn] = useState(existing?.namn ?? '')
@@ -134,7 +208,13 @@ function KundFormular({
           />
         </Field>
 
-        {existing && <KontaktpersonSektion kundId={existing.id} kontaktpersoner={kontaktpersoner} />}
+        {existing && (
+          <KontaktpersonSektion
+            kundId={existing.id}
+            kontaktpersoner={kontaktpersoner}
+            initialKontaktId={initialKontaktId}
+          />
+        )}
 
         <div className="flex items-center justify-between gap-2">
           {existing ? (
@@ -166,11 +246,15 @@ function KundFormular({
 function KontaktpersonSektion({
   kundId,
   kontaktpersoner,
+  initialKontaktId,
 }: {
   kundId: string
   kontaktpersoner: Kontaktperson[]
+  initialKontaktId: string | null
 }) {
-  const [redigerarKontakt, setRedigerarKontakt] = useState<Kontaktperson | 'ny' | null>(null)
+  const [redigerarKontakt, setRedigerarKontakt] = useState<Kontaktperson | 'ny' | null>(
+    () => kontaktpersoner.find((k) => k.id === initialKontaktId) ?? null
+  )
 
   return (
     <div className="border-t border-border-subtle pt-4">
@@ -185,20 +269,24 @@ function KontaktpersonSektion({
         <p className="text-xs text-stone-400">Inga kontaktpersoner ännu.</p>
       ) : (
         <ul className="divide-y divide-border-subtle overflow-hidden rounded-lg border border-border-subtle">
-          {kontaktpersoner.map((k) => (
-            <li key={k.id}>
-              <button
-                type="button"
-                onClick={() => setRedigerarKontakt(k)}
-                className="flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-stone-50 dark:hover:bg-stone-800"
-              >
-                <span className="truncate">{kontaktNamn(k)}</span>
-                <span className="shrink-0 text-xs text-stone-400">
-                  {k.senast_kontaktad ? `Kontaktad ${k.senast_kontaktad}` : 'Ej kontaktad'}
-                </span>
-              </button>
-            </li>
-          ))}
+          {kontaktpersoner.map((k) => {
+            const planerat = planeratDatum(k)
+            return (
+              <li key={k.id}>
+                <button
+                  type="button"
+                  onClick={() => setRedigerarKontakt(k)}
+                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-stone-50 dark:hover:bg-stone-800"
+                >
+                  <span className="truncate">{kontaktNamn(k)}</span>
+                  <span className="shrink-0 text-xs text-stone-400">
+                    {k.senast_kontaktad ? `Kontaktad ${k.senast_kontaktad}` : 'Ej kontaktad'}
+                    {planerat && <span className="ml-2 text-accent-600 dark:text-accent-400">Planerat {planerat}</span>}
+                  </span>
+                </button>
+              </li>
+            )
+          })}
         </ul>
       )}
 

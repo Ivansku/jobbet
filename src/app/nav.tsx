@@ -8,7 +8,6 @@ const LANKAR = [
   { href: '/', label: 'Hem' },
   { href: '/uppgifter', label: 'Uppgifter' },
   { href: '/kunder', label: 'Kunder' },
-  { href: '/personer', label: 'Personer' },
   { href: '/systemadministration', label: 'Systemadministration' },
 ]
 

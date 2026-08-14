@@ -66,6 +66,17 @@ export function KundValjare({
           setOppen(true)
         }}
         onFocus={() => setOppen(true)}
+        onKeyDown={(e) => {
+          if (e.key !== 'Enter') return
+          // Utan detta bubblar Enter upp till det omslutande uppgiftsformuläret
+          // och sparar hela uppgiften istället för att välja/skapa kunden.
+          e.preventDefault()
+          if (traff.length > 0) {
+            valj(traff[0])
+          } else if (text.trim()) {
+            skapaOchValj()
+          }
+        }}
         placeholder="Sök eller skapa kund…"
         className="w-full rounded-lg border border-border-subtle bg-surface px-3 py-2 text-sm text-foreground placeholder:text-stone-400 focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/40"
       />
