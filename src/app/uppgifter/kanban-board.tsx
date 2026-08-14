@@ -1,6 +1,6 @@
 'use client'
 
-import { useOptimistic, useState, useTransition } from 'react'
+import { useEffect, useOptimistic, useState, useTransition } from 'react'
 import {
   closestCenter,
   pointerWithin,
@@ -33,6 +33,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Field } from '@/components/ui/field'
 import { Input, Select } from '@/components/ui/input'
 import { MarkdownEditor } from '@/components/ui/markdown-editor'
+import { createClient } from '@/lib/supabase/client'
 import { VeckodagValjare } from './veckodag-valjare'
 import { KundValjare } from './kund-valjare'
 import { SerieVy, SerieFormular } from './serie-vy'
@@ -105,6 +106,7 @@ export function KanbanBoard({
   projekt,
   serier,
   currentPersonId,
+  foretagId,
   prevVeckaHref,
   nextVeckaHref,
   idagHref,
@@ -118,6 +120,7 @@ export function KanbanBoard({
   projekt: Projekt[]
   serier: Serie[]
   currentPersonId: string | null
+  foretagId: string | null
   prevVeckaHref: string
   nextVeckaHref: string
   idagHref: string
@@ -136,10 +139,72 @@ export function KanbanBoard({
     }
   }
 
-  // Optimistisk lokal patch så ett kort hamnar rätt direkt vid drag/klarmarkering,
-  // istället för att hoppa tillbaka i väntan på serverns svar och en omladdning av sidan.
+  // liveUppgifter är den bekräftade "sanningen" — startar från serverns props,
+  // men hålls sedan i synk live via Supabase Realtime (se nedan) så att t.ex.
+  // Outlook-webhooken kan skapa/ändra/ta bort kort utan att man trycker F5.
+  // Nollställs när props-listan faktiskt byts ut (t.ex. vid vecko-navigering) —
+  // justerat under rendering istället för i en effekt, enligt Reacts eget mönster
+  // för att återspegla en ändrad prop i lokalt state.
+  const [tidigareUppgifter, setTidigareUppgifter] = useState(uppgifter)
+  const [liveUppgifter, setLiveUppgifter] = useState(uppgifter)
+  if (uppgifter !== tidigareUppgifter) {
+    setTidigareUppgifter(uppgifter)
+    setLiveUppgifter(uppgifter)
+  }
+
+  useEffect(() => {
+    if (!foretagId) return
+    const supabase = createClient()
+
+    const kanal = supabase
+      .channel(`uppgift-live-${foretagId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'uppgift', filter: `foretag_id=eq.${foretagId}` },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            const borttagenId = (payload.old as { id?: string }).id
+            if (!borttagenId) return
+            setLiveUppgifter((state) => state.filter((u) => u.id !== borttagenId))
+            return
+          }
+
+          const rad = payload.new as Record<string, unknown>
+          const uppdaterad: Uppgift = {
+            id: rad.id as string,
+            titel: rad.titel as string,
+            beskrivning: (rad.beskrivning as string | null) ?? null,
+            status: rad.status as string,
+            prioritet: rad.prioritet as string,
+            deadline: (rad.deadline as string | null) ?? null,
+            person_id: (rad.person_id as string | null) ?? null,
+            kund_id: (rad.kund_id as string | null) ?? null,
+            typ_id: (rad.typ_id as string | null) ?? null,
+            uppgiftsprojekt_id: (rad.uppgiftsprojekt_id as string | null) ?? null,
+            serie_id: (rad.serie_id as string | null) ?? null,
+            sortordning: rad.sortordning as number,
+            tidsatgang_timmar: (rad.tidsatgang_timmar as number | null) ?? null,
+            klockslag: (rad.klockslag as string | null) ?? null,
+          }
+
+          setLiveUppgifter((state) =>
+            state.some((u) => u.id === uppdaterad.id)
+              ? state.map((u) => (u.id === uppdaterad.id ? uppdaterad : u))
+              : [...state, uppdaterad]
+          )
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(kanal)
+    }
+  }, [foretagId])
+
+  // Optimistisk lokal patch ovanpå liveUppgifter så ett kort hamnar rätt direkt
+  // vid drag/klarmarkering, istället för att hoppa tillbaka i väntan på serverns svar.
   const [uppgifterVy, patchUppgiftOptimistiskt] = useOptimistic(
-    uppgifter,
+    liveUppgifter,
     (state, { id, patch }: { id: string; patch: Partial<Uppgift> }) =>
       state.map((u) => (u.id === id ? { ...u, ...patch } : u))
   )

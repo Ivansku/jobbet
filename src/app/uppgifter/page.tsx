@@ -113,6 +113,7 @@ export default async function UppgifterPage({
           projekt={projekt ?? []}
           serier={serier ?? []}
           currentPersonId={aktuellPerson?.id ?? null}
+          foretagId={aktuellPerson?.foretag_id ?? null}
           prevVeckaHref={`/uppgifter?vecka=${formatISODate(prevVecka)}`}
           nextVeckaHref={`/uppgifter?vecka=${formatISODate(nextVecka)}`}
           idagHref="/uppgifter"
