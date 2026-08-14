@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { AppNav } from '../nav'
 import { UppgiftstypVy } from './uppgiftstyp-vy'
 import { UppgiftsprojektVy } from './uppgiftsprojekt-vy'
+import { AnteckningsblockVy } from './anteckningsblock-vy'
 
 export default async function SystemadministrationPage() {
   const supabase = await createClient()
@@ -20,9 +21,15 @@ export default async function SystemadministrationPage() {
     redirect('/')
   }
 
-  const [{ data: typer }, { data: projekt }] = await Promise.all([
-    supabase.from('uppgiftstyp').select('id, namn').order('namn'),
+  const [{ data: typer }, { data: projekt }, { data: block }] = await Promise.all([
+    supabase.from('uppgiftstyp').select('id, namn, visar_motesanteckningar').order('namn'),
     supabase.from('uppgiftsprojekt').select('id, namn').order('namn'),
+    supabase
+      .from('anteckningsblock')
+      .select(
+        'id, namn, sortordning, aktiv, genererar_uppgift, uppgift_titel_mall, uppgift_typ_id, deadline_dagar_efter_motet, kundvisning_standard'
+      )
+      .order('sortordning'),
   ])
 
   return (
@@ -33,6 +40,7 @@ export default async function SystemadministrationPage() {
         <div className="flex flex-col gap-10">
           <UppgiftstypVy typer={typer ?? []} />
           <UppgiftsprojektVy projekt={projekt ?? []} />
+          <AnteckningsblockVy block={block ?? []} typer={typer ?? []} />
         </div>
       </main>
     </>

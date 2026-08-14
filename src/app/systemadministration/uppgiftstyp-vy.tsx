@@ -10,7 +10,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { DeleteIconButton } from '@/components/ui/delete-icon-button'
 
-type Uppgiftstyp = { id: string; namn: string }
+type Uppgiftstyp = { id: string; namn: string; visar_motesanteckningar: boolean }
 
 export function UppgiftstypVy({ typer }: { typer: Uppgiftstyp[] }) {
   const [redigerar, setRedigerar] = useState<Uppgiftstyp | 'ny' | null>(null)
@@ -57,6 +57,9 @@ export function UppgiftstypVy({ typer }: { typer: Uppgiftstyp[] }) {
 
 function TypFormular({ existing, onClose }: { existing: Uppgiftstyp | null; onClose: () => void }) {
   const [namn, setNamn] = useState(existing?.namn ?? '')
+  const [visarMotesanteckningar, setVisarMotesanteckningar] = useState(
+    existing?.visar_motesanteckningar ?? false
+  )
   const [sparar, setSparar] = useState(false)
   const [visaBekraftelse, setVisaBekraftelse] = useState(false)
   const [tarBort, setTarBort] = useState(false)
@@ -67,9 +70,9 @@ function TypFormular({ existing, onClose }: { existing: Uppgiftstyp | null; onCl
     setSparar(true)
 
     if (existing) {
-      await uppdateraUppgiftstyp(existing.id, namn)
+      await uppdateraUppgiftstyp(existing.id, namn, visarMotesanteckningar)
     } else {
-      await skapaUppgiftstyp(namn)
+      await skapaUppgiftstyp(namn, visarMotesanteckningar)
     }
 
     setSparar(false)
@@ -120,6 +123,15 @@ function TypFormular({ existing, onClose }: { existing: Uppgiftstyp | null; onCl
             autoFocus
           />
         </Field>
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={visarMotesanteckningar}
+            onChange={(e) => setVisarMotesanteckningar(e.target.checked)}
+            className="h-4 w-4 accent-accent-600"
+          />
+          Visar mötesanteckningar på uppgifter av den här typen
+        </label>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>
             Avbryt
