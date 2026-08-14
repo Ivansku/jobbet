@@ -43,6 +43,27 @@ function arRadering(actionType?: string): boolean {
   return !!actionType && RADERINGS_VARDEN.has(actionType.trim().toLowerCase())
 }
 
+// bodyPreview kan komma antingen som ren text eller som Outlook-mötets fulla
+// HTML-body (taggar, Teams-möteslänkar, signaturer) — Markdown-redigeraren
+// tolkar aldrig inbäddad HTML (medveten säkerhetsspärr), så okonverterad HTML
+// skulle bara synas som bokstavlig text. Gör om till läsbar text oavsett källa;
+// ett no-op om texten redan var ren. Kapas till en rimlig längd.
+function htmlTillText(input: string): string {
+  const text = input
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+  return text.slice(0, 2000)
+}
+
 export async function POST(request: NextRequest) {
   const hemlighet = process.env.OUTLOOK_WEBHOOK_SECRET
   const angiven = request.headers.get('x-webhook-secret')
@@ -158,7 +179,7 @@ export async function POST(request: NextRequest) {
 
   const falt = {
     titel,
-    beskrivning: bodyPreview?.trim() || null,
+    beskrivning: bodyPreview?.trim() ? htmlTillText(bodyPreview) || null : null,
     person_id: person.id,
     kund_id: kundId,
     typ_id: typ?.id ?? null,
