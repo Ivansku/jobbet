@@ -68,11 +68,14 @@ export default async function UppgifterPage({
 
   // Håller återkommande serier "fyllda" upp till deras horisont — körs vid varje sidladdning
   // istället för via ett schemalagt jobb, så nya förekomster dyker upp allteftersom tiden går.
-  if (aktuellPerson?.foretag_id) {
-    await supabase.rpc('generera_serie_forekomster', { p_foretag_id: aktuellPerson.foretag_id })
-  }
-
+  // Körs parallellt med resten av datahämtningen istället för att blockera den (den är
+  // idempotent — gör praktiskt taget alltid ingenting), så vecko-navigering inte betalar
+  // en extra fullständig tur-och-retur för ett anrop som nästan aldrig har något att göra.
+  // Enda avvägningen: exakt när en ny säsongshorisont ska rullas över kan en helt nyskapad
+  // förekomst dröja till nästa navigering innan den syns — självrättande, sker högst två
+  // gånger om året.
   const [
+    ,
     { data: uppgifter },
     { data: personer },
     { data: kunder },
@@ -81,6 +84,9 @@ export default async function UppgifterPage({
     { data: serier },
     { data: kontaktpersoner },
   ] = await Promise.all([
+    aktuellPerson?.foretag_id
+      ? supabase.rpc('generera_serie_forekomster', { p_foretag_id: aktuellPerson.foretag_id })
+      : Promise.resolve(null),
     supabase
       .from('uppgift')
       .select(

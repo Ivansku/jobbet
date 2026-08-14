@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useOptimistic, useState, useTransition } from 'react'
+import Link from 'next/link'
 import {
   closestCenter,
   pointerWithin,
@@ -376,24 +377,24 @@ export function KanbanBoard({
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div className="flex gap-2">
-            <a
+            <Link
               href={prevVeckaHref}
               className="inline-flex items-center justify-center rounded-lg border border-stone-300 bg-surface px-3 py-1.5 text-sm font-medium shadow-sm transition-colors hover:border-stone-400 hover:bg-stone-100 dark:border-stone-600 dark:hover:bg-stone-800"
             >
               ← Föregående
-            </a>
-            <a
+            </Link>
+            <Link
               href={idagHref}
               className="inline-flex items-center justify-center rounded-lg border border-stone-300 bg-surface px-3 py-1.5 text-sm font-medium shadow-sm transition-colors hover:border-stone-400 hover:bg-stone-100 dark:border-stone-600 dark:hover:bg-stone-800"
             >
               Denna vecka
-            </a>
-            <a
+            </Link>
+            <Link
               href={nextVeckaHref}
               className="inline-flex items-center justify-center rounded-lg border border-stone-300 bg-surface px-3 py-1.5 text-sm font-medium shadow-sm transition-colors hover:border-stone-400 hover:bg-stone-100 dark:border-stone-600 dark:hover:bg-stone-800"
             >
               Nästa →
-            </a>
+            </Link>
           </div>
           <div className="flex gap-2">
             <SerieVy serier={serier} personer={personer} kunder={kunder} typer={typer} projekt={projekt} />
