@@ -101,12 +101,25 @@ export function KundVy({ kunder, kontaktpersoner }: { kunder: Kund[]; kontaktper
                       {kontakter.map((kp) => {
                         const planerat = planeratDatum(kp)
                         return (
-                          <li key={kp.id} className="flex items-center pr-2">
-                            <button
+                          <li key={kp.id}>
+                            {/* div istället för button — en <a> (mailikonen) får inte nästlas i en
+                                <button>, men hela raden ska ändå vara klickbar/tangentbordsbar som förut. */}
+                            <div
+                              role="button"
+                              tabIndex={0}
                               onClick={() => oppnaKund(kund, kp.id)}
-                              className="flex min-w-0 flex-1 items-center justify-between px-4 py-2 pl-6 text-left text-xs transition-colors hover:bg-stone-100 dark:hover:bg-stone-800"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault()
+                                  oppnaKund(kund, kp.id)
+                                }
+                              }}
+                              className="flex w-full cursor-pointer items-center justify-between px-4 py-2 pl-6 text-left text-xs transition-colors hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-inset dark:hover:bg-stone-800"
                             >
-                              <span className="truncate text-stone-600 dark:text-stone-300">{kontaktNamn(kp)}</span>
+                              <span className="flex min-w-0 items-center gap-1">
+                                <span className="truncate text-stone-600 dark:text-stone-300">{kontaktNamn(kp)}</span>
+                                {kp.epost && <MailtoIconLink epost={kp.epost} namn={kontaktNamn(kp)} />}
+                              </span>
                               <span className="shrink-0 text-stone-400">
                                 {kp.senast_kontaktad ? `Kontaktad ${kp.senast_kontaktad}` : 'Aldrig kontaktad'}
                                 {planerat && (
@@ -115,8 +128,7 @@ export function KundVy({ kunder, kontaktpersoner }: { kunder: Kund[]; kontaktper
                                   </span>
                                 )}
                               </span>
-                            </button>
-                            {kp.epost && <MailtoIconLink epost={kp.epost} namn={kontaktNamn(kp)} />}
+                            </div>
                           </li>
                         )
                       })}
