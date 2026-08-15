@@ -1006,41 +1006,6 @@ function UppgiftFormular({
           </Field>
         </div>
 
-        {!aterkommande &&
-          kundId &&
-          ['Möte', 'Maildialog'].includes(typer.find((t) => t.id === typId)?.namn ?? '') && (
-            <Field label="Deltagare" htmlFor="uppgift-deltagare">
-              <DeltagareValjare
-                kontaktpersoner={kontaktpersoner}
-                kundId={kundId}
-                value={deltagareIds}
-                onChange={setDeltagareIds}
-              />
-            </Field>
-          )}
-
-        {existing?.id && typer.find((t) => t.id === typId)?.visar_motesanteckningar && (
-          <MotesanteckningarSektion
-            uppgiftId={existing.id}
-            blocks={block}
-            status={status}
-            initialAnteckningar={existing.uppgift_anteckning}
-            initialAutoSkapaUppgifterVidKlar={
-              existing.skapa_uppgifter_vid_klar ??
-              typer.find((t) => t.id === typId)?.skapa_uppgifter_vid_klar ??
-              false
-            }
-          />
-        )}
-
-        {existing?.id && kundId && typer.find((t) => t.id === typId)?.visar_motesanteckningar && (
-          <TidigareMotenSektion
-            kundId={kundId}
-            excludeUppgiftId={existing.id}
-            kundNamn={kunder.find((k) => k.id === kundId)?.namn ?? ''}
-          />
-        )}
-
         {!existing?.serie_id && (
           <div className="rounded-lg border border-border-subtle p-3">
             <label className="flex items-center gap-2 text-sm font-medium">
@@ -1090,6 +1055,41 @@ function UppgiftFormular({
               </div>
             )}
           </div>
+        )}
+
+        {!aterkommande &&
+          kundId &&
+          ['Möte', 'Maildialog'].includes(typer.find((t) => t.id === typId)?.namn ?? '') && (
+            <Field label="Deltagare" htmlFor="uppgift-deltagare">
+              <DeltagareValjare
+                kontaktpersoner={kontaktpersoner}
+                kundId={kundId}
+                value={deltagareIds}
+                onChange={setDeltagareIds}
+              />
+            </Field>
+          )}
+
+        {existing?.id && typer.find((t) => t.id === typId)?.visar_motesanteckningar && (
+          <MotesanteckningarSektion
+            uppgiftId={existing.id}
+            blocks={block}
+            status={status}
+            initialAnteckningar={existing.uppgift_anteckning}
+            initialAutoSkapaUppgifterVidKlar={
+              existing.skapa_uppgifter_vid_klar ??
+              typer.find((t) => t.id === typId)?.skapa_uppgifter_vid_klar ??
+              false
+            }
+          />
+        )}
+
+        {existing?.id && kundId && typer.find((t) => t.id === typId)?.visar_motesanteckningar && (
+          <TidigareMotenSektion
+            kundId={kundId}
+            excludeUppgiftId={existing.id}
+            kundNamn={kunder.find((k) => k.id === kundId)?.namn ?? ''}
+          />
         )}
 
         <div className="mt-1 flex justify-end gap-2">

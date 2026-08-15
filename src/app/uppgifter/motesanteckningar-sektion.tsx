@@ -213,7 +213,7 @@ export function MotesanteckningarSektion({
           >
             Skicka sammanfattning
           </Button>
-          {status === 'klar' && (
+          {status === 'klar' && !autoSkapa && (
             <Button
               type="button"
               variant="secondary"

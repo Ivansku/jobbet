@@ -135,20 +135,26 @@ function TypFormular({ existing, onClose }: { existing: Uppgiftstyp | null; onCl
           <input
             type="checkbox"
             checked={visarMotesanteckningar}
-            onChange={(e) => setVisarMotesanteckningar(e.target.checked)}
+            onChange={(e) => {
+              const varde = e.target.checked
+              setVisarMotesanteckningar(varde)
+              if (!varde) setSkapaUppgifterVidKlar(false)
+            }}
             className="h-4 w-4 accent-accent-600"
           />
-          Visar mötesanteckningar på uppgifter av den här typen
+          Visa mötesanteckningar på uppgifter
         </label>
-        <label className="flex items-center gap-2 text-sm font-medium">
-          <input
-            type="checkbox"
-            checked={skapaUppgifterVidKlar}
-            onChange={(e) => setSkapaUppgifterVidKlar(e.target.checked)}
-            className="h-4 w-4 accent-accent-600"
-          />
-          Skapa uppgifter automatiskt vid Klar (standard, kan ändras per uppgift)
-        </label>
+        {visarMotesanteckningar && (
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={skapaUppgifterVidKlar}
+              onChange={(e) => setSkapaUppgifterVidKlar(e.target.checked)}
+              className="h-4 w-4 accent-accent-600"
+            />
+            Skapa uppföljningsuppgifter automatiskt vid klar
+          </label>
+        )}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>
             Avbryt
