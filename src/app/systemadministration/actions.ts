@@ -202,6 +202,30 @@ export async function uppdateraPerson(
   return { error: null }
 }
 
+type FlexelModulInput = { modul: string; aktiv: boolean; veckokvotTimmar: number | null }
+
+export async function uppdateraFlexelModuler(personId: string, moduler: FlexelModulInput[]) {
+  const foretagId = await currentForetagId()
+  if (!foretagId) return { error: 'Kunde inte identifiera företag.' }
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('flexel_installning').upsert(
+    moduler.map((m) => ({
+      foretag_id: foretagId,
+      person_id: personId,
+      modul: m.modul,
+      aktiv: m.aktiv,
+      veckokvot_timmar: m.veckokvotTimmar,
+    })),
+    { onConflict: 'person_id,modul' }
+  )
+
+  if (error) return { error: error.message }
+  revalidatePath('/systemadministration')
+  revalidatePath('/rapporter/flexel')
+  return { error: null }
+}
+
 export async function sattAnteckningsblockAktiv(id: string, aktiv: boolean) {
   const supabase = await createClient()
   await supabase.from('anteckningsblock').update({ aktiv }).eq('id', id)

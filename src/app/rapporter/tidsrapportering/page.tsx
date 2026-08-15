@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { AppNav } from '../../nav'
+import { RapporterNav } from '../rapporter-nav'
 import { TidsrapportVy } from './tidsrapport-vy'
 
 // All datumräkning görs i UTC för att undvika att lokal tidszon (t.ex. svensk sommartid)
@@ -147,7 +148,8 @@ export default async function TidsrapporteringPage({
     <>
       <AppNav />
       <main className="mx-auto w-full max-w-3xl flex-1 p-6 md:p-8">
-        <h1 className="mb-4 text-2xl font-semibold tracking-tight">Tidsrapportering</h1>
+        <h1 className="mb-4 text-2xl font-semibold tracking-tight">Rapporter</h1>
+        <RapporterNav />
         <TidsrapportVy
           veckoetikett={veckoetikett(monday, sunday)}
           prevVeckaHref={`/rapporter/tidsrapportering?vecka=${formatISODate(prevVecka)}&person=${valdPersonId}`}

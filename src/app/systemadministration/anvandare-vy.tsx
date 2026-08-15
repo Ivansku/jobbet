@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { uppdateraPerson } from './actions'
+import { uppdateraPerson, uppdateraFlexelModuler } from './actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Field } from '@/components/ui/field'
@@ -15,13 +15,27 @@ type Person = {
   roll: string | null
   arbetstimmar_per_vecka: number
 }
+type FlexelInstallning = { person_id: string; modul: string; aktiv: boolean; veckokvot_timmar: number | null }
 
 const ROLL_PILLS = [
   { value: 'medlem', label: 'Medlem' },
   { value: 'admin', label: 'Admin' },
 ]
 
-export function AnvandareVy({ personer }: { personer: Person[] }) {
+const MODUL_OPTIONER = [
+  { value: 'flex', label: 'Flex' },
+  { value: 'overtid', label: 'Övertid' },
+  { value: 'foraldraledig', label: 'Föräldraledig' },
+]
+const STANDARD_VECKOKVOT = 8
+
+export function AnvandareVy({
+  personer,
+  flexelInstallningar,
+}: {
+  personer: Person[]
+  flexelInstallningar: FlexelInstallning[]
+}) {
   const [redigerar, setRedigerar] = useState<Person | null>(null)
 
   return (
@@ -53,16 +67,38 @@ export function AnvandareVy({ personer }: { personer: Person[] }) {
         ))}
       </ul>
 
-      {redigerar && <AnvandareFormular person={redigerar} onClose={() => setRedigerar(null)} />}
+      {redigerar && (
+        <AnvandareFormular
+          person={redigerar}
+          flexelInstallningar={flexelInstallningar.filter((i) => i.person_id === redigerar.id)}
+          onClose={() => setRedigerar(null)}
+        />
+      )}
     </>
   )
 }
 
-function AnvandareFormular({ person, onClose }: { person: Person; onClose: () => void }) {
+function AnvandareFormular({
+  person,
+  flexelInstallningar,
+  onClose,
+}: {
+  person: Person
+  flexelInstallningar: FlexelInstallning[]
+  onClose: () => void
+}) {
   const [namn, setNamn] = useState(person.namn)
   const [roll, setRoll] = useState(person.roll ?? 'medlem')
   const [epostOutlook, setEpostOutlook] = useState(person.epost_outlook ?? '')
   const [arbetstimmar, setArbetstimmar] = useState(String(person.arbetstimmar_per_vecka))
+  const [moduler, setModuler] = useState(() =>
+    Object.fromEntries(
+      MODUL_OPTIONER.map((m) => [m.value, flexelInstallningar.find((i) => i.modul === m.value)?.aktiv ?? false])
+    )
+  )
+  const [veckokvot, setVeckokvot] = useState(() =>
+    String(flexelInstallningar.find((i) => i.modul === 'foraldraledig')?.veckokvot_timmar ?? STANDARD_VECKOKVOT)
+  )
   const [sparar, setSparar] = useState(false)
   const [fel, setFel] = useState<string | null>(null)
 
@@ -82,10 +118,24 @@ function AnvandareFormular({ person, onClose }: { person: Person; onClose: () =>
       epostOutlook,
       arbetstimmarPerVecka: timmar,
     })
+    if (error) {
+      setSparar(false)
+      setFel(error)
+      return
+    }
+
+    const { error: modulFel } = await uppdateraFlexelModuler(
+      person.id,
+      MODUL_OPTIONER.map((m) => ({
+        modul: m.value,
+        aktiv: moduler[m.value],
+        veckokvotTimmar: m.value === 'foraldraledig' ? Number(veckokvot.replace(',', '.')) : null,
+      }))
+    )
 
     setSparar(false)
-    if (error) {
-      setFel(error)
+    if (modulFel) {
+      setFel(modulFel)
       return
     }
     onClose()
@@ -149,6 +199,46 @@ function AnvandareFormular({ person, onClose }: { person: Person; onClose: () =>
               </button>
             ))}
           </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium text-stone-700 dark:text-stone-300">Modul (Flexel)</span>
+          {MODUL_OPTIONER.map((m) => (
+            <div key={m.value} className="flex items-center justify-between gap-2">
+              <span className="text-sm">{m.label}</span>
+              <div role="group" aria-label={m.label} className="flex gap-1.5">
+                {[
+                  { value: false, label: 'Av' },
+                  { value: true, label: 'På' },
+                ].map((opt) => (
+                  <button
+                    key={String(opt.value)}
+                    type="button"
+                    onClick={() => setModuler((prev) => ({ ...prev, [m.value]: opt.value }))}
+                    aria-pressed={moduler[m.value] === opt.value}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                      moduler[m.value] === opt.value
+                        ? 'border-accent-500 bg-accent-50 text-accent-700 dark:bg-accent-950 dark:text-accent-300'
+                        : 'border-border-subtle text-stone-500 hover:bg-stone-50 dark:text-stone-400 dark:hover:bg-stone-800'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+          {moduler['foraldraledig'] && (
+            <Field label="Veckokvot, timmar (Föräldraledig)" htmlFor="anvandare-veckokvot">
+              <Input
+                id="anvandare-veckokvot"
+                type="number"
+                min="0"
+                step="0.5"
+                value={veckokvot}
+                onChange={(e) => setVeckokvot(e.target.value)}
+              />
+            </Field>
+          )}
         </div>
         {fel && <p className="text-sm text-red-600">{fel}</p>}
         <div className="flex justify-end gap-2">
