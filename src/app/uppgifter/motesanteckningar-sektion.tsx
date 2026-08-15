@@ -173,18 +173,38 @@ export function MotesanteckningarSektion({
           : 'flex flex-col gap-4 rounded-lg border border-border-subtle p-3'
       }
     >
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+      <div className="flex shrink-0 flex-col gap-3">
         <h3 className="text-sm font-semibold">Mötesanteckningar</h3>
-        <div className="flex gap-2">
-          <Button type="button" variant="secondary" size="sm" onClick={() => setExpanderad((v) => !v)}>
-            {expanderad ? 'Stäng' : 'Expandera'}
+        <div className="flex flex-col gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="w-full"
+            onClick={() => setExpanderad((v) => !v)}
+          >
+            {expanderad ? 'Stäng anteckningsläge' : 'Anteckningsläge'}
           </Button>
-          <Button type="button" variant="secondary" size="sm" loading={skickar} onClick={handleSkicka}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="w-full"
+            loading={skickar}
+            onClick={handleSkicka}
+          >
             Skicka sammanfattning
           </Button>
           {status === 'klar' && (
-            <Button type="button" variant="secondary" size="sm" loading={genererar} onClick={handleGenerera}>
-              Generera uppgifter
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="w-full"
+              loading={genererar}
+              onClick={handleGenerera}
+            >
+              Skapa uppgifter
             </Button>
           )}
         </div>
