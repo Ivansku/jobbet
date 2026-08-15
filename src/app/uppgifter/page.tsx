@@ -62,7 +62,7 @@ export default async function UppgifterPage({
 
   const { data: aktuellPerson } = await supabase
     .from('person')
-    .select('id, foretag_id')
+    .select('id, foretag_id, arbetstimmar_per_vecka')
     .eq('auth_user_id', user?.id ?? '')
     .single()
 
@@ -139,6 +139,7 @@ export default async function UppgifterPage({
           block={block ?? []}
           currentPersonId={aktuellPerson?.id ?? null}
           foretagId={aktuellPerson?.foretag_id ?? null}
+          arbetstimmarPerVecka={aktuellPerson?.arbetstimmar_per_vecka ?? 40}
           prevVeckaHref={`/uppgifter?vecka=${formatISODate(prevVecka)}`}
           nextVeckaHref={`/uppgifter?vecka=${formatISODate(nextVecka)}`}
           idagHref="/uppgifter"

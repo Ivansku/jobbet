@@ -4,6 +4,7 @@ import { AppNav } from '../nav'
 import { UppgiftstypVy } from './uppgiftstyp-vy'
 import { UppgiftsprojektVy } from './uppgiftsprojekt-vy'
 import { AnteckningsblockVy } from './anteckningsblock-vy'
+import { AnvandareVy } from './anvandare-vy'
 
 export default async function SystemadministrationPage() {
   const supabase = await createClient()
@@ -21,7 +22,7 @@ export default async function SystemadministrationPage() {
     redirect('/')
   }
 
-  const [{ data: typer }, { data: projekt }, { data: block }] = await Promise.all([
+  const [{ data: typer }, { data: projekt }, { data: block }, { data: personer }] = await Promise.all([
     supabase
       .from('uppgiftstyp')
       .select('id, namn, visar_motesanteckningar, skapa_uppgifter_vid_klar')
@@ -33,6 +34,10 @@ export default async function SystemadministrationPage() {
         'id, namn, sortordning, aktiv, genererar_uppgift, uppgift_titel_mall, uppgift_typ_id, deadline_dagar_efter_motet, kundvisning_standard'
       )
       .order('sortordning'),
+    supabase
+      .from('person')
+      .select('id, namn, epost, epost_outlook, roll, arbetstimmar_per_vecka')
+      .order('namn'),
   ])
 
   return (
@@ -41,6 +46,7 @@ export default async function SystemadministrationPage() {
       <main className="mx-auto w-full max-w-xl flex-1 p-6 md:p-8">
         <h1 className="mb-6 text-2xl font-semibold tracking-tight">Systemadministration</h1>
         <div className="flex flex-col gap-10">
+          <AnvandareVy personer={personer ?? []} />
           <UppgiftstypVy typer={typer ?? []} />
           <UppgiftsprojektVy projekt={projekt ?? []} />
           <AnteckningsblockVy block={block ?? []} typer={typer ?? []} />

@@ -104,6 +104,11 @@ type Serie = {
 type Kolumn = { key: string; label: string; datum: string | null }
 
 const VECKODAGAR = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag']
+const ARBETSDAGAR_PER_VECKA = 5
+
+function formatTimmar(timmar: number): string {
+  return Number(timmar.toFixed(1)).toString()
+}
 
 // Prioritet syns bara som en dämpad kantfärg på kortet (ingen separat badge/text) —
 // tillräckligt urskiljbart utan att konkurrera om uppmärksamhet med resten av kortet.
@@ -164,6 +169,7 @@ export function KanbanBoard({
   block,
   currentPersonId,
   foretagId,
+  arbetstimmarPerVecka,
   prevVeckaHref,
   nextVeckaHref,
   idagHref,
@@ -180,6 +186,7 @@ export function KanbanBoard({
   block: Anteckningsblock[]
   currentPersonId: string | null
   foretagId: string | null
+  arbetstimmarPerVecka: number
   prevVeckaHref: string
   nextVeckaHref: string
   idagHref: string
@@ -450,6 +457,8 @@ export function KanbanBoard({
               kundMap={kundMap}
               typMap={typMap}
               projektMap={projektMap}
+              currentPersonId={currentPersonId}
+              kapacitetPerDag={arbetstimmarPerVecka / ARBETSDAGAR_PER_VECKA}
               onSelect={setRedigerar}
               onToggleStatus={toggleStatus}
               onAddNew={oppnaNy}
@@ -516,6 +525,8 @@ function KanbanColumn({
   kundMap,
   typMap,
   projektMap,
+  currentPersonId,
+  kapacitetPerDag,
   onSelect,
   onToggleStatus,
   onAddNew,
@@ -527,13 +538,19 @@ function KanbanColumn({
   kundMap: Map<string, string>
   typMap: Map<string, string>
   projektMap: Map<string, string>
+  currentPersonId: string | null
+  kapacitetPerDag: number
   onSelect: (u: Uppgift) => void
   onToggleStatus: (u: Uppgift) => void
   onAddNew: (datum: string | null) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: kol.key })
   const arIdag = kol.datum === today
-  const totalTimmar = uppgifter.reduce((sum, u) => sum + (u.tidsatgang_timmar ?? 0), 0)
+  // Planerat/kapacitet är personligt (bara inloggad användares egna uppgifter den dagen) —
+  // till skillnad från kolumnens övriga innehåll, som visar allas uppgifter.
+  const planeratTimmar = uppgifter
+    .filter((u) => u.person_id === currentPersonId)
+    .reduce((sum, u) => sum + (u.tidsatgang_timmar ?? 0), 0)
 
   return (
     <div
@@ -550,7 +567,11 @@ function KanbanColumn({
           {kol.datum && <span className="font-normal text-stone-400">{kortDatum(kol.datum)}</span>}
           {arIdag && <span className="h-1.5 w-1.5 rounded-full bg-accent-600" aria-label="Idag" />}
         </h2>
-        <span className="shrink-0 text-xs font-medium text-stone-400">{totalTimmar} h</span>
+        {kol.datum && (
+          <span className="shrink-0 text-xs font-medium text-stone-400">
+            {formatTimmar(planeratTimmar)}h/{formatTimmar(kapacitetPerDag)}h
+          </span>
+        )}
       </div>
 
       <div className="flex max-h-[65vh] flex-1 flex-col gap-2 overflow-y-auto">

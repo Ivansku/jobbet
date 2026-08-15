@@ -1,6 +1,6 @@
 # Jobbet — Projektöversikt
 
-*Senast uppdaterad: 2026-08-15*
+*Senast uppdaterad: 2026-08-15 (kväll)*
 
 Detta dokument är en levande sammanfattning av vad appen gör och hur den är uppbyggd, på VAD/VARFÖR-nivå — för planeringssamtal, inte som teknisk referens. Uppdatera det när större funktioner läggs till eller avgränsningar ändras, inte vid varje commit.
 
@@ -24,7 +24,7 @@ Detta dokument är en levande sammanfattning av vad appen gör och hur den är u
 | Entitet | Syfte |
 |---|---|
 | `foretag` | Tenanten. Har en e-postdomän — används sannolikt för att skilja interna kollegor från externa kontakter. |
-| `person` | Interna användare, kopplade till Supabase auth. `roll`: admin/medlem. Har en separat Outlook-mailadress (skild från Google-inloggningsmailen) — troligen för att koppla kalenderhändelser till rätt intern person. |
+| `person` | Interna användare, kopplade till Supabase auth. `roll`: admin/medlem. Har en separat Outlook-mailadress (skild från Google-inloggningsmailen) — troligen för att koppla kalenderhändelser till rätt intern person. `arbetstimmar_per_vecka` (standard 40) driver kapacitetsvisningen i Uppgifter-vyn. |
 | `kund` | Bara namn på kundnivå. |
 | `kontaktperson` | Kontaktpersoner kopplade till en kund: för-/efternamn, e-post, "senast kontaktad"-datum (redigerbart manuellt eller satt via import). Mailto-ikon i UI. |
 | `uppgift` | Titel, beskrivning, status, prioritet, deadline, klockslag, tidsåtgång i timmar, ansvarig person, kund, taggad med uppgiftstyp och uppgiftsprojekt, manuell sorteringsordning inom dagskolumn, samt fält kopplade till Outlook-synk (event-id, ursprunglig deltagarlista som text). Mötesuppgifter har även `genererad_fran_uppgift_id` (pekar tillbaka till mötet för auto-genererade uppföljningsuppgifter), `sammanfattning_skickad_at` och `skapa_uppgifter_vid_klar` (nullable override av typens standard, se `anteckningsblock` nedan). |
@@ -39,7 +39,7 @@ Detta dokument är en levande sammanfattning av vad appen gör och hur den är u
 ## Behörighetsmodell
 
 - Allt scopat per `foretag_id` via RLS. Admin hanterar kunder, personer, tar bort uppgifter.
-- **Systemadministration** — en egen sida (endast admin) för att skapa/redigera/ta bort uppgiftstyper, uppgiftsprojekt och anteckningsblock (skapa/omordna/avaktivera).
+- **Systemadministration** — en egen sida (endast admin) för att skapa/redigera/ta bort uppgiftstyper, uppgiftsprojekt och anteckningsblock (skapa/omordna/avaktivera), samt en **Användare**-sektion för att redigera namn, roll, Outlook-mail och arbetstimmar/vecka på befintliga personer (inget skapa/ta bort — personer tillkommer via inloggning, inget inbjudningsflöde ännu).
 
 ## Byggt hittills
 
@@ -58,7 +58,7 @@ Detta dokument är en levande sammanfattning av vad appen gör och hur den är u
 - Kundsammanfattning som mailto-utkast, byggt från de block som är märkta för kundvisning plus status på uppföljningsuppgifter som blivit klara
 - "Tidigare möten med kunden" på mötesuppgiften, och en samlad mötesanteckningsvy på kundkortet
 - **Rapporter**-sektion i huvudnavet, öppen för alla inloggade (ingen adminspärr). Första rapporttypen: **Tidsrapportering** — registrerad tid grupperad per kund för en vald vecka, med person- och veckofilter (samma vecko-UX som Kanban). Rent läsande, ingen ny tabell — bygger på `uppgift.tidsatgang_timmar`/`deadline`/`kund_id` m.fl.
-- Totalt antal timmar per kolumn visas i Kanban-vyns kolumnrubriker
+- Användarkonfiguration i Systemadministration (namn, roll, Outlook-mail, arbetstimmar/vecka). Arbetstimmarna fördelas jämnt över veckans 5 arbetsdagar och visas i Kanban-vyns kolumnrubriker som "planerat/kapacitet" (t.ex. "5h/8h") för inloggad användares egna uppgifter den dagen — ersätter den tidigare summan av allas timmar per kolumn
 
 ## Medvetna förenklingar / avgränsningar just nu
 

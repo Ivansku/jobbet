@@ -170,6 +170,38 @@ export async function uppdateraAnteckningsblock(id: string, input: Anteckningsbl
   return { error: null }
 }
 
+export async function uppdateraPerson(
+  id: string,
+  input: {
+    namn: string
+    roll: string
+    epostOutlook: string
+    arbetstimmarPerVecka: number
+  }
+) {
+  const namnTrimmat = input.namn.trim()
+  if (!namnTrimmat) return { error: 'Namn krävs.' }
+  if (!Number.isFinite(input.arbetstimmarPerVecka) || input.arbetstimmarPerVecka < 0) {
+    return { error: 'Arbetstimmar per vecka måste vara ett positivt tal.' }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('person')
+    .update({
+      namn: namnTrimmat,
+      roll: input.roll,
+      epost_outlook: input.epostOutlook.trim() || null,
+      arbetstimmar_per_vecka: input.arbetstimmarPerVecka,
+    })
+    .eq('id', id)
+
+  if (error) return { error: error.message }
+  revalidatePath('/systemadministration')
+  revalidatePath('/uppgifter')
+  return { error: null }
+}
+
 export async function sattAnteckningsblockAktiv(id: string, aktiv: boolean) {
   const supabase = await createClient()
   await supabase.from('anteckningsblock').update({ aktiv }).eq('id', id)
