@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { enTillRelation } from '@/lib/postgrest'
 
 export async function skapaKund(namn: string) {
   const namnTrimmat = namn.trim()
@@ -52,7 +53,7 @@ export async function hamtaMotesanteckningarForKund(kundId: string) {
   const { data } = await supabase
     .from('uppgift')
     .select(
-      'id, titel, deadline, typ:typ_id!inner(visar_motesanteckningar), uppgift_anteckning(innehall, block:block_id(namn, sortordning))'
+      'id, titel, deadline, typ:typ_id!inner(visar_motesanteckningar), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(innehall, block:block_id(namn, sortordning))'
     )
     .eq('kund_id', kundId)
     .eq('typ.visar_motesanteckningar', true)
@@ -64,11 +65,14 @@ export async function hamtaMotesanteckningarForKund(kundId: string) {
     deadline: u.deadline,
     block: (u.uppgift_anteckning ?? [])
       .filter((a) => a.innehall?.trim())
-      .map((a) => ({
-        namn: a.block?.[0]?.namn ?? '',
-        sortordning: a.block?.[0]?.sortordning ?? 0,
-        innehall: a.innehall ?? '',
-      }))
+      .map((a) => {
+        const block = enTillRelation(a.block)
+        return {
+          namn: block?.namn ?? '',
+          sortordning: block?.sortordning ?? 0,
+          innehall: a.innehall ?? '',
+        }
+      })
       .sort((a, b) => a.sortordning - b.sortordning),
   }))
 }

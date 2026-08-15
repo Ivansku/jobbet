@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { beraknaSortordning } from '@/lib/sortordning'
 import { currentForetagId } from '@/lib/foretag'
+import { enTillRelation } from '@/lib/postgrest'
 
 function todayISODate() {
   const now = new Date()
@@ -387,13 +388,16 @@ export async function hamtaAnteckningarForUppgift(uppgiftId: string) {
     )
     .eq('uppgift_id', uppgiftId)
 
-  return (data ?? []).map((rad) => ({
-    block_id: rad.block_id,
-    innehall: rad.innehall ?? '',
-    uppgift_id_genererad: rad.uppgift_id_genererad,
-    genererad_titel: rad.genererad?.[0]?.titel ?? null,
-    genererad_deadline: rad.genererad?.[0]?.deadline ?? null,
-  }))
+  return (data ?? []).map((rad) => {
+    const genererad = enTillRelation(rad.genererad)
+    return {
+      block_id: rad.block_id,
+      innehall: rad.innehall ?? '',
+      uppgift_id_genererad: rad.uppgift_id_genererad,
+      genererad_titel: genererad?.titel ?? null,
+      genererad_deadline: genererad?.deadline ?? null,
+    }
+  })
 }
 
 // Går att klicka flera gånger utan att skapa dubbletter — spårningen sker per block
@@ -418,17 +422,18 @@ export async function genereraUppgifterFranAnteckningar(uppgiftId: string) {
     )
     .eq('uppgift_id', uppgiftId)
 
-  const kundNamn = mote.kund?.[0]?.namn ?? null
+  const kundNamn = enTillRelation(mote.kund)?.namn ?? null
 
-  const attGenerera = (anteckningar ?? []).filter((a) => {
-    const block = a.block?.[0]
-    return block?.genererar_uppgift && block.aktiv && !a.uppgift_id_genererad && (a.innehall ?? '').trim()
-  })
+  const attGenerera = (anteckningar ?? [])
+    .map((a) => ({ ...a, block: enTillRelation(a.block) }))
+    .filter(
+      (a) => a.block?.genererar_uppgift && a.block.aktiv && !a.uppgift_id_genererad && (a.innehall ?? '').trim()
+    )
 
   let antalGenererade = 0
 
   for (const anteckning of attGenerera) {
-    const block = anteckning.block![0]
+    const block = anteckning.block!
     const titel = fyllTitelMall(block.uppgift_titel_mall ?? '', kundNamn)
     const deadline =
       block.deadline_dagar_efter_motet != null && mote.deadline
@@ -484,19 +489,23 @@ export async function byggKundsammanfattning(uppgiftId: string) {
     )
     .eq('uppgift_id', uppgiftId)
 
-  const kundNamn = mote.kund?.[0]?.namn ?? ''
+  const kundNamn = enTillRelation(mote.kund)?.namn ?? ''
   const till = (mote.uppgift_deltagare ?? [])
-    .map((d) => d.kontaktperson?.[0]?.epost)
+    .map((d) => enTillRelation(d.kontaktperson)?.epost)
     .filter((epost): epost is string => !!epost)
 
-  const rader = anteckningar ?? []
+  const rader = (anteckningar ?? []).map((a) => ({
+    innehall: a.innehall,
+    block: enTillRelation(a.block),
+    genererad: enTillRelation(a.genererad),
+  }))
 
-  const kundvisningsBlock = rader.filter((a) => a.block?.[0]?.kundvisning_standard && a.innehall?.trim())
+  const kundvisningsBlock = rader.filter((a) => a.block?.kundvisning_standard && a.innehall?.trim())
   const klaraGenererade = rader
-    .map((a) => a.genererad?.[0])
+    .map((a) => a.genererad)
     .filter((g): g is { titel: string; status: string } => !!g && g.status === 'klar')
 
-  const brodtextDelar = kundvisningsBlock.map((a) => `${a.block![0].namn}\n${a.innehall}`)
+  const brodtextDelar = kundvisningsBlock.map((a) => `${a.block!.namn}\n${a.innehall}`)
   if (klaraGenererade.length > 0) {
     brodtextDelar.push(`Genomfört:\n${klaraGenererade.map((g) => `- ${g.titel}`).join('\n')}`)
   }
@@ -517,7 +526,7 @@ export async function hamtaTidigareMoten(kundId: string, excludeUppgiftId: strin
   const { data } = await supabase
     .from('uppgift')
     .select(
-      'id, titel, deadline, typ:typ_id!inner(visar_motesanteckningar), uppgift_anteckning(innehall, block:block_id(namn))'
+      'id, titel, deadline, typ:typ_id!inner(visar_motesanteckningar), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(innehall, block:block_id(namn))'
     )
     .eq('kund_id', kundId)
     .eq('typ.visar_motesanteckningar', true)
@@ -533,6 +542,6 @@ export async function hamtaTidigareMoten(kundId: string, excludeUppgiftId: strin
     utdrag: (u.uppgift_anteckning ?? [])
       .filter((a) => a.innehall?.trim())
       .slice(0, 2)
-      .map((a) => `${a.block?.[0]?.namn}: ${(a.innehall ?? '').slice(0, 80)}`),
+      .map((a) => `${enTillRelation(a.block)?.namn}: ${(a.innehall ?? '').slice(0, 80)}`),
   }))
 }

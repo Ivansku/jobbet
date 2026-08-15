@@ -12,6 +12,7 @@ import { MarkdownEditor } from '@/components/ui/markdown-editor'
 import { Button } from '@/components/ui/button'
 import { buildMailto } from '@/lib/mailto'
 import { mondagAvVecka } from './vecka-helpers'
+import { enTillRelation } from '@/lib/postgrest'
 
 type Block = { id: string; namn: string; genererar_uppgift: boolean }
 type Anteckning = {
@@ -31,12 +32,13 @@ type InitialAnteckning = {
 }
 
 function tillAnteckning(a: InitialAnteckning): Anteckning {
+  const genererad = enTillRelation(a.genererad)
   return {
     block_id: a.block_id,
     innehall: a.innehall,
     uppgift_id_genererad: a.uppgift_id_genererad,
-    genererad_titel: a.genererad?.[0]?.titel ?? null,
-    genererad_deadline: a.genererad?.[0]?.deadline ?? null,
+    genererad_titel: genererad?.titel ?? null,
+    genererad_deadline: genererad?.deadline ?? null,
   }
 }
 
