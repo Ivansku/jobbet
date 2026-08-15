@@ -1,6 +1,6 @@
 # Jobbet — Projektöversikt
 
-*Senast uppdaterad: 2026-08-14*
+*Senast uppdaterad: 2026-08-15*
 
 Detta dokument är en levande sammanfattning av vad appen gör och hur den är uppbyggd, på VAD/VARFÖR-nivå — för planeringssamtal, inte som teknisk referens. Uppdatera det när större funktioner läggs till eller avgränsningar ändras, inte vid varje commit.
 
@@ -27,17 +27,19 @@ Detta dokument är en levande sammanfattning av vad appen gör och hur den är u
 | `person` | Interna användare, kopplade till Supabase auth. `roll`: admin/medlem. Har en separat Outlook-mailadress (skild från Google-inloggningsmailen) — troligen för att koppla kalenderhändelser till rätt intern person. |
 | `kund` | Bara namn på kundnivå. |
 | `kontaktperson` | Kontaktpersoner kopplade till en kund: för-/efternamn, e-post, "senast kontaktad"-datum (redigerbart manuellt eller satt via import). Mailto-ikon i UI. |
-| `uppgift` | Titel, beskrivning, status, prioritet, deadline, klockslag, tidsåtgång i timmar, ansvarig person, kund, taggad med uppgiftstyp och uppgiftsprojekt, manuell sorteringsordning inom dagskolumn, samt fält kopplade till Outlook-synk (event-id, ursprunglig deltagarlista som text). |
+| `uppgift` | Titel, beskrivning, status, prioritet, deadline, klockslag, tidsåtgång i timmar, ansvarig person, kund, taggad med uppgiftstyp och uppgiftsprojekt, manuell sorteringsordning inom dagskolumn, samt fält kopplade till Outlook-synk (event-id, ursprunglig deltagarlista som text). Mötesuppgifter har även `genererad_fran_uppgift_id` (pekar tillbaka till mötet för auto-genererade uppföljningsuppgifter), `sammanfattning_skickad_at` och `skapa_uppgifter_vid_klar` (nullable override av typens standard, se `anteckningsblock` nedan). |
 | `uppgift_serie` | Återkommande uppgifter: startdatum, slutdatum, veckodagar, intervall (var N:e vecka), standardvärden (typ, prioritet, tidsåtgång, klockslag) som kopieras till varje ny förekomst. |
 | `uppgift_deltagare` | Kopplar uppgifter (möten) till en eller flera kontaktpersoner — sätts manuellt via en deltagarväljare eller automatiskt av Outlook-synken. |
-| `uppgiftstyp` | Fri, admin-hanterad lista med kategorier för att märka uppgifter. |
+| `uppgiftstyp` | Fri, admin-hanterad lista med kategorier för att märka uppgifter. Flaggorna `visar_motesanteckningar` (visar mötesanteckningssektionen på uppgifter av den här typen) och `skapa_uppgifter_vid_klar` (standard för auto-generering av uppföljningsuppgifter, se nedan) styrs härifrån. |
 | `uppgiftsprojekt` | Fri, admin-hanterad lista för att gruppera/tagga uppgifter — ett lättviktigt taggningssystem, **inte** samma sak som `projekt`/`projekt_medlem` nedan. |
+| `anteckningsblock` | Admin-hanterad, rubricerad sektion för mötesanteckningar (t.ex. "TODO", "Återkoppling"). Per block: sortordning, aktiv/inaktiv, om blocket ska generera en uppföljningsuppgift (med titel-mall, uppgiftstyp, deadline i dagar efter mötet), och om det ska visas i kundsammanfattningen som standard. |
+| `uppgift_anteckning` | En anteckning per block och mötesuppgift (markdown, autosparas). Håller koll på om blocket redan genererat en uppföljningsuppgift, så generering går att köra flera gånger utan dubbletter. |
 | `projekt` / `projekt_medlem` | Finns kvar i schemat men används fortfarande inte i appen. |
 
 ## Behörighetsmodell
 
 - Allt scopat per `foretag_id` via RLS. Admin hanterar kunder, personer, tar bort uppgifter.
-- **Systemadministration** — en egen sida (endast admin) för att skapa/redigera/ta bort uppgiftstyper och uppgiftsprojekt.
+- **Systemadministration** — en egen sida (endast admin) för att skapa/redigera/ta bort uppgiftstyper, uppgiftsprojekt och anteckningsblock (skapa/omordna/avaktivera).
 
 ## Byggt hittills
 
@@ -51,6 +53,10 @@ Detta dokument är en levande sammanfattning av vad appen gör och hur den är u
 - Enhetlig knappdesign, papperskorgs-ikon för borttagning i formulär, scrollbara modaler, mailto-ikon intill kontaktens namn
 - Datumfält begränsade till fyrsiffriga år (2000–2099)
 - ~140 kunder och ~200 kontaktpersoner bulk-importerade med dublettkontroll och domänbaserad kund-matchning
+- Strukturerade mötesanteckningar på mötesuppgifter: admin-hanterade block, autosave (markdown-editor, samma som Beskrivning), och en expanderbar vy som fyller webbläsarfönstret (utan att ta över hela skärmen som F11) för att kunna placeras bredvid ett annat fönster under möten
+- Uppföljningsuppgifter genereras från anteckningsblockens innehåll — antingen manuellt via en knapp, eller automatiskt när uppgiften markeras klar (togglingsbart, med typ-nivå-standard och per-uppgift-override)
+- Kundsammanfattning som mailto-utkast, byggt från de block som är märkta för kundvisning plus status på uppföljningsuppgifter som blivit klara
+- "Tidigare möten med kunden" på mötesuppgiften, och en samlad mötesanteckningsvy på kundkortet
 
 ## Medvetna förenklingar / avgränsningar just nu
 
@@ -60,6 +66,8 @@ Detta dokument är en levande sammanfattning av vad appen gör och hur den är u
 - Inget inbjudningsflöde för kollegor ännu
 - Ingen notifieringslogik i appen (mejl/push)
 - Ingen mobilanpassning testad
+- Kundsammanfattningen skickas inte på riktigt från servern — bara ett mailto-utkast som öppnas i användarens egen e-postklient
+- Ingen AI-transkribering av fritext/ljud till anteckningsblock
 
 ## Öppna frågor att diskutera
 
