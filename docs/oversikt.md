@@ -57,6 +57,8 @@ Detta dokument är en levande sammanfattning av vad appen gör och hur den är u
 - Uppföljningsuppgifter genereras från anteckningsblockens innehåll — antingen manuellt via en knapp, eller automatiskt när uppgiften markeras klar (togglingsbart, med typ-nivå-standard och per-uppgift-override)
 - Kundsammanfattning som mailto-utkast, byggt från de block som är märkta för kundvisning plus status på uppföljningsuppgifter som blivit klara
 - "Tidigare möten med kunden" på mötesuppgiften, och en samlad mötesanteckningsvy på kundkortet
+- **Rapporter**-sektion i huvudnavet, öppen för alla inloggade (ingen adminspärr). Första rapporttypen: **Tidsrapportering** — registrerad tid grupperad per kund för en vald vecka, med person- och veckofilter (samma vecko-UX som Kanban). Rent läsande, ingen ny tabell — bygger på `uppgift.tidsatgang_timmar`/`deadline`/`kund_id` m.fl.
+- Totalt antal timmar per kolumn visas i Kanban-vyns kolumnrubriker
 
 ## Medvetna förenklingar / avgränsningar just nu
 
@@ -77,7 +79,7 @@ Detta dokument är en levande sammanfattning av vad appen gör och hur den är u
 - Hur ska inbjudningsflödet för kollegor se ut?
 - Behövs notifieringar till användare, och i så fall via vilken kanal?
 - Ska Kanban-vyn fungera på mobil?
-- Rapportering/översikt — arbetsbelastning per person och vecka, uppföljning av "senast kontaktad"?
+- Tidsrapportering v1 är byggd (vecka × kund). Utanför scope hittills: export (PDF/Excel), redigering av tid i rapportvyn, filter på flera personer samtidigt, månads-/årsvy, historik/trend över tid, koppling till "senast kontaktad" eller andra kundfält — värt att prioritera bland dessa vid nästa iteration.
 
 ## Arbetsflöde för Claude Code
 
