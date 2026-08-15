@@ -191,7 +191,7 @@ export function MotesanteckningarSektion({
             onChange={(e) => handleAutoSkapaChange(e.target.checked)}
             className="h-4 w-4 accent-accent-600"
           />
-          Skapa uppgifter automatiskt vid Klar
+          Skapa uppgifter automatiskt
         </label>
         <div className="flex flex-col gap-2">
           <Button
