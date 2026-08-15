@@ -8,6 +8,7 @@ const LANKAR = [
   { href: '/', label: 'Hem' },
   { href: '/uppgifter', label: 'Uppgifter' },
   { href: '/kunder', label: 'Kunder' },
+  { href: '/rapporter', label: 'Rapporter' },
   { href: '/systemadministration', label: 'Systemadministration' },
 ]
 
@@ -18,7 +19,7 @@ export function AppNav() {
     <nav className="flex items-center justify-between border-b border-border-subtle bg-surface px-6 py-3">
       <div className="flex gap-1 text-sm font-medium">
         {LANKAR.map((l) => {
-          const aktiv = pathname === l.href
+          const aktiv = l.href === '/' ? pathname === '/' : pathname.startsWith(l.href)
           return (
             <Link
               key={l.href}
