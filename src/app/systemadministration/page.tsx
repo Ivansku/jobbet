@@ -22,7 +22,10 @@ export default async function SystemadministrationPage() {
   }
 
   const [{ data: typer }, { data: projekt }, { data: block }] = await Promise.all([
-    supabase.from('uppgiftstyp').select('id, namn, visar_motesanteckningar').order('namn'),
+    supabase
+      .from('uppgiftstyp')
+      .select('id, namn, visar_motesanteckningar, skapa_uppgifter_vid_klar')
+      .order('namn'),
     supabase.from('uppgiftsprojekt').select('id, namn').order('namn'),
     supabase
       .from('anteckningsblock')

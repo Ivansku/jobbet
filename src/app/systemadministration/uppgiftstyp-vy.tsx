@@ -10,7 +10,12 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { DeleteIconButton } from '@/components/ui/delete-icon-button'
 
-type Uppgiftstyp = { id: string; namn: string; visar_motesanteckningar: boolean }
+type Uppgiftstyp = {
+  id: string
+  namn: string
+  visar_motesanteckningar: boolean
+  skapa_uppgifter_vid_klar: boolean
+}
 
 export function UppgiftstypVy({ typer }: { typer: Uppgiftstyp[] }) {
   const [redigerar, setRedigerar] = useState<Uppgiftstyp | 'ny' | null>(null)
@@ -60,6 +65,9 @@ function TypFormular({ existing, onClose }: { existing: Uppgiftstyp | null; onCl
   const [visarMotesanteckningar, setVisarMotesanteckningar] = useState(
     existing?.visar_motesanteckningar ?? false
   )
+  const [skapaUppgifterVidKlar, setSkapaUppgifterVidKlar] = useState(
+    existing?.skapa_uppgifter_vid_klar ?? false
+  )
   const [sparar, setSparar] = useState(false)
   const [visaBekraftelse, setVisaBekraftelse] = useState(false)
   const [tarBort, setTarBort] = useState(false)
@@ -70,9 +78,9 @@ function TypFormular({ existing, onClose }: { existing: Uppgiftstyp | null; onCl
     setSparar(true)
 
     if (existing) {
-      await uppdateraUppgiftstyp(existing.id, namn, visarMotesanteckningar)
+      await uppdateraUppgiftstyp(existing.id, namn, visarMotesanteckningar, skapaUppgifterVidKlar)
     } else {
-      await skapaUppgiftstyp(namn, visarMotesanteckningar)
+      await skapaUppgiftstyp(namn, visarMotesanteckningar, skapaUppgifterVidKlar)
     }
 
     setSparar(false)
@@ -131,6 +139,15 @@ function TypFormular({ existing, onClose }: { existing: Uppgiftstyp | null; onCl
             className="h-4 w-4 accent-accent-600"
           />
           Visar mötesanteckningar på uppgifter av den här typen
+        </label>
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={skapaUppgifterVidKlar}
+            onChange={(e) => setSkapaUppgifterVidKlar(e.target.checked)}
+            className="h-4 w-4 accent-accent-600"
+          />
+          Skapa uppgifter automatiskt vid Klar (standard, kan ändras per uppgift)
         </label>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>

@@ -338,6 +338,10 @@ export async function uppdateraUppgift(
 
   await synkaDeltagare(supabase, id, foretagId, input.deltagareIds)
 
+  if (input.status === 'klar') {
+    await genereraOmAktiverat(supabase, id, foretagId)
+  }
+
   revalidatePath('/uppgifter')
 }
 
@@ -350,6 +354,12 @@ export async function flyttaUppgift(id: string, deadline: string | null, sortord
 export async function uppdateraStatus(id: string, status: string) {
   const supabase = await createClient()
   await supabase.from('uppgift').update({ status }).eq('id', id)
+
+  if (status === 'klar') {
+    const foretagId = await currentForetagId()
+    if (foretagId) await genereraOmAktiverat(supabase, id, foretagId)
+  }
+
   revalidatePath('/uppgifter')
 }
 
@@ -400,20 +410,21 @@ export async function hamtaAnteckningarForUppgift(uppgiftId: string) {
   })
 }
 
-// Går att klicka flera gånger utan att skapa dubbletter — spårningen sker per block
-// via uppgift_anteckning.uppgift_id_genererad, som hoppas över när den redan är satt.
-export async function genereraUppgifterFranAnteckningar(uppgiftId: string) {
-  const foretagId = await currentForetagId()
-  if (!foretagId) return { antalGenererade: 0 }
-
-  const supabase = await createClient()
-
+// Går att klicka/köra flera gånger utan att skapa dubbletter — spårningen sker per
+// block via uppgift_anteckning.uppgift_id_genererad, som hoppas över när den redan
+// är satt. Delad kärna: anropas både av den manuella knappen och av automatiken när
+// status sätts till klar (se genereraOmAktiverat nedan).
+async function genereraUppgifterKarna(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  uppgiftId: string,
+  foretagId: string
+): Promise<number> {
   const { data: mote } = await supabase
     .from('uppgift')
     .select('kund_id, person_id, deadline, kund:kund_id(namn)')
     .eq('id', uppgiftId)
     .single()
-  if (!mote) return { antalGenererade: 0 }
+  if (!mote) return 0
 
   const { data: anteckningar } = await supabase
     .from('uppgift_anteckning')
@@ -466,8 +477,44 @@ export async function genereraUppgifterFranAnteckningar(uppgiftId: string) {
     }
   }
 
+  return antalGenererade
+}
+
+export async function genereraUppgifterFranAnteckningar(uppgiftId: string) {
+  const foretagId = await currentForetagId()
+  if (!foretagId) return { antalGenererade: 0 }
+
+  const supabase = await createClient()
+  const antalGenererade = await genereraUppgifterKarna(supabase, uppgiftId, foretagId)
   if (antalGenererade > 0) revalidatePath('/uppgifter')
   return { antalGenererade }
+}
+
+// Körs varje gång en uppgift sätts till klar (dropdown i formuläret eller
+// kryssrutan på Kanban-kortet) — genererar bara om det effektiva värdet
+// (uppgiftens egen inställning, annars typens standard) är påslaget.
+async function genereraOmAktiverat(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  uppgiftId: string,
+  foretagId: string
+) {
+  const { data: uppgift } = await supabase
+    .from('uppgift')
+    .select('skapa_uppgifter_vid_klar, typ:typ_id(skapa_uppgifter_vid_klar)')
+    .eq('id', uppgiftId)
+    .single()
+  if (!uppgift) return
+
+  const typStandard = enTillRelation(uppgift.typ)?.skapa_uppgifter_vid_klar ?? false
+  const aktiverat = uppgift.skapa_uppgifter_vid_klar ?? typStandard
+  if (aktiverat) {
+    await genereraUppgifterKarna(supabase, uppgiftId, foretagId)
+  }
+}
+
+export async function uppdateraAutoSkapaUppgifter(uppgiftId: string, varde: boolean) {
+  const supabase = await createClient()
+  await supabase.from('uppgift').update({ skapa_uppgifter_vid_klar: varde }).eq('id', uppgiftId)
 }
 
 export async function byggKundsammanfattning(uppgiftId: string) {

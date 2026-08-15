@@ -45,7 +45,12 @@ import { TidigareMotenSektion } from './tidigare-moten-sektion'
 
 type Person = { id: string; namn: string }
 type Kund = { id: string; namn: string }
-type Typ = { id: string; namn: string; visar_motesanteckningar: boolean }
+type Typ = {
+  id: string
+  namn: string
+  visar_motesanteckningar: boolean
+  skapa_uppgifter_vid_klar: boolean
+}
 type Projekt = { id: string; namn: string }
 type Anteckningsblock = { id: string; namn: string; genererar_uppgift: boolean }
 type UppgiftAnteckning = {
@@ -69,6 +74,7 @@ type Uppgift = {
   sortordning: number
   tidsatgang_timmar: number | null
   klockslag: string | null
+  skapa_uppgifter_vid_klar: boolean | null
   uppgift_deltagare: { kontaktperson_id: string }[]
   uppgift_anteckning: UppgiftAnteckning[]
 }
@@ -242,6 +248,7 @@ export function KanbanBoard({
               sortordning: rad.sortordning as number,
               tidsatgang_timmar: (rad.tidsatgang_timmar as number | null) ?? null,
               klockslag: (rad.klockslag as string | null) ?? null,
+              skapa_uppgifter_vid_klar: (rad.skapa_uppgifter_vid_klar as boolean | null) ?? null,
               uppgift_deltagare: befintlig?.uppgift_deltagare ?? [],
               uppgift_anteckning: befintlig?.uppgift_anteckning ?? [],
             }
@@ -1018,6 +1025,11 @@ function UppgiftFormular({
             blocks={block}
             status={status}
             initialAnteckningar={existing.uppgift_anteckning}
+            initialAutoSkapaUppgifterVidKlar={
+              existing.skapa_uppgifter_vid_klar ??
+              typer.find((t) => t.id === typId)?.skapa_uppgifter_vid_klar ??
+              false
+            }
           />
         )}
 

@@ -4,7 +4,11 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { currentForetagId } from '@/lib/foretag'
 
-export async function skapaUppgiftstyp(namn: string, visarMotesanteckningar: boolean) {
+export async function skapaUppgiftstyp(
+  namn: string,
+  visarMotesanteckningar: boolean,
+  skapaUppgifterVidKlar: boolean
+) {
   const namnTrimmat = namn.trim()
   if (!namnTrimmat) return
 
@@ -26,18 +30,28 @@ export async function skapaUppgiftstyp(namn: string, visarMotesanteckningar: boo
     foretag_id: person.foretag_id,
     namn: namnTrimmat,
     visar_motesanteckningar: visarMotesanteckningar,
+    skapa_uppgifter_vid_klar: skapaUppgifterVidKlar,
   })
   revalidatePath('/systemadministration')
 }
 
-export async function uppdateraUppgiftstyp(id: string, namn: string, visarMotesanteckningar: boolean) {
+export async function uppdateraUppgiftstyp(
+  id: string,
+  namn: string,
+  visarMotesanteckningar: boolean,
+  skapaUppgifterVidKlar: boolean
+) {
   const namnTrimmat = namn.trim()
   if (!namnTrimmat) return
 
   const supabase = await createClient()
   await supabase
     .from('uppgiftstyp')
-    .update({ namn: namnTrimmat, visar_motesanteckningar: visarMotesanteckningar })
+    .update({
+      namn: namnTrimmat,
+      visar_motesanteckningar: visarMotesanteckningar,
+      skapa_uppgifter_vid_klar: skapaUppgifterVidKlar,
+    })
     .eq('id', id)
   revalidatePath('/systemadministration')
 }

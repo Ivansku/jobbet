@@ -6,6 +6,7 @@ import {
   hamtaAnteckningarForUppgift,
   genereraUppgifterFranAnteckningar,
   byggKundsammanfattning,
+  uppdateraAutoSkapaUppgifter,
 } from './actions'
 import { Field } from '@/components/ui/field'
 import { MarkdownEditor } from '@/components/ui/markdown-editor'
@@ -47,11 +48,13 @@ export function MotesanteckningarSektion({
   blocks,
   status,
   initialAnteckningar,
+  initialAutoSkapaUppgifterVidKlar,
 }: {
   uppgiftId: string
   blocks: Block[]
   status: string
   initialAnteckningar: InitialAnteckning[]
+  initialAutoSkapaUppgifterVidKlar: boolean
 }) {
   const [anteckningar, setAnteckningar] = useState<Anteckning[]>(() =>
     initialAnteckningar.map(tillAnteckning)
@@ -60,6 +63,7 @@ export function MotesanteckningarSektion({
   const [genereringsMeddelande, setGenereringsMeddelande] = useState<string | null>(null)
   const [skickar, setSkickar] = useState(false)
   const [expanderad, setExpanderad] = useState(false)
+  const [autoSkapa, setAutoSkapa] = useState(initialAutoSkapaUppgifterVidKlar)
   const pendingRef = useRef<Map<string, string>>(new Map())
 
   // Fyller webbläsarens innehållsyta (inte hela skärmen som F11/Fullscreen API) —
@@ -165,6 +169,11 @@ export function MotesanteckningarSektion({
     window.location.href = buildMailto(sammanfattning)
   }
 
+  function handleAutoSkapaChange(varde: boolean) {
+    setAutoSkapa(varde)
+    uppdateraAutoSkapaUppgifter(uppgiftId, varde)
+  }
+
   return (
     <div
       className={
@@ -175,6 +184,15 @@ export function MotesanteckningarSektion({
     >
       <div className="flex shrink-0 flex-col gap-3">
         <h3 className="text-sm font-semibold">Mötesanteckningar</h3>
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={autoSkapa}
+            onChange={(e) => handleAutoSkapaChange(e.target.checked)}
+            className="h-4 w-4 accent-accent-600"
+          />
+          Skapa uppgifter automatiskt vid Klar
+        </label>
         <div className="flex flex-col gap-2">
           <Button
             type="button"
