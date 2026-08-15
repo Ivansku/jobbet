@@ -520,6 +520,7 @@ function KanbanColumn({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: kol.key })
   const arIdag = kol.datum === today
+  const totalTimmar = uppgifter.reduce((sum, u) => sum + (u.tidsatgang_timmar ?? 0), 0)
 
   return (
     <div
@@ -530,11 +531,14 @@ function KanbanColumn({
           : 'border-border-subtle bg-white dark:bg-stone-800/60'
       }`}
     >
-      <h2 className="flex items-center gap-1.5 text-sm font-semibold text-stone-500">
-        {kol.label}
-        {kol.datum && <span className="font-normal text-stone-400">{kortDatum(kol.datum)}</span>}
-        {arIdag && <span className="h-1.5 w-1.5 rounded-full bg-accent-600" aria-label="Idag" />}
-      </h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-stone-500">
+          {kol.label}
+          {kol.datum && <span className="font-normal text-stone-400">{kortDatum(kol.datum)}</span>}
+          {arIdag && <span className="h-1.5 w-1.5 rounded-full bg-accent-600" aria-label="Idag" />}
+        </h2>
+        <span className="shrink-0 text-xs font-medium text-stone-400">{totalTimmar} h</span>
+      </div>
 
       <div className="flex max-h-[65vh] flex-1 flex-col gap-2 overflow-y-auto">
         {uppgifter.length === 0 ? (
