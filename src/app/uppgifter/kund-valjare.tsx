@@ -59,6 +59,7 @@ export function KundValjare({
       <input
         type="text"
         id={id}
+        autoComplete="off"
         value={text}
         onChange={(e) => {
           setText(e.target.value)

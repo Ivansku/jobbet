@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useOptimistic, useState, useTransition } from 'react'
+import { useEffect, useOptimistic, useRef, useState, useTransition, type ReactNode } from 'react'
 import Link from 'next/link'
 import {
   closestCenter,
@@ -112,6 +112,19 @@ const PRIORITET_BORDER: Record<string, string> = {
   medel: 'border-l-amber-400 dark:border-l-amber-500',
   hog: 'border-l-red-400 dark:border-l-red-500',
 }
+
+const PRIORITET_PILLS = [
+  { value: 'lag', label: 'Låg' },
+  { value: 'medel', label: 'Medel' },
+  { value: 'hog', label: 'Hög' },
+]
+
+const STATUS_PILLS = [
+  { value: 'oppen', label: 'Öppen' },
+  { value: 'pagar', label: 'Pågår' },
+  { value: 'vantar', label: 'Väntar' },
+  { value: 'klar', label: 'Klar' },
+]
 
 function kortDatum(iso: string) {
   const [, m, d] = iso.split('-')
@@ -710,6 +723,125 @@ function KortInnehall({
   )
 }
 
+function FormularSektion({ label, children }: { label?: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-3 border-t border-border-subtle pt-3">
+      {label && <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">{label}</p>}
+      {children}
+    </div>
+  )
+}
+
+function PillGrupp({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  options: { value: string; label: string }[]
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-sm font-medium text-stone-700 dark:text-stone-300">{label}</span>
+      <div role="group" aria-label={label} className="flex flex-wrap gap-1.5">
+        {options.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            aria-pressed={opt.value === value}
+            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+              opt.value === value
+                ? 'border-accent-500 bg-accent-50 text-accent-700 dark:bg-accent-950 dark:text-accent-300'
+                : 'border-border-subtle text-stone-500 hover:bg-stone-50 dark:text-stone-400 dark:hover:bg-stone-800'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function AnsvarigAvatar({
+  personer,
+  value,
+  onChange,
+}: {
+  personer: Person[]
+  value: string
+  onChange: (id: string) => void
+}) {
+  const [oppen, setOppen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOppen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const vald = personer.find((p) => p.id === value)
+  const initialer = vald
+    ? vald.namn
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((d) => d[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
+    : '?'
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOppen((o) => !o)}
+        title={vald ? `Ansvarig: ${vald.namn}` : 'Ingen ansvarig'}
+        aria-label={vald ? `Byt ansvarig, nuvarande ${vald.namn}` : 'Välj ansvarig'}
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-50 text-xs font-semibold text-accent-700 hover:ring-2 hover:ring-accent-500/40 dark:bg-accent-950 dark:text-accent-300"
+      >
+        {initialer}
+      </button>
+      {oppen && (
+        <div className="absolute right-0 z-10 mt-1 w-44 overflow-hidden rounded-lg border border-border-subtle bg-surface py-1 shadow-lg">
+          <button
+            type="button"
+            onClick={() => {
+              onChange('')
+              setOppen(false)
+            }}
+            className="block w-full px-3 py-2 text-left text-sm hover:bg-stone-50 dark:hover:bg-stone-800"
+          >
+            Ingen
+          </button>
+          {personer.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => {
+                onChange(p.id)
+                setOppen(false)
+              }}
+              className={`block w-full px-3 py-2 text-left text-sm hover:bg-stone-50 dark:hover:bg-stone-800 ${
+                p.id === value ? 'font-medium text-accent-700 dark:text-accent-300' : ''
+              }`}
+            >
+              {p.namn}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function UppgiftFormular({
   existing,
   personer,
@@ -862,12 +994,15 @@ function UppgiftFormular({
           <h2 id="uppgift-formular-title" className="text-lg font-semibold">
             {existing ? 'Redigera uppgift' : 'Ny uppgift'}
           </h2>
-          {existing && (
-            <DeleteIconButton
-              label={`Ta bort uppgiften "${existing.titel}"`}
-              onClick={() => setVisaBekraftelse(true)}
-            />
-          )}
+          <div className="flex shrink-0 items-center gap-1.5">
+            <AnsvarigAvatar personer={personer} value={personId ?? ''} onChange={setPersonId} />
+            {existing && (
+              <DeleteIconButton
+                label={`Ta bort uppgiften "${existing.titel}"`}
+                onClick={() => setVisaBekraftelse(true)}
+              />
+            )}
+          </div>
         </div>
 
         {existing?.serie_id && (
@@ -904,74 +1039,84 @@ function UppgiftFormular({
           <MarkdownEditor id="uppgift-beskrivning" value={beskrivning ?? ''} onChange={setBeskrivning} />
         </Field>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Ansvarig" htmlFor="uppgift-person">
-            <Select
-              id="uppgift-person"
-              value={personId ?? ''}
-              onChange={(e) => setPersonId(e.target.value)}
-            >
-              <option value="">Ingen</option>
-              {personer.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.namn}
-                </option>
-              ))}
-            </Select>
-          </Field>
+        <FormularSektion label="Kategorisering">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Typ" htmlFor="uppgift-typ">
+              <Select id="uppgift-typ" value={typId ?? ''} onChange={(e) => setTypId(e.target.value)}>
+                <option value="">Ingen</option>
+                {typer.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.namn}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
+            <Field label="Projekt" htmlFor="uppgift-projekt">
+              <Select
+                id="uppgift-projekt"
+                value={uppgiftsprojektId ?? ''}
+                onChange={(e) => setUppgiftsprojektId(e.target.value)}
+              >
+                <option value="">Inget</option>
+                {projekt.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.namn}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
 
           <Field label="Kund" htmlFor="uppgift-kund">
             <KundValjare id="uppgift-kund" kunder={kunder} value={kundId ?? ''} onChange={setKundId} />
           </Field>
 
-          <Field label="Typ" htmlFor="uppgift-typ">
-            <Select id="uppgift-typ" value={typId ?? ''} onChange={(e) => setTypId(e.target.value)}>
-              <option value="">Ingen</option>
-              {typer.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.namn}
-                </option>
-              ))}
-            </Select>
-          </Field>
+          {!aterkommande &&
+            kundId &&
+            ['Möte', 'Maildialog'].includes(typer.find((t) => t.id === typId)?.namn ?? '') && (
+              <Field label="Deltagare" htmlFor="uppgift-deltagare">
+                <DeltagareValjare
+                  kontaktpersoner={kontaktpersoner}
+                  kundId={kundId}
+                  value={deltagareIds}
+                  onChange={setDeltagareIds}
+                />
+              </Field>
+            )}
+        </FormularSektion>
 
-          <Field label="Projekt" htmlFor="uppgift-projekt">
-            <Select
-              id="uppgift-projekt"
-              value={uppgiftsprojektId ?? ''}
-              onChange={(e) => setUppgiftsprojektId(e.target.value)}
-            >
-              <option value="">Inget</option>
-              {projekt.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.namn}
-                </option>
-              ))}
-            </Select>
-          </Field>
-
-          <Field label="Prioritet" htmlFor="uppgift-prioritet">
-            <Select
-              id="uppgift-prioritet"
-              value={prioritet}
-              onChange={(e) => setPrioritet(e.target.value)}
-            >
-              <option value="lag">Låg</option>
-              <option value="medel">Medel</option>
-              <option value="hog">Hög</option>
-            </Select>
-          </Field>
-
+        <FormularSektion label="Prioritet & status">
+          <PillGrupp label="Prioritet" value={prioritet} onChange={setPrioritet} options={PRIORITET_PILLS} />
           {!aterkommande && (
-            <Field label="Status" htmlFor="uppgift-status">
-              <Select id="uppgift-status" value={status} onChange={(e) => setStatus(e.target.value)}>
-                <option value="oppen">Öppen</option>
-                <option value="pagar">Pågår</option>
-                <option value="vantar">Väntar</option>
-                <option value="klar">Klar</option>
-              </Select>
-            </Field>
+            <PillGrupp label="Status" value={status} onChange={setStatus} options={STATUS_PILLS} />
           )}
+        </FormularSektion>
+
+        <FormularSektion label="Tid">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={aterkommande ? 'Startdatum' : 'Dag'} htmlFor="uppgift-deadline">
+              <Input
+                type="date"
+                id="uppgift-deadline"
+                value={deadline ?? ''}
+                onChange={(e) => setDeadline(e.target.value)}
+                required={aterkommande}
+              />
+            </Field>
+
+            <Field
+              label={aterkommande ? 'Klockslag (för alla förekomster)' : 'Klockslag'}
+              htmlFor="uppgift-klockslag"
+            >
+              <Input
+                type="time"
+                id="uppgift-klockslag"
+                value={klockslag}
+                onChange={(e) => setKlockslag(e.target.value)}
+              />
+            </Field>
+          </div>
 
           <Field
             label={aterkommande ? 'Tidsåtgång (standard för serien)' : 'Tidsåtgång (timmar)'}
@@ -987,113 +1132,81 @@ function UppgiftFormular({
               placeholder="T.ex. 0.5"
             />
           </Field>
-        </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={aterkommande ? 'Startdatum' : 'Dag'} htmlFor="uppgift-deadline">
-            <Input
-              type="date"
-              id="uppgift-deadline"
-              value={deadline ?? ''}
-              onChange={(e) => setDeadline(e.target.value)}
-              required={aterkommande}
-            />
-          </Field>
+          {!existing?.serie_id && (
+            <div className="rounded-lg border border-border-subtle p-3">
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <input
+                  type="checkbox"
+                  checked={aterkommande}
+                  onChange={(e) => setAterkommande(e.target.checked)}
+                  className="h-4 w-4 accent-accent-600"
+                />
+                Återkommande uppgift
+              </label>
+              {existing && aterkommande && (
+                <p className="mt-1 text-xs text-stone-400">
+                  Den här uppgiften blir den första förekomsten i en ny serie.
+                </p>
+              )}
 
-          <Field label={aterkommande ? 'Klockslag (för alla förekomster)' : 'Klockslag'} htmlFor="uppgift-klockslag">
-            <Input
-              type="time"
-              id="uppgift-klockslag"
-              value={klockslag}
-              onChange={(e) => setKlockslag(e.target.value)}
-            />
-          </Field>
-        </div>
+              {aterkommande && (
+                <div className="mt-3 flex flex-col gap-3">
+                  <Field label="Upprepa på" htmlFor="serie-veckodagar">
+                    <VeckodagValjare value={veckodagar} onChange={setVeckodagar} />
+                  </Field>
 
-        {!existing?.serie_id && (
-          <div className="rounded-lg border border-border-subtle p-3">
-            <label className="flex items-center gap-2 text-sm font-medium">
-              <input
-                type="checkbox"
-                checked={aterkommande}
-                onChange={(e) => setAterkommande(e.target.checked)}
-                className="h-4 w-4 accent-accent-600"
-              />
-              Återkommande uppgift
-            </label>
-            {existing && aterkommande && (
-              <p className="mt-1 text-xs text-stone-400">
-                Den här uppgiften blir den första förekomsten i en ny serie.
-              </p>
-            )}
+                  <Field label="Upprepa var" htmlFor="serie-intervall">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        id="serie-intervall"
+                        min={1}
+                        value={intervallVeckor}
+                        onChange={(e) => setIntervallVeckor(Math.max(1, Number(e.target.value)))}
+                        className="w-16"
+                      />
+                      <span className="text-sm text-stone-500">vecka</span>
+                    </div>
+                  </Field>
 
-            {aterkommande && (
-              <div className="mt-3 flex flex-col gap-3">
-                <Field label="Upprepa på" htmlFor="serie-veckodagar">
-                  <VeckodagValjare value={veckodagar} onChange={setVeckodagar} />
-                </Field>
-
-                <Field label="Upprepa var" htmlFor="serie-intervall">
-                  <div className="flex items-center gap-2">
+                  <Field label="Pågår till" htmlFor="serie-slutdatum">
                     <Input
-                      type="number"
-                      id="serie-intervall"
-                      min={1}
-                      value={intervallVeckor}
-                      onChange={(e) => setIntervallVeckor(Math.max(1, Number(e.target.value)))}
-                      className="w-16"
+                      type="date"
+                      id="serie-slutdatum"
+                      value={slutDatum}
+                      min={deadline || undefined}
+                      onChange={(e) => setSlutDatum(e.target.value)}
                     />
-                    <span className="text-sm text-stone-500">vecka</span>
-                  </div>
-                </Field>
-
-                <Field label="Pågår till" htmlFor="serie-slutdatum">
-                  <Input
-                    type="date"
-                    id="serie-slutdatum"
-                    value={slutDatum}
-                    min={deadline || undefined}
-                    onChange={(e) => setSlutDatum(e.target.value)}
-                  />
-                </Field>
-              </div>
-            )}
-          </div>
-        )}
-
-        {!aterkommande &&
-          kundId &&
-          ['Möte', 'Maildialog'].includes(typer.find((t) => t.id === typId)?.namn ?? '') && (
-            <Field label="Deltagare" htmlFor="uppgift-deltagare">
-              <DeltagareValjare
-                kontaktpersoner={kontaktpersoner}
-                kundId={kundId}
-                value={deltagareIds}
-                onChange={setDeltagareIds}
-              />
-            </Field>
+                  </Field>
+                </div>
+              )}
+            </div>
           )}
+        </FormularSektion>
 
         {existing?.id && typer.find((t) => t.id === typId)?.visar_motesanteckningar && (
-          <MotesanteckningarSektion
-            uppgiftId={existing.id}
-            blocks={block}
-            status={status}
-            initialAnteckningar={existing.uppgift_anteckning}
-            initialAutoSkapaUppgifterVidKlar={
-              existing.skapa_uppgifter_vid_klar ??
-              typer.find((t) => t.id === typId)?.skapa_uppgifter_vid_klar ??
-              false
-            }
-          />
-        )}
+          <FormularSektion label="Mötesanteckningar">
+            <MotesanteckningarSektion
+              uppgiftId={existing.id}
+              blocks={block}
+              status={status}
+              initialAnteckningar={existing.uppgift_anteckning}
+              initialAutoSkapaUppgifterVidKlar={
+                existing.skapa_uppgifter_vid_klar ??
+                typer.find((t) => t.id === typId)?.skapa_uppgifter_vid_klar ??
+                false
+              }
+            />
 
-        {existing?.id && kundId && typer.find((t) => t.id === typId)?.visar_motesanteckningar && (
-          <TidigareMotenSektion
-            kundId={kundId}
-            excludeUppgiftId={existing.id}
-            kundNamn={kunder.find((k) => k.id === kundId)?.namn ?? ''}
-          />
+            {kundId && (
+              <TidigareMotenSektion
+                kundId={kundId}
+                excludeUppgiftId={existing.id}
+                kundNamn={kunder.find((k) => k.id === kundId)?.namn ?? ''}
+              />
+            )}
+          </FormularSektion>
         )}
 
         <div className="mt-1 flex justify-end gap-2">

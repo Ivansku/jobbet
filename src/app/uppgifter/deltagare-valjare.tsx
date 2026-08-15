@@ -47,6 +47,8 @@ export function DeltagareValjare({
     (k) => !value.includes(k.id) && kontaktNamn(k).toLowerCase().includes(sokterm)
   )
   const exaktTraff = kundensKontakter.some((k) => kontaktNamn(k).toLowerCase() === sokterm)
+  const harTraffer =
+    (kundensKontakter.length === 0 && !text.trim()) || traff.length > 0 || (!!text.trim() && !exaktTraff)
 
   function laggTill(id: string) {
     onChange([...value, id])
@@ -70,26 +72,6 @@ export function DeltagareValjare({
 
   return (
     <div ref={ref} className="relative">
-      {valda.length > 0 && (
-        <div className="mb-1.5 flex flex-wrap gap-1.5">
-          {valda.map((k) => (
-            <span
-              key={k.id}
-              className="flex items-center gap-1 rounded-full bg-accent-50 px-2 py-0.5 text-xs font-medium text-accent-700 dark:bg-accent-950 dark:text-accent-300"
-            >
-              {kontaktNamn(k)}
-              <button
-                type="button"
-                onClick={() => taBort(k.id)}
-                className="text-accent-500 hover:text-accent-800 dark:hover:text-accent-100"
-                aria-label={`Ta bort ${kontaktNamn(k)}`}
-              >
-                ×
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
       <input
         type="text"
         value={text}
@@ -112,7 +94,7 @@ export function DeltagareValjare({
         placeholder="Sök eller lägg till deltagare…"
         className="w-full rounded-lg border border-border-subtle bg-surface px-3 py-2 text-sm text-foreground placeholder:text-stone-400 focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/40"
       />
-      {oppen && (
+      {oppen && harTraffer && (
         <div className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-border-subtle bg-surface shadow-lg">
           {kundensKontakter.length === 0 && !text.trim() && (
             <p className="px-3 py-2 text-sm text-stone-400">Inga kontaktpersoner för kunden ännu</p>
@@ -137,6 +119,26 @@ export function DeltagareValjare({
               {skapar ? 'Skapar…' : `+ Lägg till "${text.trim()}"`}
             </button>
           )}
+        </div>
+      )}
+      {valda.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {valda.map((k) => (
+            <span
+              key={k.id}
+              className="flex items-center gap-1 rounded-full bg-accent-50 px-2 py-0.5 text-xs font-medium text-accent-700 dark:bg-accent-950 dark:text-accent-300"
+            >
+              {kontaktNamn(k)}
+              <button
+                type="button"
+                onClick={() => taBort(k.id)}
+                className="text-accent-500 hover:text-accent-800 dark:hover:text-accent-100"
+                aria-label={`Ta bort ${kontaktNamn(k)}`}
+              >
+                ×
+              </button>
+            </span>
+          ))}
         </div>
       )}
     </div>

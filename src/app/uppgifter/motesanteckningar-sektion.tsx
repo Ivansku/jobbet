@@ -15,6 +15,24 @@ import { buildMailto } from '@/lib/mailto'
 import { mondagAvVecka } from './vecka-helpers'
 import { enTillRelation } from '@/lib/postgrest'
 
+function CloseIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M18 6L6 18" />
+      <path d="M6 6l12 12" />
+    </svg>
+  )
+}
+
 type Block = { id: string; namn: string; genererar_uppgift: boolean }
 type Anteckning = {
   block_id: string
@@ -179,53 +197,69 @@ export function MotesanteckningarSektion({
       className={
         expanderad
           ? 'fixed inset-0 z-[60] flex flex-col gap-4 overflow-y-auto bg-surface p-6'
-          : 'flex flex-col gap-4 rounded-lg border border-border-subtle p-3'
+          : 'flex flex-col gap-4'
       }
     >
+      {expanderad && (
+        <button
+          type="button"
+          onClick={() => setExpanderad(false)}
+          aria-label="Stäng anteckningsläge"
+          title="Stäng anteckningsläge"
+          className="absolute right-4 top-4 rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 dark:hover:bg-stone-800 dark:hover:text-stone-300"
+        >
+          <CloseIcon className="h-5 w-5" />
+        </button>
+      )}
       <div className="flex shrink-0 flex-col gap-3">
-        <h3 className="text-sm font-semibold">Mötesanteckningar</h3>
-        <label className="flex items-center gap-2 text-sm font-medium">
-          <input
-            type="checkbox"
-            checked={autoSkapa}
-            onChange={(e) => handleAutoSkapaChange(e.target.checked)}
-            className="h-4 w-4 accent-accent-600"
-          />
-          Skapa uppgifter automatiskt
-        </label>
-        <div className="flex flex-col gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className="w-full"
-            onClick={() => setExpanderad((v) => !v)}
-          >
-            {expanderad ? 'Stäng anteckningsläge' : 'Anteckningsläge'}
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className="w-full"
-            loading={skickar}
-            onClick={handleSkicka}
-          >
-            Skicka sammanfattning
-          </Button>
-          {status === 'klar' && !autoSkapa && (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="w-full"
-              loading={genererar}
-              onClick={handleGenerera}
-            >
-              Skapa uppgifter
-            </Button>
-          )}
-        </div>
+        {expanderad ? (
+          <h3 className="text-sm font-semibold">Mötesanteckningar</h3>
+        ) : (
+          <>
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={autoSkapa}
+                onChange={(e) => handleAutoSkapaChange(e.target.checked)}
+                className="h-4 w-4 accent-accent-600"
+              />
+              Skapa uppgifter automatiskt
+            </label>
+            <div className="flex flex-col gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="w-full"
+                onClick={() => setExpanderad((v) => !v)}
+              >
+                Anteckningsläge
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="w-full"
+                loading={skickar}
+                onClick={handleSkicka}
+              >
+                Skicka sammanfattning
+              </Button>
+              {status === 'klar' && !autoSkapa && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="w-full"
+                  loading={genererar}
+                  onClick={handleGenerera}
+                >
+                  Skapa uppgifter
+                </Button>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {genereringsMeddelande && <p className="shrink-0 text-xs text-stone-400">{genereringsMeddelande}</p>}
