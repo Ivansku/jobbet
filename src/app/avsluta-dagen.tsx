@@ -6,7 +6,7 @@ import { skapaReflektionstanke, avslutaDagen } from './idag-actions'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea, Select } from '@/components/ui/input'
 import { Eyebrow } from '@/components/ui/eyebrow'
-import { EmptyState } from '@/components/ui/empty-state'
+import { ImorgonTidslinje } from './imorgon-tidslinje'
 import type { Uppgift, Kund, Tanke, Dagsavslut } from './idag-flode'
 
 const MODUL_LABEL: Record<string, string> = {
@@ -18,10 +18,6 @@ const MODUL_LABEL: Record<string, string> = {
 
 const AVSLUTNINGSTEXT =
   'Bra jobbat idag. Dagen är avslutad — det som blev kvar väntar snyggt uppradat imorgon.'
-
-function metaText(u: Uppgift, kundMap: Map<string, string>): string {
-  return [u.klockslag?.slice(0, 5), u.kund_id && kundMap.get(u.kund_id)].filter(Boolean).join(' · ')
-}
 
 // Inget eget panel-omslag här längre — renderas som en fortsättning inuti
 // samma block som tidslinjen/Flexel (idag-flode.tsx äger panelen och den
@@ -35,25 +31,12 @@ export function AvslutaDagen({
   dagsavslut: Dagsavslut | null
   kunder: Kund[]
 }) {
-  const kundMap = new Map(kunder.map((k) => [k.id, k.namn]))
-
   return (
     <>
       <div className="mt-6">
         <Eyebrow>Imorgon väntar</Eyebrow>
         <div className="mt-3">
-          {imorgonUppgifter.length === 0 ? (
-            <EmptyState title="Inget planerat imorgon ännu" />
-          ) : (
-            <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle">
-              {imorgonUppgifter.map((u) => (
-                <li key={u.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
-                  <span className="truncate">{u.titel}</span>
-                  <span className="shrink-0 text-xs text-stone-400">{metaText(u, kundMap)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <ImorgonTidslinje uppgifter={imorgonUppgifter} kunder={kunder} />
         </div>
       </div>
 
