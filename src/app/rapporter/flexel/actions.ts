@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 
-const MODULER = ['flex', 'overtid', 'foraldraledig']
+const MODULER = ['flex', 'overtid', 'foraldraledig', 'ledighet']
 
 type FlexelPostInput = {
   datum: string
@@ -14,9 +14,7 @@ type FlexelPostInput = {
 
 function validateraFlexelPost(input: FlexelPostInput): string | null {
   if (!input.datum) return 'Datum krävs.'
-  if (!Number.isFinite(input.timmar) || input.timmar === 0) {
-    return 'Timmar måste vara ett tal skilt från noll.'
-  }
+  if (!Number.isFinite(input.timmar)) return 'Timmar måste vara ett tal.'
   if (!input.motivering.trim()) return 'Motivering krävs.'
   if (!MODULER.includes(input.modul)) return 'Ogiltig modul.'
   return null
@@ -89,13 +87,13 @@ export async function taBortFlexelPost(id: string) {
 }
 
 type KvotjusteringInput = {
-  vecka: string
+  manad: string
   justeringTimmar: number
   kommentar: string
 }
 
 export async function skapaKvotjustering(input: KvotjusteringInput) {
-  if (!input.vecka) return { error: 'Vecka krävs.' }
+  if (!input.manad) return { error: 'Månad krävs.' }
   if (!Number.isFinite(input.justeringTimmar) || input.justeringTimmar === 0) {
     return { error: 'Justering måste vara ett tal skilt från noll.' }
   }
@@ -107,10 +105,31 @@ export async function skapaKvotjustering(input: KvotjusteringInput) {
   const { error } = await supabase.from('flexel_kvotjustering').insert({
     foretag_id: person.foretag_id,
     person_id: person.id,
-    vecka: input.vecka,
+    manad: input.manad,
     justering_timmar: input.justeringTimmar,
     kommentar: input.kommentar.trim() || null,
   })
+
+  if (error) return { error: error.message }
+  revalidatePath('/rapporter/flexel')
+  return { error: null }
+}
+
+export async function uppdateraKvotjustering(id: string, input: KvotjusteringInput) {
+  if (!input.manad) return { error: 'Månad krävs.' }
+  if (!Number.isFinite(input.justeringTimmar) || input.justeringTimmar === 0) {
+    return { error: 'Justering måste vara ett tal skilt från noll.' }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('flexel_kvotjustering')
+    .update({
+      manad: input.manad,
+      justering_timmar: input.justeringTimmar,
+      kommentar: input.kommentar.trim() || null,
+    })
+    .eq('id', id)
 
   if (error) return { error: error.message }
   revalidatePath('/rapporter/flexel')
