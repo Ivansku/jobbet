@@ -158,31 +158,37 @@ export function IdagFlode({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.7fr_1fr] lg:items-stretch">
-        <div className="h-full rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {flode === 'morgon' ? `${HALSNING.morgon}, ${personNamn.split(' ')[0]}` : HALSNING[flode]}
-          </h1>
-          <p className="mt-1 text-sm text-stone-500">{lede}</p>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.7fr_1fr] lg:items-start">
+        <div className="flex flex-col gap-6">
+          <div className="rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {flode === 'morgon' ? `${HALSNING.morgon}, ${personNamn.split(' ')[0]}` : HALSNING[flode]}
+            </h1>
+            <p className="mt-1 text-sm text-stone-500">{lede}</p>
 
-          <div className="mt-6">
-            <Eyebrow>Dagens tidslinje</Eyebrow>
-            <div className="mt-3">
-              <IdagTimeline
-                uppgifter={dagensUppgifter}
-                fokusUppgiftIds={fokusIds}
-                klaraIds={klaraIds}
-                onToggle={toggleKlar}
-                onOpenDetalj={oppnaDetalj}
-                kunder={kunder}
-              />
+            <div className="mt-6">
+              <Eyebrow>Dagens tidslinje</Eyebrow>
+              <div className="mt-3">
+                <IdagTimeline
+                  uppgifter={dagensUppgifter}
+                  fokusUppgiftIds={fokusIds}
+                  klaraIds={klaraIds}
+                  onToggle={toggleKlar}
+                  onOpenDetalj={oppnaDetalj}
+                  kunder={kunder}
+                />
+              </div>
             </div>
+
+            {flode === 'kvall' && (
+              <div className="mt-6">
+                <FlexelSteg idag={idag} aktivaFlexelModuler={aktivaFlexelModuler} />
+              </div>
+            )}
           </div>
 
-          {flode === 'kvall' && (
-            <div className="mt-6">
-              <FlexelSteg idag={idag} aktivaFlexelModuler={aktivaFlexelModuler} />
-            </div>
+          {flode === 'kvall' && dagsavslut && (
+            <AvslutaDagen imorgonUppgifter={imorgonUppgifter} dagsavslut={dagsavslut} kunder={kunder} />
           )}
         </div>
 
@@ -246,14 +252,6 @@ export function IdagFlode({
           )}
         </div>
       </div>
-
-      {flode === 'kvall' && dagsavslut && (
-        <AvslutaDagen
-          imorgonUppgifter={imorgonUppgifter}
-          dagsavslut={dagsavslut}
-          kunder={kunder}
-        />
-      )}
 
       {redigerar && (
         <UppgiftDetalj
