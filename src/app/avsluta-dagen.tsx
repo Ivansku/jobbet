@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Textarea, Select } from '@/components/ui/input'
 import { Eyebrow } from '@/components/ui/eyebrow'
 import { ImorgonTidslinje } from './imorgon-tidslinje'
-import type { Uppgift, Kund, Tanke, Dagsavslut } from './idag-flode'
+import type { Uppgift, Kund, Tanke } from './idag-flode'
 
 const MODUL_LABEL: Record<string, string> = {
   flex: 'Flex',
@@ -22,26 +22,14 @@ const AVSLUTNINGSTEXT =
 // Inget eget panel-omslag här längre — renderas som en fortsättning inuti
 // samma block som tidslinjen/Flexel (idag-flode.tsx äger panelen och den
 // vanliga mt-6-rytmen mellan sektioner).
-export function AvslutaDagen({
-  imorgonUppgifter,
-  dagsavslut,
-  kunder,
-}: {
-  imorgonUppgifter: Uppgift[]
-  dagsavslut: Dagsavslut | null
-  kunder: Kund[]
-}) {
+export function ImorgonVantarSteg({ imorgonUppgifter, kunder }: { imorgonUppgifter: Uppgift[]; kunder: Kund[] }) {
   return (
-    <>
-      <div>
-        <Eyebrow>Imorgon väntar</Eyebrow>
-        <div className="mt-3">
-          <ImorgonTidslinje uppgifter={imorgonUppgifter} kunder={kunder} />
-        </div>
+    <div>
+      <Eyebrow>Imorgon väntar</Eyebrow>
+      <div className="mt-3">
+        <ImorgonTidslinje uppgifter={imorgonUppgifter} kunder={kunder} />
       </div>
-
-      {dagsavslut && <AvslutaSteg dagsavslutId={dagsavslut.id} avslutadAt={dagsavslut.avslutad_at} />}
-    </>
+    </div>
   )
 }
 
@@ -195,7 +183,7 @@ export function TankarSteg({
   )
 }
 
-function AvslutaSteg({ dagsavslutId, avslutadAt }: { dagsavslutId: string; avslutadAt: string | null }) {
+export function AvslutaSteg({ dagsavslutId, avslutadAt }: { dagsavslutId: string; avslutadAt: string | null }) {
   const [avslutad, setAvslutad] = useState(!!avslutadAt)
   const [sparar, setSparar] = useState(false)
 

@@ -6,7 +6,7 @@ import { sattDagensFokus } from './idag-actions'
 import { IdagTimeline } from './idag-timeline'
 import { IdagRing } from './idag-ring'
 import { DagensFokusValjare } from './dagens-fokus-valjare'
-import { AvslutaDagen, FlexelSteg, TankarSteg } from './avsluta-dagen'
+import { ImorgonVantarSteg, FlexelSteg, TankarSteg, AvslutaSteg } from './avsluta-dagen'
 import { UppgiftDetalj } from './uppgift-detalj'
 import { Eyebrow } from '@/components/ui/eyebrow'
 import type { Dagsflode } from '@/lib/dagsflode'
@@ -182,8 +182,8 @@ export function IdagFlode({
 
             {flode === 'kvall' && <FlexelSteg idag={idag} aktivaFlexelModuler={aktivaFlexelModuler} />}
 
-            {flode === 'kvall' && dagsavslut && (
-              <AvslutaDagen imorgonUppgifter={imorgonUppgifter} dagsavslut={dagsavslut} kunder={kunder} />
+            {flode === 'kvall' && (
+              <ImorgonVantarSteg imorgonUppgifter={imorgonUppgifter} kunder={kunder} />
             )}
           </div>
         </div>
@@ -244,6 +244,12 @@ export function IdagFlode({
           {flode === 'kvall' && dagsavslut && (
             <div className="rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
               <TankarSteg dagsavslutId={dagsavslut.id} imorgon={imorgon} tankar={tankar} />
+            </div>
+          )}
+
+          {flode === 'kvall' && dagsavslut && (
+            <div className="rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
+              <AvslutaSteg dagsavslutId={dagsavslut.id} avslutadAt={dagsavslut.avslutad_at} />
             </div>
           )}
         </div>
