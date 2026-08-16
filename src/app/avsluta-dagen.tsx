@@ -33,18 +33,14 @@ export function AvslutaDagen({
 }) {
   return (
     <>
-      <div className="mt-6">
+      <div>
         <Eyebrow>Imorgon väntar</Eyebrow>
         <div className="mt-3">
           <ImorgonTidslinje uppgifter={imorgonUppgifter} kunder={kunder} />
         </div>
       </div>
 
-      {dagsavslut && (
-        <div className="mt-6">
-          <AvslutaSteg dagsavslutId={dagsavslut.id} avslutadAt={dagsavslut.avslutad_at} />
-        </div>
-      )}
+      {dagsavslut && <AvslutaSteg dagsavslutId={dagsavslut.id} avslutadAt={dagsavslut.avslutad_at} />}
     </>
   )
 }
