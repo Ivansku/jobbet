@@ -28,6 +28,20 @@ function kortDatum(iso: string) {
   return `${parseInt(d, 10)}/${parseInt(m, 10)}`
 }
 
+// UTC-ankrad tolkning av datumsträngen (samma försiktighet som övrig datumlogik
+// i appen) så formateringen inte kan hoppa en dag beroende på webbläsarens tidszon.
+function langtDatum(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  const dt = new Date(Date.UTC(y, m - 1, d))
+  const text = new Intl.DateTimeFormat('sv-SE', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  }).format(dt)
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
 const HALSNING: Record<Dagsflode, string> = {
   morgon: 'God morgon',
   mitt: 'Mitt på dagen',
@@ -91,7 +105,9 @@ export function IdagFlode({
   const kundMap = new Map(kunder.map((k) => [k.id, k.namn]))
   const fokusKandidater = dagensUppgifter.filter((u) => !u.outlook_event_id && !klaraIds.has(u.id))
 
-  const lede = `${dagensUppgifter.length} uppgift${dagensUppgifter.length === 1 ? '' : 'er'} idag${
+  const lede = `${langtDatum(idag)} · ${dagensUppgifter.length} uppgift${
+    dagensUppgifter.length === 1 ? '' : 'er'
+  } idag${
     eftersläpning.length > 0 ? ` · ${eftersläpning.length} försenad${eftersläpning.length === 1 ? '' : 'e'}` : ''
   }`
 

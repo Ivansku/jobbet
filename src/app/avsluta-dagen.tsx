@@ -159,41 +159,36 @@ function FlexelSteg({ idag, modulOptioner }: { idag: string; modulOptioner: stri
       ) : (
         <div className="mt-3 flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <Input
-              type="date"
-              aria-label="Datum"
-              value={datum}
-              onChange={(e) => setDatum(e.target.value)}
-              className="w-auto"
-            />
-            <Input
-              type="number"
-              step="0.5"
-              aria-label="Timmar"
-              value={timmar}
-              onChange={(e) => setTimmar(e.target.value)}
-              placeholder="Timmar"
-              className="w-24"
-            />
-            <Select
-              aria-label="Modul"
-              value={modul}
-              onChange={(e) => setModul(e.target.value)}
-              className="w-auto"
-            >
-              {modulOptioner.map((m) => (
-                <option key={m} value={m}>
-                  {MODUL_LABEL[m] ?? m}
-                </option>
-              ))}
-            </Select>
-            <Input
-              aria-label="Motivering"
-              value={motivering}
-              onChange={(e) => setMotivering(e.target.value)}
-              placeholder="Kort motivering"
-              className="min-w-[10rem] flex-1"
-            />
+            <div className="w-36 shrink-0">
+              <Input type="date" aria-label="Datum" value={datum} onChange={(e) => setDatum(e.target.value)} />
+            </div>
+            <div className="w-20 shrink-0">
+              <Input
+                type="number"
+                step="0.5"
+                aria-label="Timmar"
+                value={timmar}
+                onChange={(e) => setTimmar(e.target.value)}
+                placeholder="Timmar"
+              />
+            </div>
+            <div className="w-28 shrink-0">
+              <Select aria-label="Modul" value={modul} onChange={(e) => setModul(e.target.value)}>
+                {modulOptioner.map((m) => (
+                  <option key={m} value={m}>
+                    {MODUL_LABEL[m] ?? m}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="min-w-[10rem] flex-1">
+              <Input
+                aria-label="Motivering"
+                value={motivering}
+                onChange={(e) => setMotivering(e.target.value)}
+                placeholder="Kort motivering"
+              />
+            </div>
             <Button
               variant="secondary"
               size="sm"
