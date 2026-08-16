@@ -23,6 +23,9 @@ function metaText(u: Uppgift, kundMap: Map<string, string>): string {
   return [u.klockslag?.slice(0, 5), u.kund_id && kundMap.get(u.kund_id)].filter(Boolean).join(' · ')
 }
 
+// Inget eget panel-omslag här längre — renderas som en fortsättning inuti
+// samma block som tidslinjen/Flexel (idag-flode.tsx äger panelen och den
+// vanliga mt-6-rytmen mellan sektioner).
 export function AvslutaDagen({
   imorgonUppgifter,
   dagsavslut,
@@ -35,36 +38,31 @@ export function AvslutaDagen({
   const kundMap = new Map(kunder.map((k) => [k.id, k.namn]))
 
   return (
-    <div className="rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
-      {/* Egen rubrik som visuellt kopplar tillbaka till "Avsluta dagen" högst upp
-          på sidan — panelen svävade annars fritt utan koppling till flödet ovanför. */}
-      <Eyebrow>Avsluta dagen</Eyebrow>
-      {/* Ett sammanhållet flöde i en panel — [&>*+*] ger avdelare + luft mellan
-          synliga steg utan att bry sig om vilka som faktiskt renderas (Tankar-
-          relaterat är villkorat), så det alltid ser rätt ut oavsett vilka steg
-          som är aktuella just den dagen. */}
-      <div className="mt-3 flex flex-col [&>*+*]:mt-6 [&>*+*]:border-t [&>*+*]:border-border-subtle [&>*+*]:pt-6">
-        <div>
-          <Eyebrow>Imorgon väntar</Eyebrow>
-          <div className="mt-3">
-            {imorgonUppgifter.length === 0 ? (
-              <EmptyState title="Inget planerat imorgon ännu" />
-            ) : (
-              <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle">
-                {imorgonUppgifter.map((u) => (
-                  <li key={u.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
-                    <span className="truncate">{u.titel}</span>
-                    <span className="shrink-0 text-xs text-stone-400">{metaText(u, kundMap)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+    <>
+      <div className="mt-6">
+        <Eyebrow>Imorgon väntar</Eyebrow>
+        <div className="mt-3">
+          {imorgonUppgifter.length === 0 ? (
+            <EmptyState title="Inget planerat imorgon ännu" />
+          ) : (
+            <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle">
+              {imorgonUppgifter.map((u) => (
+                <li key={u.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                  <span className="truncate">{u.titel}</span>
+                  <span className="shrink-0 text-xs text-stone-400">{metaText(u, kundMap)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-
-        {dagsavslut && <AvslutaSteg dagsavslutId={dagsavslut.id} avslutadAt={dagsavslut.avslutad_at} />}
       </div>
-    </div>
+
+      {dagsavslut && (
+        <div className="mt-6">
+          <AvslutaSteg dagsavslutId={dagsavslut.id} avslutadAt={dagsavslut.avslutad_at} />
+        </div>
+      )}
+    </>
   )
 }
 
