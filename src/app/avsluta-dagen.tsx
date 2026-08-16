@@ -20,6 +20,15 @@ const MODUL_LABEL: Record<string, string> = {
 const AVSLUTNINGSTEXT =
   'Bra jobbat idag. Dagen är avslutad — det som blev kvar väntar snyggt uppradat imorgon.'
 
+function kortDatum(iso: string) {
+  const [, m, d] = iso.split('-')
+  return `${parseInt(d, 10)}/${parseInt(m, 10)}`
+}
+
+function metaText(u: Uppgift, kundMap: Map<string, string>): string {
+  return [u.klockslag?.slice(0, 5), u.kund_id && kundMap.get(u.kund_id)].filter(Boolean).join(' · ')
+}
+
 export function AvslutaDagen({
   idag,
   imorgon,
@@ -43,46 +52,40 @@ export function AvslutaDagen({
   const modulOptioner = [...aktivaFlexelModuler, 'ledighet']
 
   return (
-    <div className="flex flex-col gap-6">
-      {eftersläpning.length > 0 && (
-        <KvarvarandeSteg eftersläpning={eftersläpning} imorgon={imorgon} />
-      )}
+    <div className="rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
+      {/* Ett sammanhållet flöde i en panel — [&>*+*] ger avdelare + luft mellan
+          synliga steg utan att bry sig om vilka som faktiskt renderas (Kvarvarande
+          och Tankar-relaterat är villkorade), så det alltid ser rätt ut oavsett
+          vilka steg som är aktuella just den dagen. */}
+      <div className="flex flex-col [&>*+*]:mt-6 [&>*+*]:border-t [&>*+*]:border-border-subtle [&>*+*]:pt-6">
+        {eftersläpning.length > 0 && <KvarvarandeSteg eftersläpning={eftersläpning} imorgon={imorgon} />}
 
-      {modulOptioner.length > 0 && <FlexelSteg idag={idag} modulOptioner={modulOptioner} />}
+        {modulOptioner.length > 0 && <FlexelSteg idag={idag} modulOptioner={modulOptioner} />}
 
-      {dagsavslut && (
-        <TankarSteg dagsavslutId={dagsavslut.id} imorgon={imorgon} tankar={tankar} />
-      )}
+        {dagsavslut && <TankarSteg dagsavslutId={dagsavslut.id} imorgon={imorgon} tankar={tankar} />}
 
-      <div className="rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
-        <Eyebrow>Imorgon väntar</Eyebrow>
-        <div className="mt-3">
-          {imorgonUppgifter.length === 0 ? (
-            <EmptyState title="Inget planerat imorgon ännu" />
-          ) : (
-            <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle">
-              {imorgonUppgifter.map((u) => (
-                <li key={u.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
-                  <span className="truncate">{u.titel}</span>
-                  <span className="shrink-0 text-xs text-stone-400">
-                    {u.klockslag?.slice(0, 5)}
-                    {u.kund_id && ` · ${kundMap.get(u.kund_id)}`}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+        <div>
+          <Eyebrow>Imorgon väntar</Eyebrow>
+          <div className="mt-3">
+            {imorgonUppgifter.length === 0 ? (
+              <EmptyState title="Inget planerat imorgon ännu" />
+            ) : (
+              <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle">
+                {imorgonUppgifter.map((u) => (
+                  <li key={u.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                    <span className="truncate">{u.titel}</span>
+                    <span className="shrink-0 text-xs text-stone-400">{metaText(u, kundMap)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
-      </div>
 
-      {dagsavslut && <AvslutaSteg dagsavslutId={dagsavslut.id} avslutadAt={dagsavslut.avslutad_at} />}
+        {dagsavslut && <AvslutaSteg dagsavslutId={dagsavslut.id} avslutadAt={dagsavslut.avslutad_at} />}
+      </div>
     </div>
   )
-}
-
-function kortDatum(iso: string) {
-  const [, m, d] = iso.split('-')
-  return `${parseInt(d, 10)}/${parseInt(m, 10)}`
 }
 
 function KvarvarandeSteg({ eftersläpning, imorgon }: { eftersläpning: Uppgift[]; imorgon: string }) {
@@ -104,7 +107,7 @@ function KvarvarandeSteg({ eftersläpning, imorgon }: { eftersläpning: Uppgift[
   if (kvar.length === 0) return null
 
   return (
-    <div className="rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
+    <div>
       <Eyebrow>Kvarvarande oavslutat</Eyebrow>
       <ul className="mt-3 divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle">
         {kvar.map((u) => (
@@ -128,7 +131,6 @@ function KvarvarandeSteg({ eftersläpning, imorgon }: { eftersläpning: Uppgift[
 }
 
 function FlexelSteg({ idag, modulOptioner }: { idag: string; modulOptioner: string[] }) {
-  const [datum, setDatum] = useState(idag)
   const [timmar, setTimmar] = useState('')
   const [motivering, setMotivering] = useState('')
   const [modul, setModul] = useState(modulOptioner[0])
@@ -140,7 +142,7 @@ function FlexelSteg({ idag, modulOptioner }: { idag: string; modulOptioner: stri
     const timmarTal = Number(timmar.replace(',', '.'))
     setSparar(true)
     setFel(null)
-    const { error } = await skapaFlexelPost({ datum, timmar: timmarTal, motivering, modul })
+    const { error } = await skapaFlexelPost({ datum: idag, timmar: timmarTal, motivering, modul })
     setSparar(false)
     if (error) {
       setFel(error)
@@ -152,17 +154,14 @@ function FlexelSteg({ idag, modulOptioner }: { idag: string; modulOptioner: stri
   }
 
   return (
-    <div className="rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
+    <div>
       <Eyebrow>Snabbregistrera Flexel</Eyebrow>
       {sparad ? (
         <p className="mt-3 text-sm text-stone-500">Registrerat. Du kan lägga till fler rader i Rapporter → Flexel.</p>
       ) : (
         <div className="mt-3 flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="w-36 shrink-0">
-              <Input type="date" aria-label="Datum" value={datum} onChange={(e) => setDatum(e.target.value)} />
-            </div>
-            <div className="w-20 shrink-0">
+            <div className="w-28 shrink-0">
               <Input
                 type="number"
                 step="0.5"
@@ -234,7 +233,7 @@ function TankarSteg({
   }
 
   return (
-    <div className="rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
+    <div>
       <Eyebrow>Vad skaver?</Eyebrow>
       <div className="mt-3 flex flex-col gap-2">
         {tankar.length > 0 && (
@@ -292,7 +291,7 @@ function AvslutaSteg({ dagsavslutId, avslutadAt }: { dagsavslutId: string; avslu
   }
 
   return (
-    <div className="flex flex-col items-start gap-3 rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
+    <div className="flex flex-col items-start gap-3">
       {avslutad && <p className="text-sm text-stone-500">{AVSLUTNINGSTEXT}</p>}
       <Button variant="primary" loading={sparar} onClick={avsluta}>
         {avslutad ? 'Avsluta igen' : 'Avsluta dagen'}

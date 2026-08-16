@@ -157,7 +157,7 @@ export function IdagFlode({
               <IdagRing klara={klara} totalt={dagensUppgifter.length} />
             </div>
 
-            {flode === 'morgon' && eftersläpning.length > 0 && (
+            {eftersläpning.length > 0 && (
               <div className="mt-6">
                 <Eyebrow>Gårdagens försenat</Eyebrow>
                 <ul className="mt-3 flex flex-col gap-1.5">

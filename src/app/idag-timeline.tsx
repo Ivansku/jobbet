@@ -28,17 +28,24 @@ export function IdagTimeline({
   return (
     <div className="flex flex-col">
       {tidsatta.map((u, i) => (
-        <div key={u.id} className="grid grid-cols-[52px_20px_1fr] items-start">
+        // Ingen items-start här — raden ska sträcka sig (grid-standard) så att
+        // linje-kolumnen får radens fulla höjd att fördela sina två flex-segment
+        // (ovanför/under punkten) över. Annars blir strecket avklippt eftersom
+        // dess behållare bara blir så hög som punkten själv.
+        <div key={u.id} className="grid grid-cols-[52px_20px_1fr]">
           <span className="pt-3.5 pr-2.5 text-right text-xs text-stone-400 tabular-nums">
             {u.klockslag!.slice(0, 5)}
           </span>
-          <span className="relative flex justify-center pt-4">
-            {i < tidsatta.length - 1 && <span className="absolute top-2 bottom-[-8px] w-px bg-border-subtle" />}
+          <div className="flex flex-col items-center">
+            <span className={`w-px flex-1 ${i === 0 ? 'bg-transparent' : 'bg-border-subtle'}`} />
             <span
-              className={`relative h-2 w-2 shrink-0 rounded-full border-2 border-surface ${dotTone(u, fokusUppgiftIds, klaraIds)}`}
+              className={`my-1 h-2 w-2 shrink-0 rounded-full border-2 border-surface ${dotTone(u, fokusUppgiftIds, klaraIds)}`}
             />
-          </span>
-          <div className="mb-2 ml-3">
+            <span
+              className={`w-px flex-1 ${i === tidsatta.length - 1 ? 'bg-transparent' : 'bg-border-subtle'}`}
+            />
+          </div>
+          <div className="pb-2">
             <Kort
               u={u}
               fokus={fokusUppgiftIds.includes(u.id)}
