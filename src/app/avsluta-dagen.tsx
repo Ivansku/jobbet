@@ -24,16 +24,12 @@ function metaText(u: Uppgift, kundMap: Map<string, string>): string {
 }
 
 export function AvslutaDagen({
-  imorgon,
   imorgonUppgifter,
   dagsavslut,
-  tankar,
   kunder,
 }: {
-  imorgon: string
   imorgonUppgifter: Uppgift[]
   dagsavslut: Dagsavslut | null
-  tankar: Tanke[]
   kunder: Kund[]
 }) {
   const kundMap = new Map(kunder.map((k) => [k.id, k.namn]))
@@ -48,8 +44,6 @@ export function AvslutaDagen({
           relaterat är villkorat), så det alltid ser rätt ut oavsett vilka steg
           som är aktuella just den dagen. */}
       <div className="mt-3 flex flex-col [&>*+*]:mt-6 [&>*+*]:border-t [&>*+*]:border-border-subtle [&>*+*]:pt-6">
-        {dagsavslut && <TankarSteg dagsavslutId={dagsavslut.id} imorgon={imorgon} tankar={tankar} />}
-
         <div>
           <Eyebrow>Imorgon väntar</Eyebrow>
           <div className="mt-3">
@@ -150,7 +144,7 @@ export function FlexelSteg({ idag, aktivaFlexelModuler }: { idag: string; aktiva
   )
 }
 
-function TankarSteg({
+export function TankarSteg({
   dagsavslutId,
   imorgon,
   tankar,
