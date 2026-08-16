@@ -20,7 +20,9 @@ export function IdagTimeline({
   // Ingen omsortering här — uppgifter kommer redan i sortordning-ordning från
   // page.tsx:s .order('sortordning'), samma fält Kanban-vyns drag-and-drop
   // skriver till, och samma ordning ska gälla här: tidsatta och otidsatta
-  // rader blandas fritt i en enda lista, precis som i Kanban.
+  // rader blandas fritt i en enda lista, precis som i Kanban. Varje rad får
+  // en punkt oavsett klockslag så linjen blir sammanhängande genom hela
+  // listan — klockslagskolumnen är bara tom för otidsatta rader.
   const kundMap = new Map(kunder.map((k) => [k.id, k.namn]))
 
   if (uppgifter.length === 0) {
@@ -33,20 +35,6 @@ export function IdagTimeline({
         const fokus = fokusUppgiftIds.includes(u.id)
         const klar = klaraIds.has(u.id)
 
-        if (!u.klockslag) {
-          return (
-            <div key={u.id} className="pb-2 pl-[72px]">
-              <Kort u={u} fokus={fokus} klar={klar} onToggle={onToggle} onOpenDetalj={onOpenDetalj} kundMap={kundMap} />
-            </div>
-          )
-        }
-
-        // Linjen ritas bara mot en granne som också har klockslag och sitter
-        // direkt intill — en otidsatt rad däremellan bryter linjen istället
-        // för att den ska försöka rita sig visuellt bakom kortet.
-        const foregåendeTidsatt = i > 0 && !!uppgifter[i - 1].klockslag
-        const nastaTidsatt = i < uppgifter.length - 1 && !!uppgifter[i + 1].klockslag
-
         return (
           // Ingen items-start här — raden ska sträcka sig (grid-standard) så att
           // linje-kolumnen får radens fulla höjd att fördela sina två flex-segment
@@ -54,14 +42,14 @@ export function IdagTimeline({
           // dess behållare bara blir så hög som punkten själv.
           <div key={u.id} className="grid grid-cols-[52px_20px_1fr]">
             <span className="pt-3.5 pr-2.5 text-right text-xs text-stone-400 tabular-nums">
-              {u.klockslag.slice(0, 5)}
+              {u.klockslag?.slice(0, 5)}
             </span>
             <div className="flex flex-col items-center">
-              <span className={`w-px flex-1 ${foregåendeTidsatt ? 'bg-border-subtle' : 'bg-transparent'}`} />
+              <span className={`w-px flex-1 ${i === 0 ? 'bg-transparent' : 'bg-border-subtle'}`} />
               <span
                 className={`my-1 h-2 w-2 shrink-0 rounded-full border-2 border-surface ${dotTone(u, fokusUppgiftIds, klaraIds)}`}
               />
-              <span className={`w-px flex-1 ${nastaTidsatt ? 'bg-border-subtle' : 'bg-transparent'}`} />
+              <span className={`w-px flex-1 ${i === uppgifter.length - 1 ? 'bg-transparent' : 'bg-border-subtle'}`} />
             </div>
             <div className="pb-2">
               <Kort u={u} fokus={fokus} klar={klar} onToggle={onToggle} onOpenDetalj={onOpenDetalj} kundMap={kundMap} />
