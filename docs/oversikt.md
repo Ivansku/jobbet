@@ -81,6 +81,8 @@ Detta dokument är en levande sammanfattning av vad appen gör och hur den är u
 - Behövs notifieringar till användare, och i så fall via vilken kanal?
 - Ska Kanban-vyn fungera på mobil?
 - Tidsrapportering v1 är byggd (vecka × kund). Utanför scope hittills: export (PDF/Excel), redigering av tid i rapportvyn, filter på flera personer samtidigt, månads-/årsvy, historik/trend över tid, koppling till "senast kontaktad" eller andra kundfält — värt att prioritera bland dessa vid nästa iteration.
+- Flexel: Ivan funderar på att bokföra *varje* vardag (0h + motivering på vanliga dagar, typ mindre relevant), inte bara avvikande dagar — medvetet skjutet på framtiden tills det visar sig relevant.
+- Flexel: `flexel_kvotjustering` (manuell kvotminskning per månad) och den nya typen Ledighet (fristående daglig logg) överlappar delvis i syfte — värt att fundera på om kvotjustering kan fasas ut till förmån för att bara logga Ledighet-rader, nu när båda finns.
 
 ## Arbetsflöde för Claude Code
 
