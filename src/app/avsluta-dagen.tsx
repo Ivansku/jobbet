@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { flyttaUppgift } from './uppgifter/actions'
+import { useState } from 'react'
 import { skapaFlexelPost } from './rapporter/flexel/actions'
 import { skapaReflektionstanke, avslutaDagen } from './idag-actions'
 import { Button } from '@/components/ui/button'
@@ -20,48 +19,35 @@ const MODUL_LABEL: Record<string, string> = {
 const AVSLUTNINGSTEXT =
   'Bra jobbat idag. Dagen är avslutad — det som blev kvar väntar snyggt uppradat imorgon.'
 
-function kortDatum(iso: string) {
-  const [, m, d] = iso.split('-')
-  return `${parseInt(d, 10)}/${parseInt(m, 10)}`
-}
-
 function metaText(u: Uppgift, kundMap: Map<string, string>): string {
   return [u.klockslag?.slice(0, 5), u.kund_id && kundMap.get(u.kund_id)].filter(Boolean).join(' · ')
 }
 
 export function AvslutaDagen({
-  idag,
   imorgon,
-  eftersläpning,
   imorgonUppgifter,
-  aktivaFlexelModuler,
   dagsavslut,
   tankar,
   kunder,
 }: {
-  idag: string
   imorgon: string
-  eftersläpning: Uppgift[]
   imorgonUppgifter: Uppgift[]
-  aktivaFlexelModuler: string[]
   dagsavslut: Dagsavslut | null
   tankar: Tanke[]
   kunder: Kund[]
 }) {
   const kundMap = new Map(kunder.map((k) => [k.id, k.namn]))
-  const modulOptioner = [...aktivaFlexelModuler, 'ledighet']
 
   return (
     <div className="rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
+      {/* Egen rubrik som visuellt kopplar tillbaka till "Avsluta dagen" högst upp
+          på sidan — panelen svävade annars fritt utan koppling till flödet ovanför. */}
+      <Eyebrow>Avsluta dagen</Eyebrow>
       {/* Ett sammanhållet flöde i en panel — [&>*+*] ger avdelare + luft mellan
-          synliga steg utan att bry sig om vilka som faktiskt renderas (Kvarvarande
-          och Tankar-relaterat är villkorade), så det alltid ser rätt ut oavsett
-          vilka steg som är aktuella just den dagen. */}
-      <div className="flex flex-col [&>*+*]:mt-6 [&>*+*]:border-t [&>*+*]:border-border-subtle [&>*+*]:pt-6">
-        {eftersläpning.length > 0 && <KvarvarandeSteg eftersläpning={eftersläpning} imorgon={imorgon} />}
-
-        {modulOptioner.length > 0 && <FlexelSteg idag={idag} modulOptioner={modulOptioner} />}
-
+          synliga steg utan att bry sig om vilka som faktiskt renderas (Tankar-
+          relaterat är villkorat), så det alltid ser rätt ut oavsett vilka steg
+          som är aktuella just den dagen. */}
+      <div className="mt-3 flex flex-col [&>*+*]:mt-6 [&>*+*]:border-t [&>*+*]:border-border-subtle [&>*+*]:pt-6">
         {dagsavslut && <TankarSteg dagsavslutId={dagsavslut.id} imorgon={imorgon} tankar={tankar} />}
 
         <div>
@@ -88,49 +74,8 @@ export function AvslutaDagen({
   )
 }
 
-function KvarvarandeSteg({ eftersläpning, imorgon }: { eftersläpning: Uppgift[]; imorgon: string }) {
-  const [hanterade, setHanterade] = useState<Set<string>>(new Set())
-  const [, startTransition] = useTransition()
-
-  function flyttaTillImorgon(u: Uppgift) {
-    setHanterade((prev) => new Set(prev).add(u.id))
-    startTransition(() => {
-      flyttaUppgift(u.id, imorgon, Date.now() / 1000)
-    })
-  }
-
-  function lamnaKvar(id: string) {
-    setHanterade((prev) => new Set(prev).add(id))
-  }
-
-  const kvar = eftersläpning.filter((u) => !hanterade.has(u.id))
-  if (kvar.length === 0) return null
-
-  return (
-    <div>
-      <Eyebrow>Kvarvarande oavslutat</Eyebrow>
-      <ul className="mt-3 divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle">
-        {kvar.map((u) => (
-          <li key={u.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
-            <span className="min-w-0 flex-1 truncate">
-              {u.titel} <span className="text-xs text-stone-400">({u.deadline && kortDatum(u.deadline)})</span>
-            </span>
-            <div className="flex shrink-0 gap-1.5">
-              <Button size="sm" variant="secondary" onClick={() => flyttaTillImorgon(u)}>
-                Flytta till imorgon
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => lamnaKvar(u.id)}>
-                Lämna kvar
-              </Button>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
-function FlexelSteg({ idag, modulOptioner }: { idag: string; modulOptioner: string[] }) {
+export function FlexelSteg({ idag, aktivaFlexelModuler }: { idag: string; aktivaFlexelModuler: string[] }) {
+  const modulOptioner = [...aktivaFlexelModuler, 'ledighet']
   const [timmar, setTimmar] = useState('')
   const [motivering, setMotivering] = useState('')
   const [modul, setModul] = useState(modulOptioner[0])

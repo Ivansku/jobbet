@@ -1,18 +1,20 @@
 'use client'
 
-import type { Uppgift, Kund } from './idag-flode'
+import type { UppgiftDetaljerad, Kund } from './idag-flode'
 
 export function IdagTimeline({
   uppgifter,
   fokusUppgiftIds,
   klaraIds,
   onToggle,
+  onOpenDetalj,
   kunder,
 }: {
-  uppgifter: Uppgift[]
+  uppgifter: UppgiftDetaljerad[]
   fokusUppgiftIds: string[]
   klaraIds: Set<string>
-  onToggle: (u: Uppgift) => void
+  onToggle: (u: UppgiftDetaljerad) => void
+  onOpenDetalj: (u: UppgiftDetaljerad) => void
   kunder: Kund[]
 }) {
   const kundMap = new Map(kunder.map((k) => [k.id, k.namn]))
@@ -51,6 +53,7 @@ export function IdagTimeline({
               fokus={fokusUppgiftIds.includes(u.id)}
               klar={klaraIds.has(u.id)}
               onToggle={onToggle}
+              onOpenDetalj={onOpenDetalj}
               kundMap={kundMap}
             />
           </div>
@@ -65,6 +68,7 @@ export function IdagTimeline({
               fokus={fokusUppgiftIds.includes(u.id)}
               klar={klaraIds.has(u.id)}
               onToggle={onToggle}
+              onOpenDetalj={onOpenDetalj}
               kundMap={kundMap}
             />
           ))}
@@ -74,7 +78,7 @@ export function IdagTimeline({
   )
 }
 
-function dotTone(u: Uppgift, fokusUppgiftIds: string[], klaraIds: Set<string>) {
+function dotTone(u: UppgiftDetaljerad, fokusUppgiftIds: string[], klaraIds: Set<string>) {
   if (klaraIds.has(u.id)) return 'bg-success-600'
   if (fokusUppgiftIds.includes(u.id)) return 'bg-accent-500'
   return 'bg-stone-400'
@@ -85,12 +89,14 @@ function Kort({
   fokus,
   klar,
   onToggle,
+  onOpenDetalj,
   kundMap,
 }: {
-  u: Uppgift
+  u: UppgiftDetaljerad
   fokus: boolean
   klar: boolean
-  onToggle: (u: Uppgift) => void
+  onToggle: (u: UppgiftDetaljerad) => void
+  onOpenDetalj: (u: UppgiftDetaljerad) => void
   kundMap: Map<string, string>
 }) {
   const meta = u.outlook_event_id
@@ -102,19 +108,30 @@ function Kort({
         : null
 
   return (
-    <label
-      className={`flex cursor-pointer items-center gap-2.5 rounded-xl border-y border-r border-border-subtle border-l-2 px-3.5 py-2.5 text-sm hover:bg-stone-50 dark:hover:bg-stone-800 ${
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpenDetalj(u)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onOpenDetalj(u)
+        }
+      }}
+      className={`flex cursor-pointer items-center gap-2.5 rounded-xl border-y border-r border-border-subtle border-l-[3px] px-3.5 py-2.5 text-sm hover:bg-stone-50 dark:hover:bg-stone-800 ${
         fokus ? 'border-l-accent-500' : 'border-l-border-subtle'
       }`}
     >
       <input
         type="checkbox"
         checked={klar}
+        aria-label={u.titel}
         onChange={() => onToggle(u)}
-        className="h-4 w-4 shrink-0 accent-accent-500"
+        onClick={(e) => e.stopPropagation()}
+        className="h-4 w-4 shrink-0 cursor-pointer accent-accent-500"
       />
       <span className={`min-w-0 flex-1 truncate ${klar ? 'text-stone-400 line-through' : ''}`}>{u.titel}</span>
       {meta && <span className="shrink-0 text-xs text-stone-400">{meta}</span>}
-    </label>
+    </div>
   )
 }

@@ -6,7 +6,8 @@ import { sattDagensFokus } from './idag-actions'
 import { IdagTimeline } from './idag-timeline'
 import { IdagRing } from './idag-ring'
 import { DagensFokusValjare } from './dagens-fokus-valjare'
-import { AvslutaDagen } from './avsluta-dagen'
+import { AvslutaDagen, FlexelSteg } from './avsluta-dagen'
+import { UppgiftDetalj } from './uppgift-detalj'
 import { Eyebrow } from '@/components/ui/eyebrow'
 import type { Dagsflode } from '@/lib/dagsflode'
 
@@ -19,14 +20,30 @@ export type Uppgift = {
   kund_id: string | null
   outlook_event_id: string | null
 }
+// Rikare variant med allt uppdateraUppgift/MotesanteckningarSektion behöver —
+// bara dagensUppgifter hämtas med de här extra fälten, eftersom det är enda
+// listan som går att öppna i redigeringsformuläret från Idag-sidan.
+export type UppgiftDetaljerad = Uppgift & {
+  beskrivning: string | null
+  person_id: string | null
+  uppgiftsprojekt_id: string | null
+  prioritet: string
+  tidsatgang_timmar: number | null
+  typ_id: string | null
+  skapa_uppgifter_vid_klar: boolean | null
+  uppgift_deltagare: { kontaktperson_id: string }[]
+  uppgift_anteckning: {
+    block_id: string
+    innehall: string
+    uppgift_id_genererad: string | null
+    genererad: { titel: string; deadline: string | null }[] | null
+  }[]
+}
 export type Kund = { id: string; namn: string }
+export type Typ = { id: string; namn: string; visar_motesanteckningar: boolean; skapa_uppgifter_vid_klar: boolean }
+export type Block = { id: string; namn: string; genererar_uppgift: boolean }
 export type Tanke = { id: string; text: string; uppgift_id_skapad: string | null }
 export type Dagsavslut = { id: string; avslutad_at: string | null }
-
-function kortDatum(iso: string) {
-  const [, m, d] = iso.split('-')
-  return `${parseInt(d, 10)}/${parseInt(m, 10)}`
-}
 
 // UTC-ankrad tolkning av datumsträngen (samma försiktighet som övrig datumlogik
 // i appen) så formateringen inte kan hoppa en dag beroende på webbläsarens tidszon.
@@ -61,12 +78,14 @@ export function IdagFlode({
   dagsavslut,
   tankar,
   kunder,
+  typer,
+  block,
 }: {
   flode: Dagsflode
   personNamn: string
   idag: string
   imorgon: string
-  dagensUppgifter: Uppgift[]
+  dagensUppgifter: UppgiftDetaljerad[]
   eftersläpning: Uppgift[]
   imorgonUppgifter: Uppgift[]
   fokusUppgiftIds: string[]
@@ -74,11 +93,14 @@ export function IdagFlode({
   dagsavslut: Dagsavslut | null
   tankar: Tanke[]
   kunder: Kund[]
+  typer: Typ[]
+  block: Block[]
 }) {
   const [fokusIds, setFokusIds] = useState<string[]>(initialaFokus)
   const [klaraIds, setKlaraIds] = useState<Set<string>>(
     new Set(dagensUppgifter.filter((u) => u.status === 'klar').map((u) => u.id))
   )
+  const [redigerar, setRedigerar] = useState<UppgiftDetaljerad | null>(null)
   const [, startTransition] = useTransition()
 
   function toggleFokus(nyValda: string[]) {
@@ -99,6 +121,13 @@ export function IdagFlode({
     startTransition(() => {
       uppdateraStatus(u.id, nyStatus)
     })
+  }
+
+  // Skickar med den senaste klarmarkerade statusen (inte det ursprungliga
+  // servervärdet) så Mötesanteckningar-sektionen ser rätt status om raden
+  // klarmarkerats i tidslinjen innan formuläret öppnas.
+  function oppnaDetalj(u: UppgiftDetaljerad) {
+    setRedigerar({ ...u, status: klaraIds.has(u.id) ? 'klar' : 'oppen' })
   }
 
   const klara = dagensUppgifter.filter((u) => klaraIds.has(u.id)).length
@@ -129,8 +158,8 @@ export function IdagFlode({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.7fr_1fr] lg:items-start">
-        <div className="rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.7fr_1fr] lg:items-stretch">
+        <div className="h-full rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
           <h1 className="text-2xl font-semibold tracking-tight">
             {flode === 'morgon' ? `${HALSNING.morgon}, ${personNamn.split(' ')[0]}` : HALSNING[flode]}
           </h1>
@@ -144,10 +173,17 @@ export function IdagFlode({
                 fokusUppgiftIds={fokusIds}
                 klaraIds={klaraIds}
                 onToggle={toggleKlar}
+                onOpenDetalj={oppnaDetalj}
                 kunder={kunder}
               />
             </div>
           </div>
+
+          {flode === 'kvall' && (
+            <div className="mt-6">
+              <FlexelSteg idag={idag} aktivaFlexelModuler={aktivaFlexelModuler} />
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col gap-6">
@@ -168,7 +204,6 @@ export function IdagFlode({
                     >
                       <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
                       <span className="min-w-0 flex-1 truncate">{u.titel}</span>
-                      <span className="shrink-0 text-xs text-stone-400">{u.deadline && kortDatum(u.deadline)}</span>
                     </li>
                   ))}
                 </ul>
@@ -208,14 +243,21 @@ export function IdagFlode({
 
       {flode === 'kvall' && dagsavslut && (
         <AvslutaDagen
-          idag={idag}
           imorgon={imorgon}
-          eftersläpning={eftersläpning}
           imorgonUppgifter={imorgonUppgifter}
-          aktivaFlexelModuler={aktivaFlexelModuler}
           dagsavslut={dagsavslut}
           tankar={tankar}
           kunder={kunder}
+        />
+      )}
+
+      {redigerar && (
+        <UppgiftDetalj
+          uppgift={redigerar}
+          kunder={kunder}
+          typer={typer}
+          block={block}
+          onClose={() => setRedigerar(null)}
         />
       )}
     </div>

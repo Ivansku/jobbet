@@ -5,6 +5,12 @@ import { nuIStockholm, plusDagar, aktivtFlode } from '@/lib/dagsflode'
 
 const UPPGIFT_FALT = 'id, titel, status, deadline, klockslag, kund_id, outlook_event_id'
 
+// Dagens uppgifter är de enda som går att öppna i redigeringsformuläret från
+// Idag-sidan, så bara den listan behöver hela fältuppsättningen som
+// uppdateraUppgift (delad med Kanban-vyn) kräver för att kunna skriva tillbaka
+// oförändrade värden på allt utom det som faktiskt redigeras här.
+const DAGENS_UPPGIFT_FALT = `${UPPGIFT_FALT}, beskrivning, person_id, uppgiftsprojekt_id, prioritet, tidsatgang_timmar, typ_id, skapa_uppgifter_vid_klar, uppgift_deltagare(kontaktperson_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(block_id, innehall, uppgift_id_genererad, genererad:uppgift!uppgift_anteckning_uppgift_id_genererad_fkey(titel, deadline))`
+
 export default async function Home() {
   const supabase = await createClient()
   const {
@@ -40,8 +46,15 @@ export default async function Home() {
     { data: dagensFokus },
     { data: flexelInstallningar },
     { data: kunder },
+    { data: typer },
+    { data: block },
   ] = await Promise.all([
-    supabase.from('uppgift').select(UPPGIFT_FALT).eq('person_id', person.id).eq('deadline', idag).order('sortordning'),
+    supabase
+      .from('uppgift')
+      .select(DAGENS_UPPGIFT_FALT)
+      .eq('person_id', person.id)
+      .eq('deadline', idag)
+      .order('sortordning'),
     supabase
       .from('uppgift')
       .select(UPPGIFT_FALT)
@@ -58,6 +71,11 @@ export default async function Home() {
     supabase.from('dagsfokus').select('uppgift_id').eq('person_id', person.id).eq('datum', idag),
     supabase.from('flexel_installning').select('modul').eq('person_id', person.id).eq('aktiv', true),
     supabase.from('kund').select('id, namn').order('namn'),
+    supabase
+      .from('uppgiftstyp')
+      .select('id, namn, visar_motesanteckningar, skapa_uppgifter_vid_klar')
+      .order('namn'),
+    supabase.from('anteckningsblock').select('id, namn, genererar_uppgift').eq('aktiv', true).order('sortordning'),
   ])
 
   // dagsavslut: en rad per person och dag, skapas första gången kvällsflödet
@@ -112,6 +130,8 @@ export default async function Home() {
           dagsavslut={dagsavslut}
           tankar={tankar}
           kunder={kunder ?? []}
+          typer={typer ?? []}
+          block={block ?? []}
         />
       </main>
     </>

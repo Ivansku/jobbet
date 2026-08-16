@@ -343,6 +343,7 @@ export async function uppdateraUppgift(
   }
 
   revalidatePath('/uppgifter')
+  revalidatePath('/')
 }
 
 export async function flyttaUppgift(id: string, deadline: string | null, sortordning: number) {
@@ -361,6 +362,7 @@ export async function uppdateraStatus(id: string, status: string) {
   }
 
   revalidatePath('/uppgifter')
+  revalidatePath('/')
 }
 
 export async function taBortUppgift(id: string) {
