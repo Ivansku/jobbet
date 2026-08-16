@@ -17,10 +17,12 @@ export function IdagTimeline({
   onOpenDetalj: (u: UppgiftDetaljerad) => void
   kunder: Kund[]
 }) {
+  // Ingen omsortering här — uppgifter kommer redan i sortordning-ordning från
+  // page.tsx:s .order('sortordning'), samma fält Kanban-vyns drag-and-drop
+  // skriver till. Sorterar man om på klockslag kan tidslinjen tappa synk med
+  // en manuellt omdragen ordning i Kanban.
   const kundMap = new Map(kunder.map((k) => [k.id, k.namn]))
-  const tidsatta = [...uppgifter]
-    .filter((u) => u.klockslag)
-    .sort((a, b) => (a.klockslag ?? '').localeCompare(b.klockslag ?? ''))
+  const tidsatta = uppgifter.filter((u) => u.klockslag)
   const otidsatta = uppgifter.filter((u) => !u.klockslag)
 
   if (uppgifter.length === 0) {
