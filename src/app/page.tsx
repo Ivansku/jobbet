@@ -1,11 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { AppNav } from './nav'
 import { IdagFlode } from './idag-flode'
-import { DagensUppgiftslista } from './dagens-uppgiftslista'
 import { nuIStockholm, plusDagar, aktivtFlode } from '@/lib/dagsflode'
 
-const UPPGIFT_FALT =
-  'id, titel, status, prioritet, deadline, klockslag, kund_id, typ_id, outlook_event_id'
+const UPPGIFT_FALT = 'id, titel, status, deadline, klockslag, kund_id, outlook_event_id'
 
 export default async function Home() {
   const supabase = await createClient()
@@ -42,7 +40,6 @@ export default async function Home() {
     { data: dagensFokus },
     { data: flexelInstallningar },
     { data: kunder },
-    { data: typer },
   ] = await Promise.all([
     supabase.from('uppgift').select(UPPGIFT_FALT).eq('person_id', person.id).eq('deadline', idag).order('sortordning'),
     supabase
@@ -61,7 +58,6 @@ export default async function Home() {
     supabase.from('dagsfokus').select('uppgift_id').eq('person_id', person.id).eq('datum', idag),
     supabase.from('flexel_installning').select('modul').eq('person_id', person.id).eq('aktiv', true),
     supabase.from('kund').select('id, namn').order('namn'),
-    supabase.from('uppgiftstyp').select('id, namn').order('namn'),
   ])
 
   // dagsavslut: en rad per person och dag, skapas första gången kvällsflödet
@@ -102,7 +98,7 @@ export default async function Home() {
   return (
     <>
       <AppNav />
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 p-6 md:p-8">
+      <main className="mx-auto w-full max-w-6xl flex-1 p-6 md:p-8">
         <IdagFlode
           flode={flode}
           personNamn={person.namn}
@@ -116,13 +112,6 @@ export default async function Home() {
           dagsavslut={dagsavslut}
           tankar={tankar}
           kunder={kunder ?? []}
-          typer={typer ?? []}
-        />
-        <DagensUppgiftslista
-          uppgifter={dagensUppgifter ?? []}
-          fokusUppgiftIds={fokusUppgiftIds}
-          kunder={kunder ?? []}
-          typer={typer ?? []}
         />
       </main>
     </>

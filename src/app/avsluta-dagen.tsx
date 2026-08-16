@@ -6,7 +6,6 @@ import { skapaFlexelPost } from './rapporter/flexel/actions'
 import { skapaReflektionstanke, avslutaDagen } from './idag-actions'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea, Select } from '@/components/ui/input'
-import { Field } from '@/components/ui/field'
 import { Eyebrow } from '@/components/ui/eyebrow'
 import { EmptyState } from '@/components/ui/empty-state'
 import type { Uppgift, Kund, Tanke, Dagsavslut } from './idag-flode'
@@ -44,12 +43,7 @@ export function AvslutaDagen({
   const modulOptioner = [...aktivaFlexelModuler, 'ledighet']
 
   return (
-    <section className="flex flex-col gap-8 rounded-xl border border-border-subtle bg-surface p-5 md:p-6">
-      <div>
-        <Eyebrow>Avsluta dagen</Eyebrow>
-        <h1 className="mt-1 text-xl font-semibold tracking-tight">Dagens sista genomgång</h1>
-      </div>
-
+    <div className="flex flex-col gap-6">
       {eftersläpning.length > 0 && (
         <KvarvarandeSteg eftersläpning={eftersläpning} imorgon={imorgon} />
       )}
@@ -60,27 +54,29 @@ export function AvslutaDagen({
         <TankarSteg dagsavslutId={dagsavslut.id} imorgon={imorgon} tankar={tankar} />
       )}
 
-      <div className="flex flex-col gap-2">
+      <div className="rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
         <Eyebrow>Imorgon väntar</Eyebrow>
-        {imorgonUppgifter.length === 0 ? (
-          <EmptyState title="Inget planerat imorgon ännu" />
-        ) : (
-          <ul className="divide-y divide-border-subtle overflow-hidden rounded-lg border border-border-subtle">
-            {imorgonUppgifter.map((u) => (
-              <li key={u.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
-                <span className="truncate">{u.titel}</span>
-                <span className="shrink-0 text-xs text-stone-400">
-                  {u.klockslag?.slice(0, 5)}
-                  {u.kund_id && ` · ${kundMap.get(u.kund_id)}`}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <div className="mt-3">
+          {imorgonUppgifter.length === 0 ? (
+            <EmptyState title="Inget planerat imorgon ännu" />
+          ) : (
+            <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle">
+              {imorgonUppgifter.map((u) => (
+                <li key={u.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                  <span className="truncate">{u.titel}</span>
+                  <span className="shrink-0 text-xs text-stone-400">
+                    {u.klockslag?.slice(0, 5)}
+                    {u.kund_id && ` · ${kundMap.get(u.kund_id)}`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
       {dagsavslut && <AvslutaSteg dagsavslutId={dagsavslut.id} avslutadAt={dagsavslut.avslutad_at} />}
-    </section>
+    </div>
   )
 }
 
@@ -108,9 +104,9 @@ function KvarvarandeSteg({ eftersläpning, imorgon }: { eftersläpning: Uppgift[
   if (kvar.length === 0) return null
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
       <Eyebrow>Kvarvarande oavslutat</Eyebrow>
-      <ul className="divide-y divide-border-subtle overflow-hidden rounded-lg border border-border-subtle">
+      <ul className="mt-3 divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle">
         {kvar.map((u) => (
           <li key={u.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
             <span className="min-w-0 flex-1 truncate">
@@ -156,60 +152,59 @@ function FlexelSteg({ idag, modulOptioner }: { idag: string; modulOptioner: stri
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
       <Eyebrow>Snabbregistrera Flexel</Eyebrow>
       {sparad ? (
-        <p className="text-sm text-stone-500">Registrerat. Du kan lägga till fler rader i Rapporter → Flexel.</p>
+        <p className="mt-3 text-sm text-stone-500">Registrerat. Du kan lägga till fler rader i Rapporter → Flexel.</p>
       ) : (
-        <div className="flex flex-col gap-3">
-          <div className="flex gap-3">
-            <Field label="Datum" htmlFor="avsluta-flexel-datum">
-              <Input
-                id="avsluta-flexel-datum"
-                type="date"
-                value={datum}
-                onChange={(e) => setDatum(e.target.value)}
-              />
-            </Field>
-            <Field label="Timmar" htmlFor="avsluta-flexel-timmar">
-              <Input
-                id="avsluta-flexel-timmar"
-                type="number"
-                step="0.5"
-                value={timmar}
-                onChange={(e) => setTimmar(e.target.value)}
-                placeholder="t.ex. -2"
-              />
-            </Field>
-            <Field label="Modul" htmlFor="avsluta-flexel-modul">
-              <Select id="avsluta-flexel-modul" value={modul} onChange={(e) => setModul(e.target.value)}>
-                {modulOptioner.map((m) => (
-                  <option key={m} value={m}>
-                    {MODUL_LABEL[m] ?? m}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          </div>
-          <Field label="Motivering" htmlFor="avsluta-flexel-motivering">
+        <div className="mt-3 flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Input
-              id="avsluta-flexel-motivering"
+              type="date"
+              aria-label="Datum"
+              value={datum}
+              onChange={(e) => setDatum(e.target.value)}
+              className="w-auto"
+            />
+            <Input
+              type="number"
+              step="0.5"
+              aria-label="Timmar"
+              value={timmar}
+              onChange={(e) => setTimmar(e.target.value)}
+              placeholder="Timmar"
+              className="w-24"
+            />
+            <Select
+              aria-label="Modul"
+              value={modul}
+              onChange={(e) => setModul(e.target.value)}
+              className="w-auto"
+            >
+              {modulOptioner.map((m) => (
+                <option key={m} value={m}>
+                  {MODUL_LABEL[m] ?? m}
+                </option>
+              ))}
+            </Select>
+            <Input
+              aria-label="Motivering"
               value={motivering}
               onChange={(e) => setMotivering(e.target.value)}
               placeholder="Kort motivering"
+              className="min-w-[10rem] flex-1"
             />
-          </Field>
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={sparar}
+              disabled={!timmar || !motivering.trim()}
+              onClick={spara}
+            >
+              Spara
+            </Button>
+          </div>
           {fel && <p className="text-sm text-red-600">{fel}</p>}
-          <Button
-            variant="secondary"
-            size="sm"
-            className="self-start"
-            loading={sparar}
-            disabled={!timmar || !motivering.trim()}
-            onClick={spara}
-          >
-            Spara
-          </Button>
         </div>
       )}
     </div>
@@ -244,46 +239,48 @@ function TankarSteg({
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
       <Eyebrow>Vad skaver?</Eyebrow>
-      {tankar.length > 0 && (
-        <ul className="flex flex-col gap-1.5">
-          {tankar.map((t) => (
-            <li key={t.id} className="rounded-lg bg-stone-50 px-3 py-2 text-sm dark:bg-stone-800">
-              {t.text}
-              {t.uppgift_id_skapad && (
-                <span className="ml-2 text-xs text-accent-600 dark:text-accent-400">→ uppgift imorgon</span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-      <Textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Skriv av dig — vad ligger och skaver?"
-        rows={2}
-      />
-      <label className="flex items-center gap-2 text-sm text-stone-600 dark:text-stone-300">
-        <input
-          type="checkbox"
-          checked={gorTillUppgift}
-          onChange={(e) => setGorTillUppgift(e.target.checked)}
-          className="h-4 w-4 accent-accent-500"
+      <div className="mt-3 flex flex-col gap-2">
+        {tankar.length > 0 && (
+          <ul className="flex flex-col gap-1.5">
+            {tankar.map((t) => (
+              <li key={t.id} className="rounded-xl bg-stone-50 px-3 py-2 text-sm dark:bg-stone-800">
+                {t.text}
+                {t.uppgift_id_skapad && (
+                  <span className="ml-2 text-xs text-accent-600 dark:text-accent-400">→ uppgift imorgon</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        <Textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Skriv av dig — vad ligger och skaver?"
+          rows={2}
         />
-        Gör till uppgift imorgon
-      </label>
-      {fel && <p className="text-sm text-red-600">{fel}</p>}
-      <Button
-        variant="secondary"
-        size="sm"
-        className="self-start"
-        loading={sparar}
-        disabled={!text.trim()}
-        onClick={spara}
-      >
-        Spara tanke
-      </Button>
+        <label className="flex items-center gap-2 text-sm text-stone-600 dark:text-stone-300">
+          <input
+            type="checkbox"
+            checked={gorTillUppgift}
+            onChange={(e) => setGorTillUppgift(e.target.checked)}
+            className="h-4 w-4 accent-accent-500"
+          />
+          Gör till uppgift imorgon
+        </label>
+        {fel && <p className="text-sm text-red-600">{fel}</p>}
+        <Button
+          variant="secondary"
+          size="sm"
+          className="self-start"
+          loading={sparar}
+          disabled={!text.trim()}
+          onClick={spara}
+        >
+          Spara tanke
+        </Button>
+      </div>
     </div>
   )
 }
@@ -300,7 +297,7 @@ function AvslutaSteg({ dagsavslutId, avslutadAt }: { dagsavslutId: string; avslu
   }
 
   return (
-    <div className="flex flex-col items-start gap-3 border-t border-border-subtle pt-6">
+    <div className="flex flex-col items-start gap-3 rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
       {avslutad && <p className="text-sm text-stone-500">{AVSLUTNINGSTEXT}</p>}
       <Button variant="primary" loading={sparar} onClick={avsluta}>
         {avslutad ? 'Avsluta igen' : 'Avsluta dagen'}
