@@ -177,12 +177,17 @@ export async function uppdateraPerson(
     roll: string
     epostOutlook: string
     arbetstimmarPerVecka: number
+    dagsflodeMorgonSlut: string
+    dagsflodeMittSlut: string
   }
 ) {
   const namnTrimmat = input.namn.trim()
   if (!namnTrimmat) return { error: 'Namn krävs.' }
   if (!Number.isFinite(input.arbetstimmarPerVecka) || input.arbetstimmarPerVecka < 0) {
     return { error: 'Arbetstimmar per vecka måste vara ett positivt tal.' }
+  }
+  if (input.dagsflodeMorgonSlut >= input.dagsflodeMittSlut) {
+    return { error: '"Börja dagen" måste sluta före "Mitt på dagen".' }
   }
 
   const supabase = await createClient()
@@ -193,12 +198,15 @@ export async function uppdateraPerson(
       roll: input.roll,
       epost_outlook: input.epostOutlook.trim() || null,
       arbetstimmar_per_vecka: input.arbetstimmarPerVecka,
+      dagsflode_morgon_slut: input.dagsflodeMorgonSlut,
+      dagsflode_mitt_slut: input.dagsflodeMittSlut,
     })
     .eq('id', id)
 
   if (error) return { error: error.message }
   revalidatePath('/systemadministration')
   revalidatePath('/uppgifter')
+  revalidatePath('/')
   return { error: null }
 }
 

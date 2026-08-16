@@ -14,6 +14,8 @@ type Person = {
   epost_outlook: string | null
   roll: string | null
   arbetstimmar_per_vecka: number
+  dagsflode_morgon_slut: string
+  dagsflode_mitt_slut: string
 }
 type FlexelInstallning = { person_id: string; modul: string; aktiv: boolean; veckokvot_timmar: number | null }
 
@@ -91,6 +93,8 @@ function AnvandareFormular({
   const [roll, setRoll] = useState(person.roll ?? 'medlem')
   const [epostOutlook, setEpostOutlook] = useState(person.epost_outlook ?? '')
   const [arbetstimmar, setArbetstimmar] = useState(String(person.arbetstimmar_per_vecka))
+  const [morgonSlut, setMorgonSlut] = useState(person.dagsflode_morgon_slut.slice(0, 5))
+  const [mittSlut, setMittSlut] = useState(person.dagsflode_mitt_slut.slice(0, 5))
   const [moduler, setModuler] = useState(() =>
     Object.fromEntries(
       MODUL_OPTIONER.map((m) => [m.value, flexelInstallningar.find((i) => i.modul === m.value)?.aktiv ?? false])
@@ -109,6 +113,10 @@ function AnvandareFormular({
       setFel('Namn krävs.')
       return
     }
+    if (morgonSlut >= mittSlut) {
+      setFel('"Börja dagen" måste sluta före "Mitt på dagen".')
+      return
+    }
     setSparar(true)
     setFel(null)
 
@@ -117,6 +125,8 @@ function AnvandareFormular({
       roll,
       epostOutlook,
       arbetstimmarPerVecka: timmar,
+      dagsflodeMorgonSlut: morgonSlut,
+      dagsflodeMittSlut: mittSlut,
     })
     if (error) {
       setSparar(false)
@@ -180,6 +190,34 @@ function AnvandareFormular({
             required
           />
         </Field>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-stone-700 dark:text-stone-300">
+            Idag-sidans dagsflöden
+          </span>
+          <p className="text-xs text-stone-400">
+            Styr när Börja dagen, Mitt på dagen och Avsluta dagen visas automatiskt på Hem-sidan.
+          </p>
+          <div className="flex gap-3">
+            <Field label="Börja dagen slutar" htmlFor="anvandare-morgon-slut">
+              <Input
+                id="anvandare-morgon-slut"
+                type="time"
+                value={morgonSlut}
+                onChange={(e) => setMorgonSlut(e.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Mitt på dagen slutar" htmlFor="anvandare-mitt-slut">
+              <Input
+                id="anvandare-mitt-slut"
+                type="time"
+                value={mittSlut}
+                onChange={(e) => setMittSlut(e.target.value)}
+                required
+              />
+            </Field>
+          </div>
+        </div>
         <div className="flex flex-col gap-1.5">
           <span className="text-sm font-medium text-stone-700 dark:text-stone-300">Roll</span>
           <div role="group" aria-label="Roll" className="flex flex-wrap gap-1.5">

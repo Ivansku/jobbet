@@ -37,7 +37,9 @@ export default async function SystemadministrationPage() {
         .order('sortordning'),
       supabase
         .from('person')
-        .select('id, namn, epost, epost_outlook, roll, arbetstimmar_per_vecka')
+        .select(
+          'id, namn, epost, epost_outlook, roll, arbetstimmar_per_vecka, dagsflode_morgon_slut, dagsflode_mitt_slut'
+        )
         .order('namn'),
       supabase.from('flexel_installning').select('person_id, modul, aktiv, veckokvot_timmar'),
     ])
