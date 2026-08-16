@@ -19,11 +19,9 @@ export function IdagTimeline({
 }) {
   // Ingen omsortering här — uppgifter kommer redan i sortordning-ordning från
   // page.tsx:s .order('sortordning'), samma fält Kanban-vyns drag-and-drop
-  // skriver till. Sorterar man om på klockslag kan tidslinjen tappa synk med
-  // en manuellt omdragen ordning i Kanban.
+  // skriver till, och samma ordning ska gälla här: tidsatta och otidsatta
+  // rader blandas fritt i en enda lista, precis som i Kanban.
   const kundMap = new Map(kunder.map((k) => [k.id, k.namn]))
-  const tidsatta = uppgifter.filter((u) => u.klockslag)
-  const otidsatta = uppgifter.filter((u) => !u.klockslag)
 
   if (uppgifter.length === 0) {
     return <p className="text-sm text-stone-400">Inget planerat idag.</p>
@@ -31,51 +29,46 @@ export function IdagTimeline({
 
   return (
     <div className="flex flex-col">
-      {tidsatta.map((u, i) => (
-        // Ingen items-start här — raden ska sträcka sig (grid-standard) så att
-        // linje-kolumnen får radens fulla höjd att fördela sina två flex-segment
-        // (ovanför/under punkten) över. Annars blir strecket avklippt eftersom
-        // dess behållare bara blir så hög som punkten själv.
-        <div key={u.id} className="grid grid-cols-[52px_20px_1fr]">
-          <span className="pt-3.5 pr-2.5 text-right text-xs text-stone-400 tabular-nums">
-            {u.klockslag!.slice(0, 5)}
-          </span>
-          <div className="flex flex-col items-center">
-            <span className={`w-px flex-1 ${i === 0 ? 'bg-transparent' : 'bg-border-subtle'}`} />
-            <span
-              className={`my-1 h-2 w-2 shrink-0 rounded-full border-2 border-surface ${dotTone(u, fokusUppgiftIds, klaraIds)}`}
-            />
-            <span
-              className={`w-px flex-1 ${i === tidsatta.length - 1 ? 'bg-transparent' : 'bg-border-subtle'}`}
-            />
+      {uppgifter.map((u, i) => {
+        const fokus = fokusUppgiftIds.includes(u.id)
+        const klar = klaraIds.has(u.id)
+
+        if (!u.klockslag) {
+          return (
+            <div key={u.id} className="pb-2 pl-[72px]">
+              <Kort u={u} fokus={fokus} klar={klar} onToggle={onToggle} onOpenDetalj={onOpenDetalj} kundMap={kundMap} />
+            </div>
+          )
+        }
+
+        // Linjen ritas bara mot en granne som också har klockslag och sitter
+        // direkt intill — en otidsatt rad däremellan bryter linjen istället
+        // för att den ska försöka rita sig visuellt bakom kortet.
+        const foregåendeTidsatt = i > 0 && !!uppgifter[i - 1].klockslag
+        const nastaTidsatt = i < uppgifter.length - 1 && !!uppgifter[i + 1].klockslag
+
+        return (
+          // Ingen items-start här — raden ska sträcka sig (grid-standard) så att
+          // linje-kolumnen får radens fulla höjd att fördela sina två flex-segment
+          // (ovanför/under punkten) över. Annars blir strecket avklippt eftersom
+          // dess behållare bara blir så hög som punkten själv.
+          <div key={u.id} className="grid grid-cols-[52px_20px_1fr]">
+            <span className="pt-3.5 pr-2.5 text-right text-xs text-stone-400 tabular-nums">
+              {u.klockslag.slice(0, 5)}
+            </span>
+            <div className="flex flex-col items-center">
+              <span className={`w-px flex-1 ${foregåendeTidsatt ? 'bg-border-subtle' : 'bg-transparent'}`} />
+              <span
+                className={`my-1 h-2 w-2 shrink-0 rounded-full border-2 border-surface ${dotTone(u, fokusUppgiftIds, klaraIds)}`}
+              />
+              <span className={`w-px flex-1 ${nastaTidsatt ? 'bg-border-subtle' : 'bg-transparent'}`} />
+            </div>
+            <div className="pb-2">
+              <Kort u={u} fokus={fokus} klar={klar} onToggle={onToggle} onOpenDetalj={onOpenDetalj} kundMap={kundMap} />
+            </div>
           </div>
-          <div className="pb-2">
-            <Kort
-              u={u}
-              fokus={fokusUppgiftIds.includes(u.id)}
-              klar={klaraIds.has(u.id)}
-              onToggle={onToggle}
-              onOpenDetalj={onOpenDetalj}
-              kundMap={kundMap}
-            />
-          </div>
-        </div>
-      ))}
-      {otidsatta.length > 0 && (
-        <div className="flex flex-col gap-2 pl-[72px]">
-          {otidsatta.map((u) => (
-            <Kort
-              key={u.id}
-              u={u}
-              fokus={fokusUppgiftIds.includes(u.id)}
-              klar={klaraIds.has(u.id)}
-              onToggle={onToggle}
-              onOpenDetalj={onOpenDetalj}
-              kundMap={kundMap}
-            />
-          ))}
-        </div>
-      )}
+        )
+      })}
     </div>
   )
 }
