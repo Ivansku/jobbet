@@ -1,6 +1,6 @@
 # Jobbet — Projektöversikt
 
-*Senast uppdaterad: 2026-08-15 (kväll)*
+*Senast uppdaterad: 2026-08-17 (kväll)*
 
 Detta dokument är en levande sammanfattning av vad appen gör och hur den är uppbyggd, på VAD/VARFÖR-nivå — för planeringssamtal, inte som teknisk referens. Uppdatera det när större funktioner läggs till eller avgränsningar ändras, inte vid varje commit.
 
@@ -36,7 +36,7 @@ Detta dokument är en levande sammanfattning av vad appen gör och hur den är u
 | `uppgift_anteckning` | En anteckning per block och mötesuppgift (markdown, autosparas). Håller koll på om blocket redan genererat en uppföljningsuppgift, så generering går att köra flera gånger utan dubbletter. |
 | `projekt` / `projekt_medlem` | Finns kvar i schemat men används fortfarande inte i appen. |
 | `dagsfokus` | Dagens 1–3 självvalda fokusuppgifter, satta i Börja dagen-flödet. Privat per person (samma RLS-avsteg som Flexel). |
-| `dagsavslut` | En rad per person och dag, `avslutad_at` sätts när Avsluta dagen-knappen trycks. Privat per person. |
+| `dagsavslut` | En rad per person och dag, skapas första gången kvällsflödet öppnas. Finns bara kvar som ankare för `dagsavslut_tanke` — `avslutad_at`-kolumnen finns kvar i schemat men "Avsluta dagen"-knappen som skulle sätta den är borttagen tills vidare (se Öppna frågor). Privat per person. |
 | `dagsavslut_tanke` | Fristående reflektionstankar från "Vad skaver?"-steget i Avsluta dagen, med valfri länk till en auto-skapad uppföljningsuppgift. Privat per person. |
 
 ## Behörighetsmodell
@@ -62,7 +62,10 @@ Detta dokument är en levande sammanfattning av vad appen gör och hur den är u
 - "Tidigare möten med kunden" på mötesuppgiften, och en samlad mötesanteckningsvy på kundkortet
 - **Rapporter**-sektion i huvudnavet, öppen för alla inloggade (ingen adminspärr). Första rapporttypen: **Tidsrapportering** — registrerad tid grupperad per kund för en vald vecka, med person- och veckofilter (samma vecko-UX som Kanban). Rent läsande, ingen ny tabell — bygger på `uppgift.tidsatgang_timmar`/`deadline`/`kund_id` m.fl.
 - Användarkonfiguration i Systemadministration (namn, roll, Outlook-mail, arbetstimmar/vecka). Arbetstimmarna fördelas jämnt över veckans 5 arbetsdagar och visas i Kanban-vyns kolumnrubriker som "planerat/kapacitet" (t.ex. "5h/8h") för inloggad användares egna uppgifter den dagen — ersätter den tidigare summan av allas timmar per kolumn
-- **Idag-vyn** — Hem-sidan ("/") ersatt med tre klockstyrda dagsflöden istället för en statisk hälsning: **Börja dagen** (morgon — gårdagens försenat, val av 1–3 fokusuppgifter, dagens Outlook-möten), **Mitt på dagen** (checklista för att klarmarkera det redan avklarade) och **Avsluta dagen** (kvarvarande oavslutat, Flexel-snabbregistrering, reflektion, imorgon väntar, avsluta-knapp). Vilket flöde som visas styrs helt av klockslag jämfört mot två per-person-inställningar i Systemadministration → Användare (`dagsflode_morgon_slut`/`dagsflode_mitt_slut`, standard 11:00/15:00) — ingen manuell växling. Missad avslutning en dag hanteras tyst: inget banner, ingen bakåtdatering, uppgifterna dyker bara upp som eftersläpning nästa morgon. Under det aktiva flödet ligger en enkel, alltid synlig lista över dagens uppgifter kvar.
+- **Idag-vyn** — Hem-sidan ("/") ersatt med en tvåkolumns dashboard vars innehåll styrs av tre klockstyrda dagsflöden istället för en statisk hälsning. Vilket flöde som är aktivt avgörs helt av klockslag mot två per-person-inställningar i Systemadministration → Användare (`dagsflode_morgon_slut`/`dagsflode_mitt_slut`, standard 11:00/15:00) — ingen manuell växling. Missad avslutning en dag hanteras tyst: uppgifterna dyker bara upp som eftersläpning nästa morgon.
+  - **Vänsterkolumnen**: "Dagens tidslinje" — alla dagens uppgifter (mötesuppgifter och vanliga) i en enda lista sorterad på `sortordning`, samma fält Kanban-vyns drag-and-drop skriver till, så ordningen matchar Kanban exakt (tidsatta och otidsatta rader blandas fritt). Punkt + sammanhängande linje mellan raderna; klockslag visas i en egen kolumn när det finns. Hela raden (utom kryssrutan) öppnar ett redigeringsformulär — titel, beskrivning, tidsåtgång och mötesanteckningar-sektionen för mötestyper — som återanvänder `uppdateraUppgift`/`MotesanteckningarSektion` från Uppgifter-vyn. På kvällen fortsätter samma block med Flexel-snabbregistrering och "Imorgon väntar" (samma punkt/linje-design, men skrivskyddad).
+  - **Högerkolumnen**: en ring med "X av Y klara" för dagen, "Gårdagens försenat" (alla obockade uppgifter med deadline före idag, synlig i alla flöden), "Dagens fokus" (välj 1–3 uppgifter, bara på morgonen), "Kunder idag" och på kvällen "Vad skaver?" (fristående reflektionstankar, valfritt kopplade till en auto-skapad uppgift imorgon).
+  - Ingen egen "Avsluta dagen"-knapp just nu — fanns tidigare men gjorde bara en sak (satte en tidsstämpel utan koppling till någon annan logik) och togs bort i väntan på en tydligare idé om vad den ska göra.
 - **Flexel** — andra fliken i Rapporter (Tidsrapportering | Flexel), personlig logg för Flex, Övertid, Föräldraledig och Ledighet som ersätter en tidigare Excel-fil (242 historiska rader importerade). Tre tabeller (`flexel_post`, `flexel_installning`, `flexel_kvotjustering`), strikt privat RLS på post/kvotjustering (`person_id = current_person_id()`, **ingen admin-insyn** — medvetet avsteg från appens vanliga `foretag_id`+admin-mönster). `flexel_installning` följer däremot det vanliga admin-mönstret (admin sätter Flex/Övertid/Föräldraledig per person i Systemadministration → Användare) — utom **Ledighet**, som är en fjärde typ alla har utan aktivering. Vyn är månadsbaserad (inte veckobaserad): ett dag-rutnät per vardag, grupperat i veckokort, där en vecka hör till den månad dess **fredag** ligger i (samma modell Ivan använde i Excel, matchar hans månadsrapportering till jobbet/Försäkringskassan). Föräldraledig-kvoten (fredagar × veckotimmar per månad, justerbar per månad för undantag) är verifierad mot den ursprungliga Excel-filens egna checkpoint-formler.
 
 ## Medvetna förenklingar / avgränsningar just nu
@@ -87,6 +90,7 @@ Detta dokument är en levande sammanfattning av vad appen gör och hur den är u
 - Tidsrapportering v1 är byggd (vecka × kund). Utanför scope hittills: export (PDF/Excel), redigering av tid i rapportvyn, filter på flera personer samtidigt, månads-/årsvy, historik/trend över tid, koppling till "senast kontaktad" eller andra kundfält — värt att prioritera bland dessa vid nästa iteration.
 - Flexel: Ivan funderar på att bokföra *varje* vardag (0h + motivering på vanliga dagar, typ mindre relevant), inte bara avvikande dagar — medvetet skjutet på framtiden tills det visar sig relevant.
 - Flexel: `flexel_kvotjustering` (manuell kvotminskning per månad) och den nya typen Ledighet (fristående daglig logg) överlappar delvis i syfte — värt att fundera på om kvotjustering kan fasas ut till förmån för att bara logga Ledighet-rader, nu när båda finns.
+- Idag-vyn: vad ska "Avsluta dagen" som handling faktiskt innebära (utöver att vara en tidsstämpel)? Tidigare variant gjorde ingenting kopplat till kvarvarande uppgifter, streak eller liknande — togs bort tills det finns en tydligare idé.
 
 ## Arbetsflöde för Claude Code
 
