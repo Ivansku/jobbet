@@ -1,6 +1,6 @@
 # Jobbet — Projektöversikt
 
-*Senast uppdaterad: 2026-08-17 (kväll)*
+*Senast uppdaterad: 2026-08-18*
 
 Detta dokument är en levande sammanfattning av vad appen gör och hur den är uppbyggd, på VAD/VARFÖR-nivå — för planeringssamtal, inte som teknisk referens. Uppdatera det när större funktioner läggs till eller avgränsningar ändras, inte vid varje commit.
 
@@ -27,28 +27,30 @@ Detta dokument är en levande sammanfattning av vad appen gör och hur den är u
 | `person` | Interna användare, kopplade till Supabase auth. `roll`: admin/medlem. Har en separat Outlook-mailadress (skild från Google-inloggningsmailen) — troligen för att koppla kalenderhändelser till rätt intern person. `arbetstimmar_per_vecka` (standard 40) driver kapacitetsvisningen i Uppgifter-vyn. |
 | `kund` | Bara namn på kundnivå. |
 | `kontaktperson` | Kontaktpersoner kopplade till en kund: för-/efternamn, e-post, "senast kontaktad"-datum (redigerbart manuellt eller satt via import). Mailto-ikon i UI. |
-| `uppgift` | Titel, beskrivning, status, prioritet, deadline, klockslag, tidsåtgång i timmar, ansvarig person, kund, taggad med uppgiftstyp och uppgiftsprojekt, manuell sorteringsordning inom dagskolumn, samt fält kopplade till Outlook-synk (event-id, ursprunglig deltagarlista som text). Mötesuppgifter har även `genererad_fran_uppgift_id` (pekar tillbaka till mötet för auto-genererade uppföljningsuppgifter), `sammanfattning_skickad_at` och `skapa_uppgifter_vid_klar` (nullable override av typens standard, se `anteckningsblock` nedan). |
-| `uppgift_serie` | Återkommande uppgifter: startdatum, slutdatum, veckodagar, intervall (var N:e vecka), standardvärden (typ, prioritet, tidsåtgång, klockslag) som kopieras till varje ny förekomst. |
+| `uppgift` | Titel, beskrivning, status, prioritet, deadline, klockslag, tidsåtgång i timmar, ansvarig person, kund, taggad med uppgiftstyp och kategori, valfritt kopplad till ett `projekt` (`projekt_id`), manuell sorteringsordning inom dagskolumn, samt fält kopplade till Outlook-synk (event-id, ursprunglig deltagarlista som text). Mötesuppgifter har även `genererad_fran_uppgift_id` (pekar tillbaka till mötet för auto-genererade uppföljningsuppgifter), `sammanfattning_skickad_at` och `skapa_uppgifter_vid_klar` (nullable override av typens standard, se `anteckningsblock` nedan). |
+| `uppgift_serie` | Återkommande uppgifter: startdatum, slutdatum, veckodagar, intervall (var N:e vecka), standardvärden (typ, prioritet, kategori, tidsåtgång, klockslag) som kopieras till varje ny förekomst. Saknar fortfarande koppling till `projekt` — bara vanliga (icke-återkommande) uppgifter kan höra till ett projekt. |
 | `uppgift_deltagare` | Kopplar uppgifter (möten) till en eller flera kontaktpersoner — sätts manuellt via en deltagarväljare eller automatiskt av Outlook-synken. |
-| `uppgiftstyp` | Fri, admin-hanterad lista med kategorier för att märka uppgifter. Flaggorna `visar_motesanteckningar` (visar mötesanteckningssektionen på uppgifter av den här typen) och `skapa_uppgifter_vid_klar` (standard för auto-generering av uppföljningsuppgifter, se nedan) styrs härifrån. |
-| `uppgiftsprojekt` | Fri, admin-hanterad lista för att gruppera/tagga uppgifter — ett lättviktigt taggningssystem, **inte** samma sak som `projekt`/`projekt_medlem` nedan. |
+| `uppgiftstyp` | Fri, admin-hanterad lista med typer för att märka uppgifter (t.ex. "Möte", "Support"). Flaggorna `visar_motesanteckningar` (visar mötesanteckningssektionen på uppgifter av den här typen) och `skapa_uppgifter_vid_klar` (standard för auto-generering av uppföljningsuppgifter, se nedan) styrs härifrån. |
+| `kategori` | Fri, admin-hanterad lista för att gruppera/tagga uppgifter — ett lättviktigt taggningssystem. Hette tidigare `uppgiftsprojekt`; döpt om (databas, kod och UI) för att inte krocka begreppsmässigt med `projekt` nedan. |
 | `anteckningsblock` | Admin-hanterad, rubricerad sektion för mötesanteckningar (t.ex. "TODO", "Återkoppling"). Per block: sortordning, aktiv/inaktiv, om blocket ska generera en uppföljningsuppgift (med titel-mall, uppgiftstyp, deadline i dagar efter mötet), och om det ska visas i kundsammanfattningen som standard. |
 | `uppgift_anteckning` | En anteckning per block och mötesuppgift (markdown, autosparas). Håller koll på om blocket redan genererat en uppföljningsuppgift, så generering går att köra flera gånger utan dubbletter. |
-| `projekt` / `projekt_medlem` | Finns kvar i schemat men används fortfarande inte i appen. |
+| `projekt` | Container för uppgifter — namn, valfri kund (`kund_id`, nullable — interna projekt tillåtna), status (aktivt/pausat/avslutat), beskrivning, startdatum, samt `mall_projekt_id` som spårar vilken mall projektet genererades från (SET NULL om mallen tas bort). Uppgifter pekar tillbaka via `uppgift.projekt_id` (SET NULL vid radering — "Ta bort projekt" kopplar bara loss uppgifterna, en separat "Ta bort projekt och alla uppgifter" raderar dem explicit). |
+| `projekt_medlem` | Finns kvar i schemat men används fortfarande inte i appen — ingen egen projektägare/medlemslista oavsett enskilda uppgifters ansvariga. |
+| `mall_projekt` / `mall_uppgift` | Projektmallar (t.ex. "Uppstart") och deras uppgiftsmallar. Varje uppgiftsmall har samma fält som en vanlig uppgift (titel, beskrivning, typ, kategori, prioritet, status, ansvarig-standard, tidsåtgång) förutom att deadline ersätts av `dagar_efter_start` — för första uppgiften i mallen räknat från projektets startdatum, för alla efterföljande kedjat från föregående uppgift i mallen (ordningen sätts av `sortordning`, omflyttningsbar). Ingen koppling till återkommande-fälten. |
 | `dagsfokus` | Dagens 1–3 självvalda fokusuppgifter, satta i Börja dagen-flödet. Privat per person (samma RLS-avsteg som Flexel). |
 | `dagsavslut` | En rad per person och dag, skapas första gången kvällsflödet öppnas. Finns bara kvar som ankare för `dagsavslut_tanke` — `avslutad_at`-kolumnen finns kvar i schemat men "Avsluta dagen"-knappen som skulle sätta den är borttagen tills vidare (se Öppna frågor). Privat per person. |
 | `dagsavslut_tanke` | Fristående reflektionstankar från "Vad skaver?"-steget i Avsluta dagen, med valfri länk till en auto-skapad uppföljningsuppgift. Privat per person. |
 
 ## Behörighetsmodell
 
-- Allt scopat per `foretag_id` via RLS. Admin hanterar kunder, personer, tar bort uppgifter.
-- **Systemadministration** — en egen sida (endast admin) för att skapa/redigera/ta bort uppgiftstyper, uppgiftsprojekt och anteckningsblock (skapa/omordna/avaktivera), samt en **Användare**-sektion för att redigera namn, roll, Outlook-mail och arbetstimmar/vecka på befintliga personer (inget skapa/ta bort — personer tillkommer via inloggning, inget inbjudningsflöde ännu).
+- Allt scopat per `foretag_id` via RLS. Admin hanterar kunder och personer. `uppgift`, `projekt` och `kategori` är öppna för alla inloggade i företaget på samtliga operationer (inklusive radering) — `projekt` och `kategori` gick tidigare via admin-only-policys men öppnades upp för konsekvens med `uppgift`.
+- **Systemadministration** — en egen sida (endast admin) för att skapa/redigera/ta bort uppgiftstyper, kategorier, anteckningsblock (skapa/omordna/avaktivera) och **Projektmallar** (skapa/redigera/ta bort mallar, samt lägga till/redigera/ta bort/omordna uppgiftsmallar inom varje mall), samt en **Användare**-sektion för att redigera namn, roll, Outlook-mail och arbetstimmar/vecka på befintliga personer (inget skapa/ta bort — personer tillkommer via inloggning, inget inbjudningsflöde ännu).
 
 ## Byggt hittills
 
 - Kundkontakter med e-post och "senast kontaktad"-status, inklusive ett "planerat möte"-datum härlett från kommande uppgifter kontakten är deltagare i
 - Återkommande uppgifter (serier) med redigerbart startdatum utan att generera felaktiga förekomster bakåt i tiden
-- Uppgiftstyper och uppgiftsprojekt som admin-hanterade taggnings-listor
+- Uppgiftstyper och kategorier som admin-hanterade taggnings-listor
 - Outlook-kalendersynk (enkelriktad, via webhook): möten skapar/uppdaterar uppgifter automatiskt, tolkar ämnesraden för att tagga rätt kund (konventionen "Kund, QNOVA - Titel"), matchar/skapar kontaktpersoner utifrån mötesdeltagarnas mailadresser, hanterar tidszon (Stockholm/DST) på servern
 - Manuell sortering av kort inom samma dagskolumn i Kanban-vyn, utöver drag-and-drop mellan dagar
 - Tidsåtgång (timmar) och klockslag på uppgifter, med tidsåtgång som standardvärde på serier
@@ -68,10 +70,14 @@ Detta dokument är en levande sammanfattning av vad appen gör och hur den är u
   - **Högerkolumnen**: en ring med "X av Y klara" för dagen, "Gårdagens försenat" (alla obockade uppgifter med deadline före idag, synlig i alla flöden), "Dagens fokus" (välj 1–3 uppgifter, bara på morgonen), "Kunder idag" och på kvällen "Vad skaver?" (fristående reflektionstankar, valfritt kopplade till en auto-skapad uppgift imorgon).
   - Ingen egen "Avsluta dagen"-knapp just nu — fanns tidigare men gjorde bara en sak (satte en tidsstämpel utan koppling till någon annan logik) och togs bort i väntan på en tydligare idé om vad den ska göra.
 - **Flexel** — andra fliken i Rapporter (Tidsrapportering | Flexel), personlig logg för Flex, Övertid, Föräldraledig och Ledighet som ersätter en tidigare Excel-fil (242 historiska rader importerade). Tre tabeller (`flexel_post`, `flexel_installning`, `flexel_kvotjustering`), strikt privat RLS på post/kvotjustering (`person_id = current_person_id()`, **ingen admin-insyn** — medvetet avsteg från appens vanliga `foretag_id`+admin-mönster). `flexel_installning` följer däremot det vanliga admin-mönstret (admin sätter Flex/Övertid/Föräldraledig per person i Systemadministration → Användare) — utom **Ledighet**, som är en fjärde typ alla har utan aktivering. Vyn är månadsbaserad (inte veckobaserad): ett dag-rutnät per vardag, grupperat i veckokort, där en vecka hör till den månad dess **fredag** ligger i (samma modell Ivan använde i Excel, matchar hans månadsrapportering till jobbet/Försäkringskassan). Föräldraledig-kvoten (fredagar × veckotimmar per månad, justerbar per månad för undantag) är verifierad mot den ursprungliga Excel-filens egna checkpoint-formler.
+- **Projekt** (steg 2 av det tidigare pausade projekt-initiativet) — `projekt`-tabellen aktiverad som container för uppgifter: namn, valfri kund, status, beskrivning, startdatum. Egen toppnivåflik **Projekt** (mellan Uppgifter och Kunder) visad som en Kanban-tavla — en kolumn per projektmall, projekten som klickbara kort (namn, statusbadge, kund/"Internt", "X av Y klara"), egen "+ Nytt projekt"-knapp per kolumn som förifyller mallvalet, plus en global knapp i sidhuvudet. Projekt utan matchande mall hamnar i en egen "Utan mall"-kolumn (visas bara om den har innehåll). Ett tidigare försök att lägga skapa/redigera-flödet i en flik på kundkortet stötte på en nästlad `<form>`-bugg (Modal-komponenten portalar inte) och flyttades därför till egen sida istället för att lappa den delade Modal-komponenten.
+- **Projektmallar** (del av steg 3, mallmotor) — Systemadministration → Projektmallar. En mall (t.ex. "Uppstart") har en ordnad lista uppgiftsmallar (upp/ner-omordning, ingen drag-and-drop). "Nytt projekt" kräver ett mallval och ett startdatum; vid skapande instansieras mallens uppgiftsmallar som riktiga uppgifter kopplade till projektet — deadline för första uppgiften räknas från projektets startdatum, varje efterföljande uppgifts "dagar efter"-fält räknas kedjat från föregående uppgift i mallen (fältetiketten byter text beroende på position). Mallistan visar ackumulerad "Dag N" per rad. Ny uppgiftsmall förvalt ansvarig = inloggad person; Beskrivning har samma markdown-editor som uppgifter. Mallformuläret stannar öppet (byter till redigeringsläge) efter att en ny mall skapats, så uppgiftsmallar kan läggas till direkt utan att öppna mallen igen. Både mallarnas uppgiftsmallar och projektens uppgifter hämtas färdigt server-side vid sidladdning (ingen synlig laddningsfördröjning vid öppning).
 
 ## Medvetna förenklingar / avgränsningar just nu
 
-- Projekt-konceptet (`projekt`/`projekt_medlem`) fortfarande pausat — `uppgiftsprojekt` täcker enkel taggning under tiden
+- `projekt_medlem` fortfarande oanvänd — inget sätt att sätta en projektägare oavsett vem som är ansvarig på de enskilda uppgifterna
+- Projektmallar stödjer inte checklistpunkter (steg 1 i det ursprungliga initiativet, inte byggt) och genererar inga kopplingar till återkommande uppgifter
+- Projektnamn föreslås inte automatiskt utifrån mall + kund vid skapande — skrivs manuellt varje gång
 - Kontaktperson har bara namn, e-post och senast kontaktad — inget telefonnummer, roll/titel eller egen kontaktlogg
 - Outlook-synken är enkelriktad (Outlook → Jobbet), inte via inloggning — Google är fortfarande enda inloggningsmetoden
 - Inget inbjudningsflöde för kollegor ännu
@@ -82,7 +88,9 @@ Detta dokument är en levande sammanfattning av vad appen gör och hur den är u
 
 ## Öppna frågor att diskutera
 
-- Ska `projekt`/`projekt_medlem` aktiveras för riktiga projekt med medlemmar, eller räcker `uppgiftsprojekt` permanent?
+- Ska `projekt_medlem` aktiveras för att kunna sätta/se en projektägare oavsett enskilda uppgifters ansvariga?
+- Ska projektmallar kunna definiera checklistpunkter (steg 1 i initiativet)?
+- Ska projektnamn föreslås automatiskt (mall + kund) vid skapande, eller är manuellt bra nog?
 - Behöver kontaktpersoner fler fält (telefon, roll/titel)?
 - Ska Outlook-integrationen byggas ut (tvåvägssynk, felhantering/synlighet vid misslyckad synk)?
 - Hur ska inbjudningsflödet för kollegor se ut?
