@@ -71,6 +71,7 @@ export function IdagFlode({
   personNamn,
   idag,
   imorgon,
+  namnsdagIdag,
   dagensUppgifter,
   eftersläpning,
   imorgonUppgifter,
@@ -87,6 +88,7 @@ export function IdagFlode({
   personNamn: string
   idag: string
   imorgon: string
+  namnsdagIdag: string[]
   dagensUppgifter: UppgiftDetaljerad[]
   eftersläpning: UppgiftDetaljerad[]
   imorgonUppgifter: UppgiftDetaljerad[]
@@ -142,11 +144,8 @@ export function IdagFlode({
   const arMote = (u: UppgiftDetaljerad) => Boolean(u.outlook_event_id) || moteTypIds.has(u.typ_id ?? '')
   const fokusKandidater = dagensUppgifter.filter((u) => !arMote(u) && !klaraIds.has(u.id))
 
-  const lede = `${langtDatum(idag)} · ${dagensUppgifter.length} uppgift${
-    dagensUppgifter.length === 1 ? '' : 'er'
-  } idag${
-    eftersläpning.length > 0 ? ` · ${eftersläpning.length} försenad${eftersläpning.length === 1 ? '' : 'e'}` : ''
-  }`
+  const namnsdag = namnsdagIdag.length > 0 ? ` · ${namnsdagIdag.join(' & ')}` : ''
+  const lede = `${langtDatum(idag)}${namnsdag}`
 
   // Kunder idag: en rad per kund, tidigast klockslag vinner (möte/tidsatt uppgift
   // före en otidsatt uppgift för samma kund), sorterat kronologiskt.

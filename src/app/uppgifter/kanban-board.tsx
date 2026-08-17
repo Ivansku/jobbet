@@ -36,6 +36,7 @@ import { Field } from '@/components/ui/field'
 import { Input, Select } from '@/components/ui/input'
 import { MarkdownEditor } from '@/components/ui/markdown-editor'
 import { createClient } from '@/lib/supabase/client'
+import { ROD_DAG_STREGMONSTER_KLASS, HALVDAG_MASK_KLASS } from '@/lib/svenska-dagar'
 import { VeckodagValjare } from './veckodag-valjare'
 import { KundValjare } from './kund-valjare'
 import { DeltagareValjare } from './deltagare-valjare'
@@ -102,6 +103,7 @@ type Serie = {
   klockslag: string | null
 }
 type Kolumn = { key: string; label: string; datum: string | null }
+type DagInfo = { rodDag: boolean; helgdag: string | null; halvdag: boolean }
 
 const VECKODAGAR = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag']
 const ARBETSDAGAR_PER_VECKA = 5
@@ -158,6 +160,7 @@ function inomVisadVecka(deadline: string, mandagTid: number, sondagTid: number):
 
 export function KanbanBoard({
   weekDates,
+  dagInfo,
   today,
   uppgifter,
   personer,
@@ -175,6 +178,7 @@ export function KanbanBoard({
   idagHref,
 }: {
   weekDates: string[]
+  dagInfo: Record<string, DagInfo>
   today: string
   uppgifter: Uppgift[]
   personer: Person[]
@@ -449,6 +453,7 @@ export function KanbanBoard({
             <KanbanColumn
               key={kol.key}
               kol={kol}
+              dag={kol.datum ? dagInfo[kol.datum] : undefined}
               today={today}
               uppgifter={uppgifterVy
                 .filter((u) => kolumnForUppgift(u) === kol.datum)
@@ -519,6 +524,7 @@ export function KanbanBoard({
 
 function KanbanColumn({
   kol,
+  dag,
   today,
   uppgifter,
   personMap,
@@ -532,6 +538,7 @@ function KanbanColumn({
   onAddNew,
 }: {
   kol: Kolumn
+  dag?: DagInfo
   today: string
   uppgifter: Uppgift[]
   personMap: Map<string, string>
@@ -552,54 +559,87 @@ function KanbanColumn({
     .filter((u) => u.person_id === currentPersonId)
     .reduce((sum, u) => sum + (u.tidsatgang_timmar ?? 0), 0)
 
+  // Röd dag/halvdag markeras med diagonala streck ovanpå standardbakgrunden istället för
+  // en egen kulör (både rött och grönt krockade visuellt med danger-/success-färgerna
+  // som redan betyder något annat i appen). Röd dag täcker hela kolumnen (inklusive
+  // rubrikraden), medan halvdag bara ligger bakom kortytan (listan med kort + "Ny
+  // uppgift"), eftersom halvdagens gräns ska räknas utifrån ytan där kort kan ligga,
+  // inte hela kolumnens höjd. Mönstret ligger i ett eget dekorativt lager bakom det
+  // riktiga innehållet (inte som mask-image direkt på elementet) — mask-image maskar
+  // annars HELA elementets renderade innehåll, inte bara bakgrunden, vilket klippte
+  // bort halva korten. "isolate" + "-z-10" håller lagret innanför sin egen stapling
+  // istället för att läcka in bakom grannkolumner.
+  const visaHeldagsMonster = !isOver && dag?.rodDag
+  const visaHalvdagsMonster = !isOver && dag?.halvdag
+
   return (
     <div
       ref={setNodeRef}
-      className={`flex min-h-[220px] snap-start flex-col gap-2 rounded-xl border p-3 transition-colors ${
-        isOver
-          ? 'border-accent-400 bg-accent-50 dark:bg-accent-950/40'
-          : 'border-border-subtle bg-white dark:bg-stone-800/60'
+      className={`relative isolate flex min-h-[220px] snap-start flex-col gap-2 overflow-hidden rounded-xl border p-3 transition-colors ${
+        isOver ? 'border-accent-400 bg-accent-50 dark:bg-accent-950/40' : 'border-border-subtle bg-white dark:bg-stone-800/60'
       }`}
     >
+      {visaHeldagsMonster && (
+        <div aria-hidden className={`pointer-events-none absolute inset-0 -z-10 ${ROD_DAG_STREGMONSTER_KLASS}`} />
+      )}
       <div className="flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-1.5 text-sm font-semibold text-stone-500">
-          {kol.label}
+          {dag?.helgdag ?? kol.label}
           {kol.datum && <span className="font-normal text-stone-400">{kortDatum(kol.datum)}</span>}
           {arIdag && <span className="h-1.5 w-1.5 rounded-full bg-accent-600" aria-label="Idag" />}
         </h2>
-        {kol.datum && (
+        {kol.datum && !dag?.rodDag && (
           <span className="shrink-0 text-xs font-medium text-stone-400">
-            {formatTimmar(planeratTimmar)}h/{formatTimmar(kapacitetPerDag)}h
+            {formatTimmar(planeratTimmar)}h/{formatTimmar(dag?.halvdag ? 4 : kapacitetPerDag)}h
           </span>
         )}
       </div>
 
-      <div className="flex max-h-[65vh] flex-1 flex-col gap-2 overflow-y-auto">
-        {uppgifter.length === 0 ? (
-          <p className="py-4 text-center text-xs text-stone-400">Inga uppgifter</p>
-        ) : (
-          uppgifter.map((u) => (
-            <KanbanCard
-              key={u.id}
-              uppgift={u}
-              today={today}
-              personMap={personMap}
-              kundMap={kundMap}
-              typMap={typMap}
-              projektMap={projektMap}
-              onSelect={onSelect}
-              onToggleStatus={onToggleStatus}
-            />
-          ))
+      {/* Positioneringsomslag med samma höjd som skrollytan under (enda barnet, flex-1
+          i båda), så halvdagsmönstret kan räkna sin 50%-gräns utifrån just kortytans
+          höjd men ändå blöda ut i kolumnens padding på alla fyra håll (-top-3/-bottom-3/
+          -left-3/-right-3) för att nå ända ut till kanterna — klipps snyggt av yttre
+          overflow-hidden precis som heldagsmönstret. Blödningen är symmetrisk (lika
+          mycket upp som ner) så 50%-linjen ändå hamnar exakt mitt i kortytan, inte
+          förskjuten. Skrollytans egen overflow-y-auto skulle annars klippt bort den
+          del av mönstret som sticker ut i paddingen. */}
+      <div className="relative isolate flex flex-1 flex-col">
+        {visaHalvdagsMonster && (
+          <div
+            aria-hidden
+            className={`pointer-events-none absolute -top-3 -bottom-3 -left-3 -right-3 -z-10 ${ROD_DAG_STREGMONSTER_KLASS} ${HALVDAG_MASK_KLASS}`}
+          />
         )}
+        {visaHalvdagsMonster && (
+          <div aria-hidden className="pointer-events-none absolute -left-3 -right-3 top-1/2 -z-10 border-t border-border-subtle" />
+        )}
+        <div className="flex max-h-[65vh] flex-1 flex-col gap-2 overflow-y-auto">
+          {uppgifter.length === 0 ? (
+            <p className="py-4 text-center text-xs text-stone-400">Inga uppgifter</p>
+          ) : (
+            uppgifter.map((u) => (
+              <KanbanCard
+                key={u.id}
+                uppgift={u}
+                today={today}
+                personMap={personMap}
+                kundMap={kundMap}
+                typMap={typMap}
+                projektMap={projektMap}
+                onSelect={onSelect}
+                onToggleStatus={onToggleStatus}
+              />
+            ))
+          )}
 
-        <button
-          type="button"
-          onClick={() => onAddNew(kol.datum)}
-          className="mt-auto rounded-lg px-2 py-1.5 text-center text-xs text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-700 dark:hover:text-stone-300"
-        >
-          + Ny uppgift
-        </button>
+          <button
+            type="button"
+            onClick={() => onAddNew(kol.datum)}
+            className="mt-auto rounded-lg px-2 py-1.5 text-center text-xs text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-700 dark:hover:text-stone-300"
+          >
+            + Ny uppgift
+          </button>
+        </div>
       </div>
     </div>
   )

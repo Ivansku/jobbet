@@ -3,6 +3,7 @@ import { AppNav } from '../../nav'
 import { RapporterNav } from '../rapporter-nav'
 import { EmptyState } from '@/components/ui/empty-state'
 import { FlexelVy } from './flexel-vy'
+import { hamtaSvenskaDagar, slaIhopDagar, arHalvdag } from '@/lib/svenska-dagar'
 
 // All datumräkning görs i UTC, samma mönster som src/app/rapporter/tidsrapportering/page.tsx.
 
@@ -196,6 +197,15 @@ export default async function FlexelPage({
   const veckor = veckorForManad(manadISO, nastaManadISO)
   const allaDatumDennaManad = new Set(veckor.flatMap((v) => v.dagar))
 
+  // Halvdag för sista visade dagen kan behöva nästa dags röd dag-status i ett annat
+  // årtal (t.ex. fredag 31 dec) — täcker in alla årtal som förekommer i spannet
+  // plus dagen direkt efter sista visade datumet.
+  const alla = [...allaDatumDennaManad]
+  const sistaDatum = alla.reduce((max, d) => (d > max ? d : max), alla[0])
+  const dagenEfterSista = sistaDatum ? addDagar(sistaDatum, 1) : todayISODate()
+  const berordaAr = [...new Set([...alla, dagenEfterSista].map((d) => Number(d.slice(0, 4))))]
+  const svenskaDagar = slaIhopDagar(...(await Promise.all(berordaAr.map(hamtaSvenskaDagar))))
+
   const saldon = aktivaModuler.map((m) => {
     const alla = (poster ?? []).filter((p) => p.modul === m.modul)
     return {
@@ -245,7 +255,7 @@ export default async function FlexelPage({
   // med flera registreringar (t.ex. delade Föräldraledig-dagar) blir flera rader
   // under samma datum.
   type Post = (typeof filtreradeRader)[number]
-  type DagRad = { datum: string; post: Post | null }
+  type DagRad = { datum: string; post: Post | null; rodDag: boolean; helgdag: string | null; halvdag: boolean }
   const radPerDatum = new Map<string, Post[]>()
   for (const p of filtreradeRader) {
     const lista = radPerDatum.get(p.datum) ?? []
@@ -261,9 +271,14 @@ export default async function FlexelPage({
   }
   const veckoGrupper: VeckoGrupp[] = veckor.map((v) => {
     const dagar: DagRad[] = v.dagar.flatMap((datum): DagRad[] => {
+      const info = {
+        rodDag: svenskaDagar.get(datum)?.rodDag ?? false,
+        helgdag: svenskaDagar.get(datum)?.helgdag ?? null,
+        halvdag: arHalvdag(svenskaDagar, datum),
+      }
       const rader = radPerDatum.get(datum) ?? []
-      if (rader.length > 0) return rader.map((post) => ({ datum, post }))
-      return [{ datum, post: null }]
+      if (rader.length > 0) return rader.map((post) => ({ datum, post, ...info }))
+      return [{ datum, post: null, ...info }]
     })
     const perModul = new Map<string, number>()
     for (const d of dagar) {

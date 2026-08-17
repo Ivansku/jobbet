@@ -18,6 +18,7 @@ import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { DeleteIconButton } from '@/components/ui/delete-icon-button'
+import { ROD_DAG_STREGMONSTER_KLASS, HALVDAG_MASK_KLASS } from '@/lib/svenska-dagar'
 
 type AktivModul = { modul: string; label: string; veckokvotTimmar: number }
 type Saldo = { modul: string; label: string; saldo: number; dennaManaden: number }
@@ -29,7 +30,7 @@ type ForaldraledigInfo = {
   dennaManadensUttag: number
 } | null
 type Post = { id: string; modul: string; datum: string; timmar: number; motivering: string }
-type DagRad = { datum: string; post: Post | null }
+type DagRad = { datum: string; post: Post | null; rodDag: boolean; helgdag: string | null; halvdag: boolean }
 type VeckoGrupp = {
   veckonummer: number
   totalTimmar: number
@@ -238,9 +239,26 @@ export function FlexelVy({
                 </span>
               </div>
               <ul className="divide-y divide-border-subtle border-t border-border-subtle bg-stone-50/50 dark:bg-stone-900/30">
-                {g.dagar.map((d, i) =>
-                  d.post ? (
-                    <li key={d.post.id}>
+                {g.dagar.map((d, i) => {
+                  // Samma diagonala streckmönster som Uppgifter-kolumnerna, för konsekvent
+                  // röd dag/halvdag-markering över sidorna. Mönstret ligger i ett eget
+                  // dekorativt lager bakom radens innehåll (inte mask-image direkt på <li>)
+                  // — mask-image maskar annars hela radens renderade innehåll, inte bara
+                  // bakgrunden, och klippte bort halva raden på halvdagar.
+                  const visaMonster = d.rodDag || d.halvdag
+                  const monsterLager = visaMonster && (
+                    <div
+                      aria-hidden
+                      className={`pointer-events-none absolute inset-0 -z-10 ${ROD_DAG_STREGMONSTER_KLASS} ${d.halvdag ? HALVDAG_MASK_KLASS : ''}`}
+                    />
+                  )
+                  const monsterLinje = d.halvdag && (
+                    <div aria-hidden className="pointer-events-none absolute inset-x-0 top-1/2 -z-10 border-t border-border-subtle" />
+                  )
+                  return d.post ? (
+                    <li key={d.post.id} className="relative isolate overflow-hidden">
+                      {monsterLager}
+                      {monsterLinje}
                       <button
                         onClick={() => setRedigerar(d.post!)}
                         className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors hover:bg-stone-100 dark:hover:bg-stone-800"
@@ -264,7 +282,9 @@ export function FlexelVy({
                       </button>
                     </li>
                   ) : (
-                    <li key={`tom-${d.datum}-${i}`}>
+                    <li key={`tom-${d.datum}-${i}`} className="relative isolate overflow-hidden">
+                      {monsterLager}
+                      {monsterLinje}
                       <button
                         onClick={() => setNyttDatum(d.datum)}
                         className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-stone-400 transition-colors hover:bg-stone-100 dark:hover:bg-stone-800"
@@ -272,11 +292,13 @@ export function FlexelVy({
                         <span className="w-12 shrink-0 tabular-nums text-sm font-medium text-stone-400">
                           {kortDatum(d.datum)}
                         </span>
-                        <span className="flex-1 italic">Ingen registrering</span>
+                        <span className="flex-1 italic">
+                          {d.rodDag ? (d.helgdag ?? 'Röd dag') : d.halvdag ? 'Halvdag' : 'Ingen registrering'}
+                        </span>
                       </button>
                     </li>
                   )
-                )}
+                })}
               </ul>
             </li>
           ))}

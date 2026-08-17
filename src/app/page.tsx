@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { AppNav } from './nav'
 import { IdagFlode } from './idag-flode'
 import { nuIStockholm, plusDagar, aktivtFlode } from '@/lib/dagsflode'
+import { hamtaSvenskaDagar } from '@/lib/svenska-dagar'
 
 const UPPGIFT_FALT = 'id, titel, status, deadline, klockslag, kund_id, outlook_event_id'
 
@@ -40,6 +41,7 @@ export default async function Home() {
   const flode = aktivtFlode(nu, person.dagsflode_morgon_slut, person.dagsflode_mitt_slut)
 
   const [
+    svenskaDagar,
     { data: dagensUppgifter },
     { data: eftersläpning },
     { data: imorgonUppgifter },
@@ -49,6 +51,7 @@ export default async function Home() {
     { data: typer },
     { data: block },
   ] = await Promise.all([
+    hamtaSvenskaDagar(Number(idag.slice(0, 4))),
     supabase
       .from('uppgift')
       .select(UPPGIFT_DETALJERAD_FALT)
@@ -131,6 +134,7 @@ export default async function Home() {
           personNamn={person.namn}
           idag={idag}
           imorgon={imorgon}
+          namnsdagIdag={svenskaDagar.get(idag)?.namnsdag ?? []}
           dagensUppgifter={dagensUppgifter ?? []}
           eftersläpning={eftersläpning ?? []}
           imorgonUppgifter={imorgonUppgifter ?? []}

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { AppNav } from '../nav'
 import { KanbanBoard } from './kanban-board'
+import { hamtaSvenskaDagar, slaIhopDagar, arHalvdag } from '@/lib/svenska-dagar'
 
 // All datumräkning görs i UTC för att undvika att lokal tidszon (t.ex. svensk sommartid)
 // får datum att hoppa fram/tillbaka en dag vid konvertering mellan Date och ISO-sträng.
@@ -53,6 +54,24 @@ export default async function UppgifterPage({
   const sunday = new Date(monday)
   sunday.setUTCDate(sunday.getUTCDate() + 6)
   const sundayISO = formatISODate(sunday)
+
+  // Halvdag för fredagen behöver lördagens röd dag-status, vilket vid ett fåtal
+  // årsskiften (fredag 31 dec) ligger i nästa år — täcker in båda årtalen som
+  // förekommer i det synliga spannet plus dagen direkt efter.
+  const dagenEfter = new Date(sunday)
+  dagenEfter.setUTCDate(dagenEfter.getUTCDate() + 1)
+  const berordaAr = [...new Set([monday.getUTCFullYear(), dagenEfter.getUTCFullYear()])]
+  const svenskaDagar = slaIhopDagar(...(await Promise.all(berordaAr.map(hamtaSvenskaDagar))))
+  const dagInfo = Object.fromEntries(
+    weekDates.map((datum) => [
+      datum,
+      {
+        rodDag: svenskaDagar.get(datum)?.rodDag ?? false,
+        helgdag: svenskaDagar.get(datum)?.helgdag ?? null,
+        halvdag: arHalvdag(svenskaDagar, datum),
+      },
+    ])
+  )
 
   const supabase = await createClient()
 
@@ -128,6 +147,7 @@ export default async function UppgifterPage({
         <h1 className="mb-4 text-2xl font-semibold tracking-tight">Uppgifter</h1>
         <KanbanBoard
           weekDates={weekDates}
+          dagInfo={dagInfo}
           today={todayISODate()}
           uppgifter={uppgifter ?? []}
           personer={personer ?? []}
