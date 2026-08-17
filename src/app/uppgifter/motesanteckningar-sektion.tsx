@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   sparaAnteckning,
   hamtaAnteckningarForUppgift,
@@ -80,6 +81,8 @@ export function MotesanteckningarSektion({
   const [genererar, setGenererar] = useState(false)
   const [genereringsMeddelande, setGenereringsMeddelande] = useState<string | null>(null)
   const [skickar, setSkickar] = useState(false)
+  const [sparar, setSparar] = useState(false)
+  const router = useRouter()
   const [expanderad, setExpanderad] = useState(false)
   const [autoSkapa, setAutoSkapa] = useState(initialAutoSkapaUppgifterVidKlar)
   const pendingRef = useRef<Map<string, string>>(new Map())
@@ -164,6 +167,29 @@ export function MotesanteckningarSektion({
     if (timer) clearTimeout(timer)
     sparaAnteckning(uppgiftId, blockId, innehall)
     pendingRef.current.delete(blockId)
+  }
+
+  // Sparar allt osparat oavsett vilket block som är synligt/fokuserat just nu —
+  // pendingRef håller redan reda på osparade ändringar per block, inte bara det
+  // användaren senast rörde vid.
+  //
+  // router.refresh() körs bara här och inte i det tysta autosparet (schemalaggSpara/
+  // handleBlur) — sparaAnteckning() hoppar medvetet över revalidatePath där för att
+  // inte störa skrivfokus var 1,5:e sekund. Den här knappen är däremot ett uttryckligt
+  // klick, så det är rätt tillfälle att uppdatera sidans (kanban/idag) egna listor med
+  // den sparade anteckningen — annars visar en omöppnad uppgift den gamla texten tills
+  // sidan laddas om helt.
+  async function handleSparaAlla() {
+    setSparar(true)
+    const poster = Array.from(pendingRef.current.entries())
+    poster.forEach(([blockId]) => {
+      const timer = debounceTimer.current.get(blockId)
+      if (timer) clearTimeout(timer)
+    })
+    await Promise.all(poster.map(([blockId, innehall]) => sparaAnteckning(uppgiftId, blockId, innehall)))
+    poster.forEach(([blockId]) => pendingRef.current.delete(blockId))
+    router.refresh()
+    setSparar(false)
   }
 
   async function handleGenerera() {
@@ -294,6 +320,14 @@ export function MotesanteckningarSektion({
           </div>
         )
       })}
+
+      {expanderad && (
+        <div className="sticky bottom-0 -mx-6 mt-auto flex shrink-0 justify-end border-t border-border-subtle bg-surface px-6 py-3">
+          <Button type="button" variant="primary" size="sm" loading={sparar} onClick={handleSparaAlla}>
+            Spara
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
