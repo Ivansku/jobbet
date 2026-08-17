@@ -6,7 +6,7 @@ import { sattDagensFokus } from './idag-actions'
 import { IdagTimeline } from './idag-timeline'
 import { IdagRing } from './idag-ring'
 import { DagensFokusValjare } from './dagens-fokus-valjare'
-import { ImorgonVantarSteg, FlexelSteg, TankarSteg, AvslutaSteg } from './avsluta-dagen'
+import { ImorgonVantarSteg, FlexelSteg, TankarSteg } from './avsluta-dagen'
 import { UppgiftDetalj } from './uppgift-detalj'
 import { Eyebrow } from '@/components/ui/eyebrow'
 import type { Dagsflode } from '@/lib/dagsflode'
@@ -43,7 +43,7 @@ export type Kund = { id: string; namn: string }
 export type Typ = { id: string; namn: string; visar_motesanteckningar: boolean; skapa_uppgifter_vid_klar: boolean }
 export type Block = { id: string; namn: string; genererar_uppgift: boolean }
 export type Tanke = { id: string; text: string; uppgift_id_skapad: string | null }
-export type Dagsavslut = { id: string; avslutad_at: string | null }
+export type Dagsavslut = { id: string }
 
 // UTC-ankrad tolkning av datumsträngen (samma försiktighet som övrig datumlogik
 // i appen) så formateringen inte kan hoppa en dag beroende på webbläsarens tidszon.
@@ -244,12 +244,6 @@ export function IdagFlode({
           {flode === 'kvall' && dagsavslut && (
             <div className="rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
               <TankarSteg dagsavslutId={dagsavslut.id} imorgon={imorgon} tankar={tankar} />
-            </div>
-          )}
-
-          {flode === 'kvall' && dagsavslut && (
-            <div className="rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
-              <AvslutaSteg dagsavslutId={dagsavslut.id} avslutadAt={dagsavslut.avslutad_at} />
             </div>
           )}
         </div>

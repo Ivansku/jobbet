@@ -95,15 +95,3 @@ export async function skapaReflektionstanke(
   revalidatePath('/')
   return { error: null }
 }
-
-export async function avslutaDagen(dagsavslutId: string) {
-  const supabase = await createClient()
-  const { error } = await supabase
-    .from('dagsavslut')
-    .update({ avslutad_at: new Date().toISOString() })
-    .eq('id', dagsavslutId)
-
-  if (error) return { error: error.message }
-  revalidatePath('/')
-  return { error: null }
-}

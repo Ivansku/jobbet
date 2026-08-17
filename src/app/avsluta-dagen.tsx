@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { skapaFlexelPost } from './rapporter/flexel/actions'
-import { skapaReflektionstanke, avslutaDagen } from './idag-actions'
+import { skapaReflektionstanke } from './idag-actions'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea, Select } from '@/components/ui/input'
 import { Eyebrow } from '@/components/ui/eyebrow'
@@ -15,9 +15,6 @@ const MODUL_LABEL: Record<string, string> = {
   foraldraledig: 'Föräldraledig',
   ledighet: 'Ledighet',
 }
-
-const AVSLUTNINGSTEXT =
-  'Bra jobbat idag. Dagen är avslutad — det som blev kvar väntar snyggt uppradat imorgon.'
 
 // Inget eget panel-omslag här längre — renderas som en fortsättning inuti
 // samma block som tidslinjen/Flexel (idag-flode.tsx äger panelen och den
@@ -179,27 +176,6 @@ export function TankarSteg({
           Spara tanke
         </Button>
       </div>
-    </div>
-  )
-}
-
-export function AvslutaSteg({ dagsavslutId, avslutadAt }: { dagsavslutId: string; avslutadAt: string | null }) {
-  const [avslutad, setAvslutad] = useState(!!avslutadAt)
-  const [sparar, setSparar] = useState(false)
-
-  async function avsluta() {
-    setSparar(true)
-    await avslutaDagen(dagsavslutId)
-    setSparar(false)
-    setAvslutad(true)
-  }
-
-  return (
-    <div className="flex flex-col items-start gap-3">
-      {avslutad && <p className="text-sm text-stone-500">{AVSLUTNINGSTEXT}</p>}
-      <Button variant="primary" loading={sparar} onClick={avsluta}>
-        {avslutad ? 'Avsluta igen' : 'Avsluta dagen'}
-      </Button>
     </div>
   )
 }

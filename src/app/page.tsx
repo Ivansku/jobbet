@@ -79,14 +79,14 @@ export default async function Home() {
   ])
 
   // dagsavslut: en rad per person och dag, skapas första gången kvällsflödet
-  // öppnas och uppdateras (avslutad_at) när Avsluta-knappen trycks — se
-  // idag-actions.ts:avslutaDagen. Skapas bara i kvällsfönstret, inte annars.
-  let dagsavslut: { id: string; avslutad_at: string | null } | null = null
+  // öppnas. Finns bara kvar som ankare för dagsavslut_tanke (Vad skaver?) —
+  // Avsluta-knappen som skulle uppdatera avslutad_at är borttagen tills vidare.
+  let dagsavslut: { id: string } | null = null
   let tankar: { id: string; text: string; uppgift_id_skapad: string | null }[] = []
   if (flode === 'kvall') {
     const { data: befintlig } = await supabase
       .from('dagsavslut')
-      .select('id, avslutad_at')
+      .select('id')
       .eq('person_id', person.id)
       .eq('datum', idag)
       .maybeSingle()
@@ -96,7 +96,7 @@ export default async function Home() {
       const { data: ny } = await supabase
         .from('dagsavslut')
         .insert({ person_id: person.id, foretag_id: person.foretag_id, datum: idag })
-        .select('id, avslutad_at')
+        .select('id')
         .single()
       dagsavslut = ny
     }
