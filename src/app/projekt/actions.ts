@@ -69,7 +69,9 @@ export async function skapaProjekt(input: {
   // det nya projektet — deadline räknas ut från projektets startdatum.
   const { data: mallUppgifter } = await supabase
     .from('mall_uppgift')
-    .select('titel, beskrivning, typ_id, kategori_id, prioritet, person_id, tidsatgang_timmar, dagar_efter_start')
+    .select(
+      'titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start'
+    )
     .eq('mall_projekt_id', input.mallProjektId)
     .order('sortordning')
 
@@ -87,7 +89,7 @@ export async function skapaProjekt(input: {
         person_id: m.person_id,
         tidsatgang_timmar: m.tidsatgang_timmar,
         deadline: leggTillDagar(input.startdatum, m.dagar_efter_start),
-        status: 'oppen',
+        status: m.status,
       }))
     )
   }

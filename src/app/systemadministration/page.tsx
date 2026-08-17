@@ -15,7 +15,7 @@ export default async function SystemadministrationPage() {
 
   const { data: person } = await supabase
     .from('person')
-    .select('roll')
+    .select('id, roll')
     .eq('auth_user_id', user?.id ?? '')
     .single()
 
@@ -49,13 +49,22 @@ export default async function SystemadministrationPage() {
       )
       .order('namn'),
     supabase.from('flexel_installning').select('person_id, modul, aktiv, veckokvot_timmar'),
-    supabase.from('mall_projekt').select('id, namn, mall_uppgift(id)').order('namn'),
+    supabase
+      .from('mall_projekt')
+      .select(
+        'id, namn, mall_uppgift(id, titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, sortordning)'
+      )
+      .order('namn'),
   ])
 
+  // Uppgiftsmallarna hämtas färdigt här (server-side) istället för att
+  // MallVy ska behöva hämta dem själv vid öppning — annars syns en
+  // fördröjning varje gång en mall öppnas.
   const mallar = (mallProjekt ?? []).map((m) => ({
     id: m.id,
     namn: m.namn,
     antalUppgifter: m.mall_uppgift.length,
+    uppgifter: [...m.mall_uppgift].sort((a, b) => a.sortordning - b.sortordning),
   }))
 
   return (
@@ -67,7 +76,13 @@ export default async function SystemadministrationPage() {
           <AnvandareVy personer={personer ?? []} flexelInstallningar={flexelInstallningar ?? []} />
           <UppgiftstypVy typer={typer ?? []} />
           <KategoriVy kategori={kategori ?? []} />
-          <MallVy mallar={mallar} typer={typer ?? []} kategori={kategori ?? []} personer={personer ?? []} />
+          <MallVy
+            mallar={mallar}
+            typer={typer ?? []}
+            kategori={kategori ?? []}
+            personer={personer ?? []}
+            currentPersonId={person?.id ?? null}
+          />
           <AnteckningsblockVy block={block ?? []} typer={typer ?? []} />
         </div>
       </main>

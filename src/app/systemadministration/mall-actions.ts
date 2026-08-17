@@ -42,7 +42,7 @@ export async function hamtaMallUppgifter(mallProjektId: string) {
   const { data } = await supabase
     .from('mall_uppgift')
     .select(
-      'id, titel, beskrivning, typ_id, kategori_id, prioritet, person_id, tidsatgang_timmar, dagar_efter_start, sortordning'
+      'id, titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, sortordning'
     )
     .eq('mall_projekt_id', mallProjektId)
     .order('sortordning')
@@ -56,6 +56,7 @@ export async function skapaMallUppgift(input: {
   typId: string
   kategoriId: string
   prioritet: string
+  status: string
   personId: string
   tidsatgangTimmar: number | null
   dagarEfterStart: number
@@ -83,6 +84,7 @@ export async function skapaMallUppgift(input: {
     typ_id: input.typId || null,
     kategori_id: input.kategoriId || null,
     prioritet: input.prioritet,
+    status: input.status,
     person_id: input.personId || null,
     tidsatgang_timmar: input.tidsatgangTimmar,
     dagar_efter_start: input.dagarEfterStart,
@@ -99,6 +101,7 @@ export async function uppdateraMallUppgift(
     typId: string
     kategoriId: string
     prioritet: string
+    status: string
     personId: string
     tidsatgangTimmar: number | null
     dagarEfterStart: number
@@ -116,6 +119,7 @@ export async function uppdateraMallUppgift(
       typ_id: input.typId || null,
       kategori_id: input.kategoriId || null,
       prioritet: input.prioritet,
+      status: input.status,
       person_id: input.personId || null,
       tidsatgang_timmar: input.tidsatgangTimmar,
       dagar_efter_start: input.dagarEfterStart,
