@@ -50,7 +50,7 @@ type Rad = {
   id: string
   titel: string
   typNamn: string | null
-  projektNamn: string | null
+  kategoriNamn: string | null
   dag: string
   timmar: number
 }
@@ -84,7 +84,7 @@ export default async function TidsrapporteringPage({
 
   let uppgiftQuery = supabase
     .from('uppgift')
-    .select('id, titel, deadline, person_id, kund_id, typ_id, uppgiftsprojekt_id, tidsatgang_timmar')
+    .select('id, titel, deadline, person_id, kund_id, typ_id, kategori_id, tidsatgang_timmar')
     .gte('deadline', mondayISO)
     .lte('deadline', sundayISO)
 
@@ -92,18 +92,18 @@ export default async function TidsrapporteringPage({
     uppgiftQuery = uppgiftQuery.eq('person_id', valdPersonId)
   }
 
-  const [{ data: uppgifter }, { data: personer }, { data: kunder }, { data: typer }, { data: projekt }] =
+  const [{ data: uppgifter }, { data: personer }, { data: kunder }, { data: typer }, { data: kategori }] =
     await Promise.all([
       uppgiftQuery.order('deadline'),
       supabase.from('person').select('id, namn').order('namn'),
       supabase.from('kund').select('id, namn').order('namn'),
       supabase.from('uppgiftstyp').select('id, namn').order('namn'),
-      supabase.from('uppgiftsprojekt').select('id, namn').order('namn'),
+      supabase.from('kategori').select('id, namn').order('namn'),
     ])
 
   const kundNamnMap = new Map((kunder ?? []).map((k) => [k.id, k.namn]))
   const typNamnMap = new Map((typer ?? []).map((t) => [t.id, t.namn]))
-  const projektNamnMap = new Map((projekt ?? []).map((p) => [p.id, p.namn]))
+  const kategoriNamnMap = new Map((kategori ?? []).map((k) => [k.id, k.namn]))
 
   const grupper = new Map<string, Grupp>()
   let totalTimmar = 0
@@ -120,7 +120,7 @@ export default async function TidsrapporteringPage({
       id: u.id,
       titel: u.titel,
       typNamn: u.typ_id ? (typNamnMap.get(u.typ_id) ?? null) : null,
-      projektNamn: u.uppgiftsprojekt_id ? (projektNamnMap.get(u.uppgiftsprojekt_id) ?? null) : null,
+      kategoriNamn: u.kategori_id ? (kategoriNamnMap.get(u.kategori_id) ?? null) : null,
       dag: u.deadline,
       timmar,
     })

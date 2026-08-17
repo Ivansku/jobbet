@@ -99,8 +99,8 @@ export default async function UppgifterPage({
     { data: personer },
     { data: kunder },
     { data: typer },
+    { data: kategori },
     { data: projekt },
-    { data: projektContainer },
     { data: serier },
     { data: kontaktpersoner },
     { data: block },
@@ -111,7 +111,7 @@ export default async function UppgifterPage({
     supabase
       .from('uppgift')
       .select(
-        'id, titel, beskrivning, status, prioritet, deadline, person_id, kund_id, typ_id, uppgiftsprojekt_id, projekt_id, serie_id, sortordning, tidsatgang_timmar, klockslag, skapa_uppgifter_vid_klar, uppgift_deltagare(kontaktperson_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(block_id, innehall, uppgift_id_genererad, genererad:uppgift!uppgift_anteckning_uppgift_id_genererad_fkey(titel, deadline))'
+        'id, titel, beskrivning, status, prioritet, deadline, person_id, kund_id, typ_id, kategori_id, projekt_id, serie_id, sortordning, tidsatgang_timmar, klockslag, skapa_uppgifter_vid_klar, uppgift_deltagare(kontaktperson_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(block_id, innehall, uppgift_id_genererad, genererad:uppgift!uppgift_anteckning_uppgift_id_genererad_fkey(titel, deadline))'
       )
       .or(`deadline.is.null,and(deadline.gte.${weekDates[0]},deadline.lte.${sundayISO})`)
       .order('sortordning'),
@@ -121,12 +121,12 @@ export default async function UppgifterPage({
       .from('uppgiftstyp')
       .select('id, namn, visar_motesanteckningar, skapa_uppgifter_vid_klar')
       .order('namn'),
-    supabase.from('uppgiftsprojekt').select('id, namn').order('namn'),
+    supabase.from('kategori').select('id, namn').order('namn'),
     supabase.from('projekt').select('id, namn, kund_id').order('namn'),
     supabase
       .from('uppgift_serie')
       .select(
-        'id, titel, beskrivning, person_id, kund_id, typ_id, uppgiftsprojekt_id, prioritet, start_datum, veckodagar, intervall_veckor, slut_datum, tidsatgang_timmar, klockslag'
+        'id, titel, beskrivning, person_id, kund_id, typ_id, kategori_id, prioritet, start_datum, veckodagar, intervall_veckor, slut_datum, tidsatgang_timmar, klockslag'
       )
       .order('titel'),
     supabase.from('kontaktperson').select('id, kund_id, fornamn, efternamn, epost').order('fornamn'),
@@ -155,8 +155,8 @@ export default async function UppgifterPage({
           personer={personer ?? []}
           kunder={kunder ?? []}
           typer={typer ?? []}
+          kategori={kategori ?? []}
           projekt={projekt ?? []}
-          projektContainer={projektContainer ?? []}
           serier={serier ?? []}
           kontaktpersoner={kontaktpersoner ?? []}
           block={block ?? []}

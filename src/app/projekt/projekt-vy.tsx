@@ -19,11 +19,13 @@ import { DeleteIconButton } from '@/components/ui/delete-icon-button'
 import { KundValjare } from '../uppgifter/kund-valjare'
 
 type Kund = { id: string; namn: string }
+type Mall = { id: string; namn: string }
 type Projekt = {
   id: string
   namn: string
   status: string
   beskrivning: string | null
+  startdatum: string
   kundId: string | null
   kundNamn: string | null
   antalUppgifter: number
@@ -45,7 +47,7 @@ const STATUS_TONE: Record<string, 'success' | 'warning' | 'neutral'> = {
   avslutat: 'neutral',
 }
 
-export function ProjektVy({ projekt, kunder }: { projekt: Projekt[]; kunder: Kund[] }) {
+export function ProjektVy({ projekt, kunder, mallar }: { projekt: Projekt[]; kunder: Kund[]; mallar: Mall[] }) {
   const [redigerar, setRedigerar] = useState<Projekt | 'ny' | null>(null)
 
   return (
@@ -84,24 +86,38 @@ export function ProjektVy({ projekt, kunder }: { projekt: Projekt[]; kunder: Kun
       )}
 
       {redigerar && (
-        <ProjektFormular kunder={kunder} existing={redigerar === 'ny' ? null : redigerar} onClose={() => setRedigerar(null)} />
+        <ProjektFormular
+          kunder={kunder}
+          mallar={mallar}
+          existing={redigerar === 'ny' ? null : redigerar}
+          onClose={() => setRedigerar(null)}
+        />
       )}
     </>
   )
 }
 
+function idagISO() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function ProjektFormular({
   kunder,
+  mallar,
   existing,
   onClose,
 }: {
   kunder: Kund[]
+  mallar: Mall[]
   existing: Projekt | null
   onClose: () => void
 }) {
+  const [mallId, setMallId] = useState('')
   const [namn, setNamn] = useState(existing?.namn ?? '')
   const [kundId, setKundId] = useState(existing?.kundId ?? '')
   const [status, setStatus] = useState(existing?.status ?? 'aktivt')
+  const [startdatum, setStartdatum] = useState(existing?.startdatum ?? idagISO())
   const [beskrivning, setBeskrivning] = useState(existing?.beskrivning ?? '')
   const [uppgifter, setUppgifter] = useState<ProjektUppgift[] | null>(null)
   const [sparar, setSparar] = useState(false)
@@ -121,13 +137,14 @@ function ProjektFormular({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!namn.trim()) return
+    if (!namn.trim() || !startdatum) return
+    if (!existing && !mallId) return
     setSparar(true)
 
     if (existing) {
-      await uppdateraProjekt(existing.id, { namn, status, beskrivning, kundId })
+      await uppdateraProjekt(existing.id, { namn, status, beskrivning, kundId, startdatum })
     } else {
-      await skapaProjekt({ kundId, namn, status, beskrivning })
+      await skapaProjekt({ kundId, namn, status, beskrivning, startdatum, mallProjektId: mallId })
     }
 
     setSparar(false)
@@ -183,6 +200,25 @@ function ProjektFormular({
           )}
         </div>
 
+        {!existing && (
+          <Field label="Projektmall" htmlFor="projekt-mall">
+            {mallar.length === 0 ? (
+              <p className="text-xs text-stone-400">
+                Inga projektmallar finns än — skapa en under Systemadministration → Projektmallar först.
+              </p>
+            ) : (
+              <Select id="projekt-mall" value={mallId} onChange={(e) => setMallId(e.target.value)} required>
+                <option value="">Välj mall…</option>
+                {mallar.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.namn}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        )}
+
         <Field label="Namn" htmlFor="projekt-namn">
           <Input id="projekt-namn" value={namn} onChange={(e) => setNamn(e.target.value)} required autoFocus />
         </Field>
@@ -191,13 +227,25 @@ function ProjektFormular({
           <KundValjare id="projekt-kund" kunder={kunder} value={kundId} onChange={setKundId} />
         </Field>
 
-        <Field label="Status" htmlFor="projekt-status">
-          <Select id="projekt-status" value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="aktivt">Aktivt</option>
-            <option value="pausat">Pausat</option>
-            <option value="avslutat">Avslutat</option>
-          </Select>
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Status" htmlFor="projekt-status">
+            <Select id="projekt-status" value={status} onChange={(e) => setStatus(e.target.value)}>
+              <option value="aktivt">Aktivt</option>
+              <option value="pausat">Pausat</option>
+              <option value="avslutat">Avslutat</option>
+            </Select>
+          </Field>
+
+          <Field label="Startdatum" htmlFor="projekt-startdatum">
+            <Input
+              type="date"
+              id="projekt-startdatum"
+              value={startdatum}
+              onChange={(e) => setStartdatum(e.target.value)}
+              required
+            />
+          </Field>
+        </div>
 
         <Field label="Beskrivning" htmlFor="projekt-beskrivning">
           <Textarea
@@ -250,7 +298,12 @@ function ProjektFormular({
           <Button type="button" variant="secondary" onClick={onClose}>
             Avbryt
           </Button>
-          <Button type="submit" variant="primary" loading={sparar} disabled={!namn.trim()}>
+          <Button
+            type="submit"
+            variant="primary"
+            loading={sparar}
+            disabled={!namn.trim() || !startdatum || (!existing && !mallId)}
+          >
             {existing ? 'Spara' : 'Skapa'}
           </Button>
         </div>

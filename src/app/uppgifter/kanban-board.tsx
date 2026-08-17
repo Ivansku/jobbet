@@ -52,10 +52,8 @@ type Typ = {
   visar_motesanteckningar: boolean
   skapa_uppgifter_vid_klar: boolean
 }
-type Projekt = { id: string; namn: string }
-// Den riktiga projekt-containern (kund/status/beskrivning) — skild från "Projekt"-typen
-// ovan, som egentligen är uppgiftsprojekt-taggen (visas numera som "Kategori" i formuläret).
-type ProjektContainer = { id: string; namn: string; kund_id: string | null }
+type Kategori = { id: string; namn: string }
+type Projekt = { id: string; namn: string; kund_id: string | null }
 type Anteckningsblock = { id: string; namn: string; genererar_uppgift: boolean }
 type UppgiftAnteckning = {
   block_id: string
@@ -73,7 +71,7 @@ type Uppgift = {
   person_id: string | null
   kund_id: string | null
   typ_id: string | null
-  uppgiftsprojekt_id: string | null
+  kategori_id: string | null
   projekt_id: string | null
   serie_id: string | null
   sortordning: number
@@ -97,7 +95,7 @@ type Serie = {
   person_id: string | null
   kund_id: string | null
   typ_id: string | null
-  uppgiftsprojekt_id: string | null
+  kategori_id: string | null
   prioritet: string
   start_datum: string
   veckodagar: number[]
@@ -170,8 +168,8 @@ export function KanbanBoard({
   personer,
   kunder,
   typer,
+  kategori,
   projekt,
-  projektContainer,
   serier,
   kontaktpersoner,
   block,
@@ -189,8 +187,8 @@ export function KanbanBoard({
   personer: Person[]
   kunder: Kund[]
   typer: Typ[]
+  kategori: Kategori[]
   projekt: Projekt[]
-  projektContainer: ProjektContainer[]
   serier: Serie[]
   kontaktpersoner: Kontaktperson[]
   block: Anteckningsblock[]
@@ -273,7 +271,7 @@ export function KanbanBoard({
               person_id: (rad.person_id as string | null) ?? null,
               kund_id: (rad.kund_id as string | null) ?? null,
               typ_id: (rad.typ_id as string | null) ?? null,
-              uppgiftsprojekt_id: (rad.uppgiftsprojekt_id as string | null) ?? null,
+              kategori_id: (rad.kategori_id as string | null) ?? null,
               projekt_id: (rad.projekt_id as string | null) ?? null,
               serie_id: (rad.serie_id as string | null) ?? null,
               sortordning: rad.sortordning as number,
@@ -318,8 +316,8 @@ export function KanbanBoard({
   const personMap = new Map(personer.map((p) => [p.id, p.namn]))
   const kundMap = new Map(kunder.map((k) => [k.id, k.namn]))
   const typMap = new Map(typer.map((t) => [t.id, t.namn]))
+  const kategoriMap = new Map(kategori.map((k) => [k.id, k.namn]))
   const projektMap = new Map(projekt.map((p) => [p.id, p.namn]))
-  const projektContainerMap = new Map(projektContainer.map((p) => [p.id, p.namn]))
   const weekDateSet = new Set(weekDates)
 
   // Vilken kolumn en uppgift hör hemma i just nu — samma regel som filtreringen
@@ -449,7 +447,7 @@ export function KanbanBoard({
             </Link>
           </div>
           <div className="flex gap-2">
-            <SerieVy serier={serier} personer={personer} kunder={kunder} typer={typer} projekt={projekt} />
+            <SerieVy serier={serier} personer={personer} kunder={kunder} typer={typer} kategori={kategori} />
             <Button variant="primary" onClick={() => oppnaNy(null)}>
               Ny uppgift
             </Button>
@@ -469,8 +467,8 @@ export function KanbanBoard({
               personMap={personMap}
               kundMap={kundMap}
               typMap={typMap}
+              kategoriMap={kategoriMap}
               projektMap={projektMap}
-              projektContainerMap={projektContainerMap}
               currentPersonId={currentPersonId}
               kapacitetPerDag={arbetstimmarPerVecka / ARBETSDAGAR_PER_VECKA}
               onSelect={setRedigerar}
@@ -494,8 +492,8 @@ export function KanbanBoard({
               personMap={personMap}
               kundMap={kundMap}
               typMap={typMap}
+              kategoriMap={kategoriMap}
               projektMap={projektMap}
-              projektContainerMap={projektContainerMap}
             />
           </div>
         ) : null}
@@ -507,8 +505,8 @@ export function KanbanBoard({
           personer={personer}
           kunder={kunder}
           typer={typer}
+          kategori={kategori}
           projekt={projekt}
-          projektContainer={projektContainer}
           serier={serier}
           kontaktpersoner={kontaktpersoner}
           block={block}
@@ -525,7 +523,7 @@ export function KanbanBoard({
           personer={personer}
           kunder={kunder}
           typer={typer}
-          projekt={projekt}
+          kategori={kategori}
           onClose={() => setRedigerarSerie(null)}
         />
       )}
@@ -541,8 +539,8 @@ function KanbanColumn({
   personMap,
   kundMap,
   typMap,
+  kategoriMap,
   projektMap,
-  projektContainerMap,
   currentPersonId,
   kapacitetPerDag,
   onSelect,
@@ -556,8 +554,8 @@ function KanbanColumn({
   personMap: Map<string, string>
   kundMap: Map<string, string>
   typMap: Map<string, string>
+  kategoriMap: Map<string, string>
   projektMap: Map<string, string>
-  projektContainerMap: Map<string, string>
   currentPersonId: string | null
   kapacitetPerDag: number
   onSelect: (u: Uppgift) => void
@@ -638,8 +636,8 @@ function KanbanColumn({
                 personMap={personMap}
                 kundMap={kundMap}
                 typMap={typMap}
+                kategoriMap={kategoriMap}
                 projektMap={projektMap}
-                projektContainerMap={projektContainerMap}
                 onSelect={onSelect}
                 onToggleStatus={onToggleStatus}
               />
@@ -665,8 +663,8 @@ function KanbanCard({
   personMap,
   kundMap,
   typMap,
+  kategoriMap,
   projektMap,
-  projektContainerMap,
   onSelect,
   onToggleStatus,
 }: {
@@ -675,8 +673,8 @@ function KanbanCard({
   personMap: Map<string, string>
   kundMap: Map<string, string>
   typMap: Map<string, string>
+  kategoriMap: Map<string, string>
   projektMap: Map<string, string>
-  projektContainerMap: Map<string, string>
   onSelect: (u: Uppgift) => void
   onToggleStatus: (u: Uppgift) => void
 }) {
@@ -712,8 +710,8 @@ function KanbanCard({
         personMap={personMap}
         kundMap={kundMap}
         typMap={typMap}
+        kategoriMap={kategoriMap}
         projektMap={projektMap}
-        projektContainerMap={projektContainerMap}
         onToggleStatus={onToggleStatus}
       />
     </div>
@@ -726,8 +724,8 @@ function KortInnehall({
   personMap,
   kundMap,
   typMap,
+  kategoriMap,
   projektMap,
-  projektContainerMap,
   onToggleStatus,
 }: {
   uppgift: Uppgift
@@ -735,8 +733,8 @@ function KortInnehall({
   personMap: Map<string, string>
   kundMap: Map<string, string>
   typMap: Map<string, string>
+  kategoriMap: Map<string, string>
   projektMap: Map<string, string>
-  projektContainerMap: Map<string, string>
   onToggleStatus?: (u: Uppgift) => void
 }) {
   const klar = u.status === 'klar'
@@ -749,8 +747,8 @@ function KortInnehall({
   // men som kontext ovanför titeln snarare än utspritt i badges.
   const kontext = [
     u.kund_id && kundMap.get(u.kund_id),
-    u.projekt_id && projektContainerMap.get(u.projekt_id),
-    u.uppgiftsprojekt_id && projektMap.get(u.uppgiftsprojekt_id),
+    u.projekt_id && projektMap.get(u.projekt_id),
+    u.kategori_id && kategoriMap.get(u.kategori_id),
     u.typ_id && typMap.get(u.typ_id),
   ].filter((v): v is string => Boolean(v))
 
@@ -928,8 +926,8 @@ function UppgiftFormular({
   personer,
   kunder,
   typer,
+  kategori,
   projekt,
-  projektContainer,
   serier,
   kontaktpersoner,
   block,
@@ -942,8 +940,8 @@ function UppgiftFormular({
   personer: Person[]
   kunder: Kund[]
   typer: Typ[]
+  kategori: Kategori[]
   projekt: Projekt[]
-  projektContainer: ProjektContainer[]
   serier: Serie[]
   kontaktpersoner: Kontaktperson[]
   block: Anteckningsblock[]
@@ -960,7 +958,7 @@ function UppgiftFormular({
   const [deltagareIds, setDeltagareIds] = useState<string[]>(
     existing?.uppgift_deltagare.map((d) => d.kontaktperson_id) ?? []
   )
-  const [uppgiftsprojektId, setUppgiftsprojektId] = useState(existing?.uppgiftsprojekt_id ?? '')
+  const [kategoriId, setKategoriId] = useState(existing?.kategori_id ?? '')
   const [projektId, setProjektId] = useState(existing?.projekt_id ?? '')
   const [prioritet, setPrioritet] = useState(existing?.prioritet ?? 'lag')
   const [deadline, setDeadline] = useState(existing?.deadline ?? initialDeadline ?? '')
@@ -991,7 +989,7 @@ function UppgiftFormular({
         personId,
         kundId,
         typId,
-        uppgiftsprojektId,
+        kategoriId,
         prioritet,
         startDatum: deadline,
         veckodagar,
@@ -1007,7 +1005,7 @@ function UppgiftFormular({
         personId,
         kundId,
         typId,
-        uppgiftsprojektId,
+        kategoriId,
         projektId,
         prioritet,
         deadline: deadline || null,
@@ -1023,7 +1021,7 @@ function UppgiftFormular({
         personId,
         kundId,
         typId,
-        uppgiftsprojektId,
+        kategoriId,
         prioritet,
         startDatum: deadline,
         veckodagar,
@@ -1039,7 +1037,7 @@ function UppgiftFormular({
         personId,
         kundId,
         typId,
-        uppgiftsprojektId,
+        kategoriId,
         projektId,
         prioritet,
         deadline: deadline || null,
@@ -1141,13 +1139,13 @@ function UppgiftFormular({
             <Field label="Kategori" htmlFor="uppgift-kategori">
               <Select
                 id="uppgift-kategori"
-                value={uppgiftsprojektId ?? ''}
-                onChange={(e) => setUppgiftsprojektId(e.target.value)}
+                value={kategoriId ?? ''}
+                onChange={(e) => setKategoriId(e.target.value)}
               >
                 <option value="">Ingen</option>
-                {projekt.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.namn}
+                {kategori.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.namn}
                   </option>
                 ))}
               </Select>
@@ -1162,7 +1160,7 @@ function UppgiftFormular({
             <Field label="Projekt" htmlFor="uppgift-projekt">
               <Select id="uppgift-projekt" value={projektId ?? ''} onChange={(e) => setProjektId(e.target.value)}>
                 <option value="">Inget</option>
-                {projektContainer
+                {projekt
                   .filter((p) => !kundId || !p.kund_id || p.kund_id === kundId)
                   .map((p) => (
                     <option key={p.id} value={p.id}>

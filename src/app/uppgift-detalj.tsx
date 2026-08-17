@@ -42,7 +42,7 @@ export function UppgiftDetalj({
       personId: uppgift.person_id ?? '',
       kundId: uppgift.kund_id ?? '',
       typId: uppgift.typ_id ?? '',
-      uppgiftsprojektId: uppgift.uppgiftsprojekt_id ?? '',
+      kategoriId: uppgift.kategori_id ?? '',
       projektId: uppgift.projekt_id ?? '',
       prioritet: uppgift.prioritet,
       deadline: uppgift.deadline,

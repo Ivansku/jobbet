@@ -5,12 +5,13 @@ import { ProjektVy } from './projekt-vy'
 
 export default async function ProjektPage() {
   const supabase = await createClient()
-  const [{ data: projekt }, { data: kunder }] = await Promise.all([
+  const [{ data: projekt }, { data: kunder }, { data: mallar }] = await Promise.all([
     supabase
       .from('projekt')
-      .select('id, namn, status, beskrivning, kund_id, kund:kund_id(namn), uppgift(id, status)')
+      .select('id, namn, status, beskrivning, startdatum, kund_id, kund:kund_id(namn), uppgift(id, status)')
       .order('namn'),
     supabase.from('kund').select('id, namn').order('namn'),
+    supabase.from('mall_projekt').select('id, namn').order('namn'),
   ])
 
   const projektRader = (projekt ?? []).map((p) => ({
@@ -18,6 +19,7 @@ export default async function ProjektPage() {
     namn: p.namn,
     status: p.status,
     beskrivning: p.beskrivning,
+    startdatum: p.startdatum,
     kundId: p.kund_id,
     kundNamn: enTillRelation(p.kund)?.namn ?? null,
     antalUppgifter: p.uppgift.length,
@@ -28,7 +30,7 @@ export default async function ProjektPage() {
     <>
       <AppNav />
       <main className="mx-auto w-full max-w-2xl flex-1 p-6 md:p-8">
-        <ProjektVy projekt={projektRader} kunder={kunder ?? []} />
+        <ProjektVy projekt={projektRader} kunder={kunder ?? []} mallar={mallar ?? []} />
       </main>
     </>
   )

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { skapaUppgiftsprojekt, uppdateraUppgiftsprojekt, taBortUppgiftsprojekt } from './actions'
+import { skapaKategori, uppdateraKategori, taBortKategori } from './actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Field } from '@/components/ui/field'
@@ -10,34 +10,34 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { DeleteIconButton } from '@/components/ui/delete-icon-button'
 
-type Uppgiftsprojekt = { id: string; namn: string }
+type Kategori = { id: string; namn: string }
 
-export function UppgiftsprojektVy({ projekt }: { projekt: Uppgiftsprojekt[] }) {
-  const [redigerar, setRedigerar] = useState<Uppgiftsprojekt | 'ny' | null>(null)
+export function KategoriVy({ kategori }: { kategori: Kategori[] }) {
+  const [redigerar, setRedigerar] = useState<Kategori | 'ny' | null>(null)
 
   return (
     <>
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-lg font-semibold tracking-tight">Projekttyper</h2>
+        <h2 className="text-lg font-semibold tracking-tight">Kategorier</h2>
         <Button variant="primary" onClick={() => setRedigerar('ny')}>
-          Lägg till typ
+          Lägg till kategori
         </Button>
       </div>
 
-      {projekt.length === 0 ? (
+      {kategori.length === 0 ? (
         <EmptyState
-          title="Inga projekt ännu"
-          description="Lägg till det första projektet för att kunna kategorisera uppgifter."
+          title="Inga kategorier ännu"
+          description="Lägg till den första kategorin för att kunna kategorisera uppgifter."
         />
       ) : (
         <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle bg-surface">
-          {projekt.map((p) => (
-            <li key={p.id}>
+          {kategori.map((k) => (
+            <li key={k.id}>
               <button
-                onClick={() => setRedigerar(p)}
+                onClick={() => setRedigerar(k)}
                 className="flex w-full items-center justify-between px-4 py-3 text-left text-sm transition-colors hover:bg-stone-50 dark:hover:bg-stone-800"
               >
-                <span className="truncate">{p.namn}</span>
+                <span className="truncate">{k.namn}</span>
                 <span className="text-xs text-stone-400">Redigera</span>
               </button>
             </li>
@@ -46,7 +46,7 @@ export function UppgiftsprojektVy({ projekt }: { projekt: Uppgiftsprojekt[] }) {
       )}
 
       {redigerar && (
-        <ProjektFormular
+        <KategoriFormular
           existing={redigerar === 'ny' ? null : redigerar}
           onClose={() => setRedigerar(null)}
         />
@@ -55,11 +55,11 @@ export function UppgiftsprojektVy({ projekt }: { projekt: Uppgiftsprojekt[] }) {
   )
 }
 
-function ProjektFormular({
+function KategoriFormular({
   existing,
   onClose,
 }: {
-  existing: Uppgiftsprojekt | null
+  existing: Kategori | null
   onClose: () => void
 }) {
   const [namn, setNamn] = useState(existing?.namn ?? '')
@@ -73,9 +73,9 @@ function ProjektFormular({
     setSparar(true)
 
     if (existing) {
-      await uppdateraUppgiftsprojekt(existing.id, namn)
+      await uppdateraKategori(existing.id, namn)
     } else {
-      await skapaUppgiftsprojekt(namn)
+      await skapaKategori(namn)
     }
 
     setSparar(false)
@@ -85,7 +85,7 @@ function ProjektFormular({
   async function handleTaBort() {
     if (!existing) return
     setTarBort(true)
-    await taBortUppgiftsprojekt(existing.id)
+    await taBortKategori(existing.id)
     setTarBort(false)
     onClose()
   }
@@ -93,8 +93,8 @@ function ProjektFormular({
   if (visaBekraftelse && existing) {
     return (
       <ConfirmDialog
-        title={`Ta bort projektet "${existing.namn}"?`}
-        description="Uppgifter i det här projektet behåller sin övriga information, men mister projekt-taggen."
+        title={`Ta bort kategorin "${existing.namn}"?`}
+        description="Uppgifter med den här kategorin behåller sin övriga information, men mister kategori-taggen."
         loading={tarBort}
         onConfirm={handleTaBort}
         onCancel={() => setVisaBekraftelse(false)}
@@ -103,25 +103,25 @@ function ProjektFormular({
   }
 
   return (
-    <Modal onClose={onClose} labelledBy="projekt-formular-title">
+    <Modal onClose={onClose} labelledBy="kategori-formular-title">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-2">
-          <h2 id="projekt-formular-title" className="text-lg font-semibold">
-            {existing ? 'Redigera projekt' : 'Nytt projekt'}
+          <h2 id="kategori-formular-title" className="text-lg font-semibold">
+            {existing ? 'Redigera kategori' : 'Ny kategori'}
           </h2>
           {existing && (
             <DeleteIconButton
-              label={`Ta bort projektet "${existing.namn}"`}
+              label={`Ta bort kategorin "${existing.namn}"`}
               onClick={() => setVisaBekraftelse(true)}
             />
           )}
         </div>
-        <Field label="Namn" htmlFor="projekt-namn">
+        <Field label="Namn" htmlFor="kategori-namn">
           <Input
-            id="projekt-namn"
+            id="kategori-namn"
             value={namn}
             onChange={(e) => setNamn(e.target.value)}
-            placeholder="T.ex. Uppgradering"
+            placeholder="T.ex. Bokföring"
             required
             autoFocus
           />

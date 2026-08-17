@@ -62,7 +62,7 @@ export async function taBortUppgiftstyp(id: string) {
   revalidatePath('/systemadministration')
 }
 
-export async function skapaUppgiftsprojekt(namn: string) {
+export async function skapaKategori(namn: string) {
   const namnTrimmat = namn.trim()
   if (!namnTrimmat) return
 
@@ -80,22 +80,22 @@ export async function skapaUppgiftsprojekt(namn: string) {
 
   if (!person?.foretag_id) return
 
-  await supabase.from('uppgiftsprojekt').insert({ foretag_id: person.foretag_id, namn: namnTrimmat })
+  await supabase.from('kategori').insert({ foretag_id: person.foretag_id, namn: namnTrimmat })
   revalidatePath('/systemadministration')
 }
 
-export async function uppdateraUppgiftsprojekt(id: string, namn: string) {
+export async function uppdateraKategori(id: string, namn: string) {
   const namnTrimmat = namn.trim()
   if (!namnTrimmat) return
 
   const supabase = await createClient()
-  await supabase.from('uppgiftsprojekt').update({ namn: namnTrimmat }).eq('id', id)
+  await supabase.from('kategori').update({ namn: namnTrimmat }).eq('id', id)
   revalidatePath('/systemadministration')
 }
 
-export async function taBortUppgiftsprojekt(id: string) {
+export async function taBortKategori(id: string) {
   const supabase = await createClient()
-  await supabase.from('uppgiftsprojekt').delete().eq('id', id)
+  await supabase.from('kategori').delete().eq('id', id)
   revalidatePath('/systemadministration')
 }
 

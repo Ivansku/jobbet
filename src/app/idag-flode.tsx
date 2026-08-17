@@ -27,7 +27,7 @@ export type Uppgift = {
 export type UppgiftDetaljerad = Uppgift & {
   beskrivning: string | null
   person_id: string | null
-  uppgiftsprojekt_id: string | null
+  kategori_id: string | null
   projekt_id: string | null
   prioritet: string
   tidsatgang_timmar: number | null

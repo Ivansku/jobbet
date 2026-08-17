@@ -7,7 +7,7 @@ type Rad = {
   id: string
   titel: string
   typNamn: string | null
-  projektNamn: string | null
+  kategoriNamn: string | null
   dag: string
   timmar: number
 }
@@ -84,7 +84,7 @@ export function TidsrapportVy({
                     <span className="truncate font-medium text-stone-700 dark:text-stone-200">{u.titel}</span>
                     <span className="flex shrink-0 items-center gap-2 text-stone-400">
                       {u.typNamn && <span>{u.typNamn}</span>}
-                      {u.projektNamn && <span>{u.projektNamn}</span>}
+                      {u.kategoriNamn && <span>{u.kategoriNamn}</span>}
                       <span>{kortDatum(u.dag)}</span>
                       <span className="font-medium text-stone-600 dark:text-stone-300">{u.timmar} h</span>
                     </span>

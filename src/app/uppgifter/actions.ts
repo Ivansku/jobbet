@@ -60,7 +60,7 @@ export async function skapaUppgift(input: {
   personId: string
   kundId: string
   typId: string
-  uppgiftsprojektId: string
+  kategoriId: string
   projektId: string
   prioritet: string
   deadline: string | null
@@ -83,7 +83,7 @@ export async function skapaUppgift(input: {
       person_id: input.personId || null,
       kund_id: input.kundId || null,
       typ_id: input.typId || null,
-      uppgiftsprojekt_id: input.uppgiftsprojektId || null,
+      kategori_id: input.kategoriId || null,
       projekt_id: input.projektId || null,
       prioritet: input.prioritet,
       deadline: input.deadline,
@@ -108,7 +108,7 @@ export async function skapaUppgiftSerie(input: {
   personId: string
   kundId: string
   typId: string
-  uppgiftsprojektId: string
+  kategoriId: string
   prioritet: string
   startDatum: string
   veckodagar: number[]
@@ -129,7 +129,7 @@ export async function skapaUppgiftSerie(input: {
     person_id: input.personId || null,
     kund_id: input.kundId || null,
     typ_id: input.typId || null,
-    uppgiftsprojekt_id: input.uppgiftsprojektId || null,
+    kategori_id: input.kategoriId || null,
     prioritet: input.prioritet,
     start_datum: input.startDatum,
     veckodagar: input.veckodagar,
@@ -152,7 +152,7 @@ export async function gorUppgiftAterkommande(
     personId: string
     kundId: string
     typId: string
-    uppgiftsprojektId: string
+    kategoriId: string
     prioritet: string
     startDatum: string
     veckodagar: number[]
@@ -177,7 +177,7 @@ export async function gorUppgiftAterkommande(
       person_id: input.personId || null,
       kund_id: input.kundId || null,
       typ_id: input.typId || null,
-      uppgiftsprojekt_id: input.uppgiftsprojektId || null,
+      kategori_id: input.kategoriId || null,
       prioritet: input.prioritet,
       start_datum: input.startDatum,
       veckodagar: input.veckodagar,
@@ -204,7 +204,7 @@ export async function gorUppgiftAterkommande(
       person_id: input.personId || null,
       kund_id: input.kundId || null,
       typ_id: input.typId || null,
-      uppgiftsprojekt_id: input.uppgiftsprojektId || null,
+      kategori_id: input.kategoriId || null,
       prioritet: input.prioritet,
       deadline: input.startDatum,
       klockslag: input.klockslag,
@@ -225,7 +225,7 @@ export async function uppdateraSerie(
     personId: string
     kundId: string
     typId: string
-    uppgiftsprojektId: string
+    kategoriId: string
     prioritet: string
     startDatum: string
     veckodagar: number[]
@@ -257,7 +257,7 @@ export async function uppdateraSerie(
       person_id: input.personId || null,
       kund_id: input.kundId || null,
       typ_id: input.typId || null,
-      uppgiftsprojekt_id: input.uppgiftsprojektId || null,
+      kategori_id: input.kategoriId || null,
       prioritet: input.prioritet,
       start_datum: input.startDatum,
       veckodagar: input.veckodagar,
@@ -306,7 +306,7 @@ export async function uppdateraUppgift(
     personId: string
     kundId: string
     typId: string
-    uppgiftsprojektId: string
+    kategoriId: string
     projektId: string
     prioritet: string
     deadline: string | null
@@ -329,7 +329,7 @@ export async function uppdateraUppgift(
       person_id: input.personId || null,
       kund_id: input.kundId || null,
       typ_id: input.typId || null,
-      uppgiftsprojekt_id: input.uppgiftsprojektId || null,
+      kategori_id: input.kategoriId || null,
       projekt_id: input.projektId || null,
       prioritet: input.prioritet,
       deadline: input.deadline,

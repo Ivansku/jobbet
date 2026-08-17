@@ -16,7 +16,7 @@ import { KundValjare } from './kund-valjare'
 type Person = { id: string; namn: string }
 type Kund = { id: string; namn: string }
 type Typ = { id: string; namn: string }
-type Projekt = { id: string; namn: string }
+type Kategori = { id: string; namn: string }
 type Serie = {
   id: string
   titel: string
@@ -24,7 +24,7 @@ type Serie = {
   person_id: string | null
   kund_id: string | null
   typ_id: string | null
-  uppgiftsprojekt_id: string | null
+  kategori_id: string | null
   prioritet: string
   start_datum: string
   veckodagar: number[]
@@ -48,13 +48,13 @@ export function SerieVy({
   personer,
   kunder,
   typer,
-  projekt,
+  kategori,
 }: {
   serier: Serie[]
   personer: Person[]
   kunder: Kund[]
   typer: Typ[]
-  projekt: Projekt[]
+  kategori: Kategori[]
 }) {
   const [visaLista, setVisaLista] = useState(false)
   const [redigerar, setRedigerar] = useState<Serie | null>(null)
@@ -108,7 +108,7 @@ export function SerieVy({
           personer={personer}
           kunder={kunder}
           typer={typer}
-          projekt={projekt}
+          kategori={kategori}
           onClose={() => setRedigerar(null)}
         />
       )}
@@ -121,14 +121,14 @@ export function SerieFormular({
   personer,
   kunder,
   typer,
-  projekt,
+  kategori,
   onClose,
 }: {
   serie: Serie
   personer: Person[]
   kunder: Kund[]
   typer: Typ[]
-  projekt: Projekt[]
+  kategori: Kategori[]
   onClose: () => void
 }) {
   const [titel, setTitel] = useState(serie.titel)
@@ -136,7 +136,7 @@ export function SerieFormular({
   const [personId, setPersonId] = useState(serie.person_id ?? '')
   const [kundId, setKundId] = useState(serie.kund_id ?? '')
   const [typId, setTypId] = useState(serie.typ_id ?? '')
-  const [uppgiftsprojektId, setUppgiftsprojektId] = useState(serie.uppgiftsprojekt_id ?? '')
+  const [kategoriId, setKategoriId] = useState(serie.kategori_id ?? '')
   const [prioritet, setPrioritet] = useState(serie.prioritet)
   const [startDatum, setStartDatum] = useState(serie.start_datum)
   const [veckodagar, setVeckodagar] = useState<number[]>(serie.veckodagar)
@@ -159,7 +159,7 @@ export function SerieFormular({
       personId,
       kundId,
       typId,
-      uppgiftsprojektId,
+      kategoriId,
       prioritet,
       startDatum,
       veckodagar,
@@ -256,16 +256,16 @@ export function SerieFormular({
             </Select>
           </Field>
 
-          <Field label="Projekt" htmlFor="serie-projekt">
+          <Field label="Kategori" htmlFor="serie-kategori">
             <Select
-              id="serie-projekt"
-              value={uppgiftsprojektId}
-              onChange={(e) => setUppgiftsprojektId(e.target.value)}
+              id="serie-kategori"
+              value={kategoriId}
+              onChange={(e) => setKategoriId(e.target.value)}
             >
-              <option value="">Inget</option>
-              {projekt.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.namn}
+              <option value="">Ingen</option>
+              {kategori.map((k) => (
+                <option key={k.id} value={k.id}>
+                  {k.namn}
                 </option>
               ))}
             </Select>
