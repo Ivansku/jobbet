@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Textarea, Select } from '@/components/ui/input'
 import { Eyebrow } from '@/components/ui/eyebrow'
 import { ImorgonTidslinje } from './imorgon-tidslinje'
-import type { UppgiftDetaljerad, Kund, Tanke } from './idag-flode'
+import type { UppgiftDetaljerad, Kund, Typ, Tanke } from './idag-flode'
 
 const MODUL_LABEL: Record<string, string> = {
   flex: 'Flex',
@@ -23,22 +23,32 @@ export function ImorgonVantarSteg({
   imorgonUppgifter,
   kunder,
   onOpenDetalj,
+  typer,
 }: {
   imorgonUppgifter: UppgiftDetaljerad[]
   kunder: Kund[]
   onOpenDetalj: (u: UppgiftDetaljerad) => void
+  typer: Typ[]
 }) {
   return (
     <div>
       <Eyebrow>Imorgon väntar</Eyebrow>
       <div className="mt-3">
-        <ImorgonTidslinje uppgifter={imorgonUppgifter} kunder={kunder} onOpenDetalj={onOpenDetalj} />
+        <ImorgonTidslinje uppgifter={imorgonUppgifter} kunder={kunder} onOpenDetalj={onOpenDetalj} typer={typer} />
       </div>
     </div>
   )
 }
 
-export function FlexelSteg({ idag, aktivaFlexelModuler }: { idag: string; aktivaFlexelModuler: string[] }) {
+export function FlexelSteg({
+  idag,
+  aktivaFlexelModuler,
+  rapporteradIdag,
+}: {
+  idag: string
+  aktivaFlexelModuler: string[]
+  rapporteradIdag: boolean
+}) {
   const modulOptioner = [...aktivaFlexelModuler, 'ledighet']
   const [timmar, setTimmar] = useState('')
   const [motivering, setMotivering] = useState('')
@@ -67,6 +77,8 @@ export function FlexelSteg({ idag, aktivaFlexelModuler }: { idag: string; aktiva
       <Eyebrow>Snabbregistrera Flexel</Eyebrow>
       {sparad ? (
         <p className="mt-3 text-sm text-stone-500">Registrerat. Du kan lägga till fler rader i Rapporter → Flexel.</p>
+      ) : rapporteradIdag ? (
+        <p className="mt-3 text-sm text-stone-500">Flexel rapporterad.</p>
       ) : (
         <div className="mt-3 flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2">

@@ -83,6 +83,7 @@ export default async function Home() {
   // Avsluta-knappen som skulle uppdatera avslutad_at är borttagen tills vidare.
   let dagsavslut: { id: string } | null = null
   let tankar: { id: string; text: string; uppgift_id_skapad: string | null }[] = []
+  let flexelRapporteradIdag = false
   if (flode === 'kvall') {
     const { data: befintlig } = await supabase
       .from('dagsavslut')
@@ -109,6 +110,14 @@ export default async function Home() {
         .order('created_at')
       tankar = data ?? []
     }
+
+    const { data: flexelPost } = await supabase
+      .from('flexel_post')
+      .select('id')
+      .eq('person_id', person.id)
+      .eq('datum', idag)
+      .limit(1)
+    flexelRapporteradIdag = (flexelPost?.length ?? 0) > 0
   }
 
   const fokusUppgiftIds = (dagensFokus ?? []).map((f) => f.uppgift_id)
@@ -129,6 +138,7 @@ export default async function Home() {
           aktivaFlexelModuler={(flexelInstallningar ?? []).map((f) => f.modul)}
           dagsavslut={dagsavslut}
           tankar={tankar}
+          flexelRapporteradIdag={flexelRapporteradIdag}
           kunder={kunder ?? []}
           typer={typer ?? []}
           block={block ?? []}

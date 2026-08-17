@@ -1,5 +1,5 @@
 import { EmptyState } from '@/components/ui/empty-state'
-import type { UppgiftDetaljerad, Kund } from './idag-flode'
+import type { UppgiftDetaljerad, Kund, Typ } from './idag-flode'
 
 // Samma dot-och-linje-visuella språk som IdagTimeline, men utan checkbox och
 // fokus-kant. Imorgondagens uppgifter hämtas med hela fältuppsättningen
@@ -8,12 +8,15 @@ export function ImorgonTidslinje({
   uppgifter,
   kunder,
   onOpenDetalj,
+  typer,
 }: {
   uppgifter: UppgiftDetaljerad[]
   kunder: Kund[]
   onOpenDetalj: (u: UppgiftDetaljerad) => void
+  typer: Typ[]
 }) {
   const kundMap = new Map(kunder.map((k) => [k.id, k.namn]))
+  const typMap = new Map(typer.map((t) => [t.id, t.namn]))
 
   if (uppgifter.length === 0) {
     return <EmptyState title="Inget planerat imorgon ännu" />
@@ -22,7 +25,9 @@ export function ImorgonTidslinje({
   return (
     <div className="flex flex-col">
       {uppgifter.map((u, i) => {
-        const meta = u.outlook_event_id ? 'Möte' : u.kund_id ? kundMap.get(u.kund_id) : null
+        const typNamn = u.typ_id ? typMap.get(u.typ_id) : null
+        const kundNamn = u.kund_id ? kundMap.get(u.kund_id) : null
+        const meta = [typNamn, kundNamn].filter((d): d is string => Boolean(d)).join(' · ') || null
 
         return (
           <div key={u.id} className="grid grid-cols-[52px_20px_1fr]">

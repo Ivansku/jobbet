@@ -1,6 +1,6 @@
 'use client'
 
-import type { UppgiftDetaljerad, Kund } from './idag-flode'
+import type { UppgiftDetaljerad, Kund, Typ } from './idag-flode'
 
 export function IdagTimeline({
   uppgifter,
@@ -9,6 +9,7 @@ export function IdagTimeline({
   onToggle,
   onOpenDetalj,
   kunder,
+  typer,
 }: {
   uppgifter: UppgiftDetaljerad[]
   fokusUppgiftIds: string[]
@@ -16,6 +17,7 @@ export function IdagTimeline({
   onToggle: (u: UppgiftDetaljerad) => void
   onOpenDetalj: (u: UppgiftDetaljerad) => void
   kunder: Kund[]
+  typer: Typ[]
 }) {
   // Ingen omsortering här — uppgifter kommer redan i sortordning-ordning från
   // page.tsx:s .order('sortordning'), samma fält Kanban-vyns drag-and-drop
@@ -24,6 +26,7 @@ export function IdagTimeline({
   // en punkt oavsett klockslag så linjen blir sammanhängande genom hela
   // listan — klockslagskolumnen är bara tom för otidsatta rader.
   const kundMap = new Map(kunder.map((k) => [k.id, k.namn]))
+  const typMap = new Map(typer.map((t) => [t.id, t.namn]))
 
   if (uppgifter.length === 0) {
     return <p className="text-sm text-stone-400">Inget planerat idag.</p>
@@ -52,7 +55,15 @@ export function IdagTimeline({
               <span className={`w-px flex-1 ${i === uppgifter.length - 1 ? 'bg-transparent' : 'bg-border-subtle'}`} />
             </div>
             <div className="pb-2">
-              <Kort u={u} fokus={fokus} klar={klar} onToggle={onToggle} onOpenDetalj={onOpenDetalj} kundMap={kundMap} />
+              <Kort
+                u={u}
+                fokus={fokus}
+                klar={klar}
+                onToggle={onToggle}
+                onOpenDetalj={onOpenDetalj}
+                kundMap={kundMap}
+                typMap={typMap}
+              />
             </div>
           </div>
         )
@@ -74,6 +85,7 @@ function Kort({
   onToggle,
   onOpenDetalj,
   kundMap,
+  typMap,
 }: {
   u: UppgiftDetaljerad
   fokus: boolean
@@ -81,14 +93,14 @@ function Kort({
   onToggle: (u: UppgiftDetaljerad) => void
   onOpenDetalj: (u: UppgiftDetaljerad) => void
   kundMap: Map<string, string>
+  typMap: Map<string, string>
 }) {
-  const meta = u.outlook_event_id
-    ? 'Möte'
-    : u.kund_id
-      ? kundMap.get(u.kund_id)
-      : fokus
-        ? 'Fokus'
-        : null
+  // Typ till vänster, kund till höger — samma "·"-separator som lede-raden i
+  // idag-flode.tsx. Fokus visas bara när varken typ eller kund finns att visa.
+  const typNamn = u.typ_id ? typMap.get(u.typ_id) : null
+  const kundNamn = u.kund_id ? kundMap.get(u.kund_id) : null
+  const delar = [typNamn, kundNamn].filter((d): d is string => Boolean(d))
+  const meta = delar.length > 0 ? delar.join(' · ') : fokus ? 'Fokus' : null
 
   return (
     <div

@@ -78,6 +78,7 @@ export function IdagFlode({
   aktivaFlexelModuler,
   dagsavslut,
   tankar,
+  flexelRapporteradIdag,
   kunder,
   typer,
   block,
@@ -93,6 +94,7 @@ export function IdagFlode({
   aktivaFlexelModuler: string[]
   dagsavslut: Dagsavslut | null
   tankar: Tanke[]
+  flexelRapporteradIdag: boolean
   kunder: Kund[]
   typer: Typ[]
   block: Block[]
@@ -133,7 +135,12 @@ export function IdagFlode({
 
   const klara = dagensUppgifter.filter((u) => klaraIds.has(u.id)).length
   const kundMap = new Map(kunder.map((k) => [k.id, k.namn]))
-  const fokusKandidater = dagensUppgifter.filter((u) => !u.outlook_event_id && !klaraIds.has(u.id))
+  // outlook_event_id säger bara att raden är synkad från Outlook-kalendern —
+  // manuellt skapade möten (typ "Möte") har den inte. visar_motesanteckningar
+  // är typens faktiska mötes-signal och fångar båda fallen.
+  const moteTypIds = new Set(typer.filter((t) => t.visar_motesanteckningar).map((t) => t.id))
+  const arMote = (u: UppgiftDetaljerad) => Boolean(u.outlook_event_id) || moteTypIds.has(u.typ_id ?? '')
+  const fokusKandidater = dagensUppgifter.filter((u) => !arMote(u) && !klaraIds.has(u.id))
 
   const lede = `${langtDatum(idag)} · ${dagensUppgifter.length} uppgift${
     dagensUppgifter.length === 1 ? '' : 'er'
@@ -157,6 +164,10 @@ export function IdagFlode({
   }
   const kunderIdag = Array.from(kunderMap.values()).sort((a, b) => (a.klockslag ?? 'z').localeCompare(b.klockslag ?? 'z'))
 
+  const motenIdag = dagensUppgifter
+    .filter((u) => arMote(u))
+    .sort((a, b) => (a.klockslag ?? 'z').localeCompare(b.klockslag ?? 'z'))
+
   return (
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.7fr_1fr] lg:items-start">
@@ -177,14 +188,26 @@ export function IdagFlode({
                   onToggle={toggleKlar}
                   onOpenDetalj={oppnaDetalj}
                   kunder={kunder}
+                  typer={typer}
                 />
               </div>
             </div>
 
-            {flode === 'kvall' && <FlexelSteg idag={idag} aktivaFlexelModuler={aktivaFlexelModuler} />}
+            {flode === 'kvall' && (
+              <ImorgonVantarSteg
+                imorgonUppgifter={imorgonUppgifter}
+                kunder={kunder}
+                onOpenDetalj={setRedigerar}
+                typer={typer}
+              />
+            )}
 
             {flode === 'kvall' && (
-              <ImorgonVantarSteg imorgonUppgifter={imorgonUppgifter} kunder={kunder} onOpenDetalj={setRedigerar} />
+              <FlexelSteg
+                idag={idag}
+                aktivaFlexelModuler={aktivaFlexelModuler}
+                rapporteradIdag={flexelRapporteradIdag}
+              />
             )}
           </div>
         </div>
@@ -192,45 +215,86 @@ export function IdagFlode({
         <div className="flex flex-col gap-6">
           <div className="rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
             <Eyebrow>Idag</Eyebrow>
-            <div className="mt-3">
-              <IdagRing klara={klara} totalt={dagensUppgifter.length} />
-            </div>
+            <div className="mt-6 flex flex-col [&>*+*]:mt-6 [&>*+*]:border-t [&>*+*]:border-border-subtle [&>*+*]:pt-6">
+              <div>
+                <IdagRing klara={klara} totalt={dagensUppgifter.length} />
+              </div>
 
-            {eftersläpning.length > 0 && (
-              <div className="mt-6">
-                <Eyebrow>Gårdagens försenat</Eyebrow>
-                <ul className="mt-3 flex flex-col gap-1.5">
-                  {eftersläpning.map((u) => (
+              {eftersläpning.length > 0 && (
+                <div>
+                  <Eyebrow>Gårdagens försenat</Eyebrow>
+                  <ul className="mt-3 flex flex-col">
+                    {eftersläpning.map((u) => {
+                      const meta = u.kund_id ? kundMap.get(u.kund_id) : arMote(u) ? 'Möte' : null
+                      return (
+                        <li
+                          key={u.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setRedigerar(u)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              setRedigerar(u)
+                            }
+                          }}
+                          className="flex cursor-pointer items-center gap-2 border-t border-border-subtle py-2 text-sm first:border-t-0 hover:bg-stone-50 dark:hover:bg-stone-800"
+                        >
+                          <span className="min-w-0 flex-1 truncate">{u.titel}</span>
+                          {meta && <span className="shrink-0 text-xs text-stone-400">{meta}</span>}
+                          <span className="shrink-0 text-xs text-stone-400 tabular-nums">{u.klockslag?.slice(0, 5)}</span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              )}
+
+              {flode !== 'kvall' && (
+                <div>
+                  <Eyebrow>Dagens fokus (max 3)</Eyebrow>
+                  <div className="mt-3">
+                    <DagensFokusValjare
+                      kandidater={fokusKandidater}
+                      valda={fokusIds}
+                      onChange={toggleFokus}
+                      kunder={kunder}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {motenIdag.length > 0 && (
+            <div className="rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
+              <Eyebrow>Möten idag</Eyebrow>
+              <ul className="mt-3 flex flex-col">
+                {motenIdag.map((m) => {
+                  const kundNamn = m.kund_id ? kundMap.get(m.kund_id) : null
+                  return (
                     <li
-                      key={u.id}
+                      key={m.id}
                       role="button"
                       tabIndex={0}
-                      onClick={() => setRedigerar(u)}
+                      onClick={() => setRedigerar(m)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault()
-                          setRedigerar(u)
+                          setRedigerar(m)
                         }
                       }}
-                      className="flex cursor-pointer items-center gap-2 rounded-xl border border-border-subtle px-3 py-2 text-sm hover:bg-stone-50 dark:hover:bg-stone-800"
+                      className="flex cursor-pointer items-center gap-2 border-t border-border-subtle py-2 text-sm first:border-t-0 hover:bg-stone-50 dark:hover:bg-stone-800"
                     >
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
-                      <span className="min-w-0 flex-1 truncate">{u.titel}</span>
+                      <span className="min-w-0 flex-1 truncate">{m.titel}</span>
+                      {kundNamn && <span className="shrink-0 text-xs text-stone-400">{kundNamn}</span>}
+                      <span className="shrink-0 text-xs text-stone-400 tabular-nums">{m.klockslag?.slice(0, 5)}</span>
                     </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {flode === 'morgon' && (
-              <div className="mt-6">
-                <Eyebrow>Dagens fokus (max 3)</Eyebrow>
-                <div className="mt-3">
-                  <DagensFokusValjare kandidater={fokusKandidater} valda={fokusIds} onChange={toggleFokus} />
-                </div>
-              </div>
-            )}
-          </div>
+                  )
+                })}
+              </ul>
+            </div>
+          )}
 
           {kunderIdag.length > 0 && (
             <div className="rounded-2xl border border-border-subtle bg-surface p-5 md:p-6">
