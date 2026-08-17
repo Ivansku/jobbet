@@ -41,6 +41,7 @@ export async function skapaProjekt(input: {
       status: input.status,
       beskrivning: input.beskrivning || null,
       startdatum: input.startdatum,
+      mall_projekt_id: input.mallProjektId,
     })
     .select('id, namn')
     .single()

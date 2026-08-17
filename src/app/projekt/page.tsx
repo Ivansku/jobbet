@@ -9,7 +9,7 @@ export default async function ProjektPage() {
     supabase
       .from('projekt')
       .select(
-        'id, namn, status, beskrivning, startdatum, kund_id, kund:kund_id(namn), uppgift(id, titel, status, deadline, person:person_id(namn))'
+        'id, namn, status, beskrivning, startdatum, kund_id, kund:kund_id(namn), mall_projekt_id, uppgift(id, titel, status, deadline, person:person_id(namn))'
       )
       .order('namn'),
     supabase.from('kund').select('id, namn').order('namn'),
@@ -43,6 +43,7 @@ export default async function ProjektPage() {
       startdatum: p.startdatum,
       kundId: p.kund_id,
       kundNamn: enTillRelation(p.kund)?.namn ?? null,
+      mallProjektId: p.mall_projekt_id,
       antalUppgifter: uppgifter.length,
       antalKlara: uppgifter.filter((u) => u.status === 'klar').length,
       uppgifter,
@@ -52,7 +53,7 @@ export default async function ProjektPage() {
   return (
     <>
       <AppNav />
-      <main className="mx-auto w-full max-w-2xl flex-1 p-6 md:p-8">
+      <main className="flex-1 p-6 md:p-8">
         <ProjektVy projekt={projektRader} kunder={kunder ?? []} mallar={mallar ?? []} />
       </main>
     </>

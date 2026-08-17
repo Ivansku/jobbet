@@ -22,6 +22,7 @@ type Projekt = {
   startdatum: string
   kundId: string | null
   kundNamn: string | null
+  mallProjektId: string | null
   antalUppgifter: number
   antalKlara: number
   uppgifter: ProjektUppgift[]
@@ -44,40 +45,45 @@ const STATUS_TONE: Record<string, 'success' | 'warning' | 'neutral'> = {
 
 export function ProjektVy({ projekt, kunder, mallar }: { projekt: Projekt[]; kunder: Kund[]; mallar: Mall[] }) {
   const [redigerar, setRedigerar] = useState<Projekt | 'ny' | null>(null)
+  const [nyMallId, setNyMallId] = useState<string | null>(null)
+
+  function oppnaNy(mallId: string | null) {
+    setNyMallId(mallId)
+    setRedigerar('ny')
+  }
+
+  const mallIdSet = new Set(mallar.map((m) => m.id))
+  const utanMall = projekt.filter((p) => !p.mallProjektId || !mallIdSet.has(p.mallProjektId))
 
   return (
     <>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Projekt</h1>
-        <Button variant="primary" onClick={() => setRedigerar('ny')}>
+        <Button variant="primary" onClick={() => oppnaNy(null)}>
           Nytt projekt
         </Button>
       </div>
 
-      {projekt.length === 0 ? (
-        <EmptyState title="Inga projekt ännu" description="Lägg till ditt första projekt för att komma igång." />
+      {mallar.length === 0 ? (
+        <EmptyState
+          title="Inga projektmallar ännu"
+          description="Skapa en projektmall under Systemadministration → Projektmallar för att kunna lägga till projekt här."
+        />
       ) : (
-        <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle bg-surface">
-          {projekt.map((p) => (
-            <li key={p.id}>
-              <button
-                onClick={() => setRedigerar(p)}
-                className="flex w-full items-center justify-between px-4 py-3 text-left text-sm transition-colors hover:bg-stone-50 dark:hover:bg-stone-800"
-              >
-                <span className="flex min-w-0 items-center gap-2">
-                  <span className="truncate font-medium">{p.namn}</span>
-                  <Badge tone={STATUS_TONE[p.status] ?? 'neutral'}>{STATUS_LABEL[p.status] ?? p.status}</Badge>
-                </span>
-                <span className="flex shrink-0 items-center gap-3 text-xs text-stone-400">
-                  <span>{p.kundNamn ?? 'Internt'}</span>
-                  <span>
-                    {p.antalKlara} av {p.antalUppgifter} klara
-                  </span>
-                </span>
-              </button>
-            </li>
+        <div className="flex items-start gap-4 overflow-x-auto pb-2">
+          {mallar.map((mall) => (
+            <ProjektKolumn
+              key={mall.id}
+              namn={mall.namn}
+              projekt={projekt.filter((p) => p.mallProjektId === mall.id)}
+              onSelect={setRedigerar}
+              onAddNew={() => oppnaNy(mall.id)}
+            />
           ))}
-        </ul>
+          {utanMall.length > 0 && (
+            <ProjektKolumn namn="Utan mall" projekt={utanMall} onSelect={setRedigerar} />
+          )}
+        </div>
       )}
 
       {redigerar && (
@@ -85,10 +91,67 @@ export function ProjektVy({ projekt, kunder, mallar }: { projekt: Projekt[]; kun
           kunder={kunder}
           mallar={mallar}
           existing={redigerar === 'ny' ? null : redigerar}
+          initialMallId={nyMallId}
           onClose={() => setRedigerar(null)}
         />
       )}
     </>
+  )
+}
+
+function ProjektKolumn({
+  namn,
+  projekt,
+  onSelect,
+  onAddNew,
+}: {
+  namn: string
+  projekt: Projekt[]
+  onSelect: (p: Projekt) => void
+  onAddNew?: () => void
+}) {
+  return (
+    <div className="flex min-h-[160px] w-72 shrink-0 flex-col gap-2 rounded-xl border border-border-subtle bg-white p-3 dark:bg-stone-800/60">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="truncate text-sm font-semibold text-stone-500">{namn}</h2>
+        <span className="shrink-0 text-xs font-medium text-stone-400">{projekt.length}</span>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {projekt.length === 0 ? (
+          <p className="py-4 text-center text-xs text-stone-400">Inga projekt</p>
+        ) : (
+          projekt.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => onSelect(p)}
+              className="flex flex-col gap-1 rounded-lg border border-border-subtle bg-surface p-3 text-left text-sm shadow-sm transition-shadow hover:shadow-md"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate font-medium">{p.namn}</span>
+                <Badge tone={STATUS_TONE[p.status] ?? 'neutral'}>{STATUS_LABEL[p.status] ?? p.status}</Badge>
+              </div>
+              <div className="flex items-center justify-between gap-2 text-xs text-stone-400">
+                <span className="truncate">{p.kundNamn ?? 'Internt'}</span>
+                <span className="shrink-0">
+                  {p.antalKlara} av {p.antalUppgifter} klara
+                </span>
+              </div>
+            </button>
+          ))
+        )}
+
+        {onAddNew && (
+          <button
+            type="button"
+            onClick={onAddNew}
+            className="mt-auto rounded-lg px-2 py-1.5 text-center text-xs text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-700 dark:hover:text-stone-300"
+          >
+            + Nytt projekt
+          </button>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -101,14 +164,16 @@ function ProjektFormular({
   kunder,
   mallar,
   existing,
+  initialMallId,
   onClose,
 }: {
   kunder: Kund[]
   mallar: Mall[]
   existing: Projekt | null
+  initialMallId: string | null
   onClose: () => void
 }) {
-  const [mallId, setMallId] = useState('')
+  const [mallId, setMallId] = useState(initialMallId ?? '')
   const [namn, setNamn] = useState(existing?.namn ?? '')
   const [kundId, setKundId] = useState(existing?.kundId ?? '')
   const [status, setStatus] = useState(existing?.status ?? 'aktivt')
