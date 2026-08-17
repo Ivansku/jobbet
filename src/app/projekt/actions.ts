@@ -3,24 +3,6 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { currentForetagId } from '@/lib/foretag'
-import { enTillRelation } from '@/lib/postgrest'
-
-export async function hamtaUppgifterForProjekt(projektId: string) {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('uppgift')
-    .select('id, titel, status, deadline, person:person_id(namn)')
-    .eq('projekt_id', projektId)
-    .order('deadline', { ascending: true, nullsFirst: false })
-
-  return (data ?? []).map((u) => ({
-    id: u.id,
-    titel: u.titel,
-    status: u.status,
-    deadline: u.deadline,
-    ansvarigNamn: enTillRelation(u.person)?.namn ?? null,
-  }))
-}
 
 // Ren datumaritmetik i UTC — samma mönster som motsvarande hjälpfunktion i
 // uppgifter/actions.ts, för att räkna ut varje genererad uppgifts deadline

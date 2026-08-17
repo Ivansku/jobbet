@@ -1,13 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import {
-  hamtaUppgifterForProjekt,
-  skapaProjekt,
-  uppdateraProjekt,
-  taBortProjekt,
-  taBortProjektMedUppgifter,
-} from './actions'
+import { useState } from 'react'
+import { skapaProjekt, uppdateraProjekt, taBortProjekt, taBortProjektMedUppgifter } from './actions'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Field } from '@/components/ui/field'
@@ -30,6 +24,7 @@ type Projekt = {
   kundNamn: string | null
   antalUppgifter: number
   antalKlara: number
+  uppgifter: ProjektUppgift[]
 }
 
 type ProjektUppgift = {
@@ -119,21 +114,10 @@ function ProjektFormular({
   const [status, setStatus] = useState(existing?.status ?? 'aktivt')
   const [startdatum, setStartdatum] = useState(existing?.startdatum ?? idagISO())
   const [beskrivning, setBeskrivning] = useState(existing?.beskrivning ?? '')
-  const [uppgifter, setUppgifter] = useState<ProjektUppgift[] | null>(null)
+  const uppgifter = existing?.uppgifter ?? []
   const [sparar, setSparar] = useState(false)
   const [bekraftaTaBort, setBekraftaTaBort] = useState<'kopplaLoss' | 'medUppgifter' | null>(null)
   const [tarBort, setTarBort] = useState(false)
-
-  useEffect(() => {
-    if (!existing) return
-    let aktiv = true
-    hamtaUppgifterForProjekt(existing.id).then((rader) => {
-      if (aktiv) setUppgifter(rader)
-    })
-    return () => {
-      aktiv = false
-    }
-  }, [existing])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -260,14 +244,12 @@ function ProjektFormular({
           <div className="border-t border-border-subtle pt-4">
             <div className="mb-2 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-stone-500">Uppgifter</h3>
-              {uppgifter && (
-                <span className="text-xs text-stone-400">
-                  {uppgifter.filter((u) => u.status === 'klar').length} av {uppgifter.length} klara
-                </span>
-              )}
+              <span className="text-xs text-stone-400">
+                {uppgifter.filter((u) => u.status === 'klar').length} av {uppgifter.length} klara
+              </span>
             </div>
 
-            {!uppgifter || uppgifter.length === 0 ? (
+            {uppgifter.length === 0 ? (
               <p className="text-xs text-stone-400">Inga uppgifter i projektet ännu.</p>
             ) : (
               <ul className="divide-y divide-border-subtle overflow-hidden rounded-lg border border-border-subtle">
