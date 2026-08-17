@@ -171,10 +171,17 @@ function MallFormular({
   }
 
   if (redigerarUppgift && mall) {
+    // Första uppgiften i mallen räknas från projektstart, alla efterföljande
+    // räknas från den föregående uppgiften — avgörs av nuvarande position i
+    // listan, inte lagrat separat.
+    const arForsta =
+      redigerarUppgift === 'ny' ? uppgifter.length === 0 : uppgifter[0]?.id === redigerarUppgift.id
+
     return (
       <MallUppgiftFormular
         mallProjektId={mall.id}
         existing={redigerarUppgift === 'ny' ? null : redigerarUppgift}
+        arForsta={arForsta}
         typer={typer}
         kategori={kategori}
         personer={personer}
@@ -184,6 +191,14 @@ function MallFormular({
       />
     )
   }
+
+  // Kumulativ dag-räkning för visning i listan — samma uträkning som
+  // genereringslogiken i projekt/actions.ts använder (startdatum + summan av
+  // varje uppgifts "dagar efter föregående" i tur och ordning).
+  const kumulativaDagar = uppgifter.reduce<number[]>((acc, u) => {
+    acc.push((acc[acc.length - 1] ?? 0) + u.dagar_efter_start)
+    return acc
+  }, [])
 
   return (
     <Modal onClose={onClose} labelledBy="mall-formular-title">
@@ -249,9 +264,7 @@ function MallFormular({
                       className="flex min-w-0 flex-1 items-center justify-between gap-2 text-left"
                     >
                       <span className="truncate">{u.titel}</span>
-                      <span className="shrink-0 text-xs text-stone-400">
-                        {u.dagar_efter_start === 0 ? 'Dag 0' : `Dag ${u.dagar_efter_start}`}
-                      </span>
+                      <span className="shrink-0 text-xs text-stone-400">Dag {kumulativaDagar[i]}</span>
                     </button>
                   </li>
                 ))}
@@ -276,6 +289,7 @@ function MallFormular({
 function MallUppgiftFormular({
   mallProjektId,
   existing,
+  arForsta,
   typer,
   kategori,
   personer,
@@ -285,6 +299,7 @@ function MallUppgiftFormular({
 }: {
   mallProjektId: string
   existing: MallUppgift | null
+  arForsta: boolean
   typer: Typ[]
   kategori: Kategori[]
   personer: Person[]
@@ -421,7 +436,10 @@ function MallUppgiftFormular({
             </Select>
           </Field>
 
-          <Field label="Dagar efter projektstart" htmlFor="mall-uppgift-dagar">
+          <Field
+            label={arForsta ? 'Dagar efter projektstart' : 'Dagar efter föregående uppgift'}
+            htmlFor="mall-uppgift-dagar"
+          >
             <Input
               type="number"
               id="mall-uppgift-dagar"

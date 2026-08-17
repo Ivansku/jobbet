@@ -66,7 +66,10 @@ export async function skapaProjekt(input: {
   if (!projekt) return null
 
   // Instansierar mallens uppgiftsmallar som riktiga uppgifter kopplade till
-  // det nya projektet — deadline räknas ut från projektets startdatum.
+  // det nya projektet. Första uppgiftens "dagar efter start" räknas från
+  // projektets startdatum — varje efterföljande uppgifts "dagar efter
+  // föregående" räknas kedjat från den uppgiften innan (inte alltid från
+  // startdatum), så datumet ackumuleras genom hela listan i tur och ordning.
   const { data: mallUppgifter } = await supabase
     .from('mall_uppgift')
     .select(
@@ -76,8 +79,11 @@ export async function skapaProjekt(input: {
     .order('sortordning')
 
   if (mallUppgifter && mallUppgifter.length > 0) {
-    await supabase.from('uppgift').insert(
-      mallUppgifter.map((m) => ({
+    let foregaendeDatum = input.startdatum
+    const nyaUppgifter = mallUppgifter.map((m) => {
+      const deadline = leggTillDagar(foregaendeDatum, m.dagar_efter_start)
+      foregaendeDatum = deadline
+      return {
         foretag_id: foretagId,
         projekt_id: projekt.id,
         kund_id: input.kundId || null,
@@ -88,10 +94,11 @@ export async function skapaProjekt(input: {
         prioritet: m.prioritet,
         person_id: m.person_id,
         tidsatgang_timmar: m.tidsatgang_timmar,
-        deadline: leggTillDagar(input.startdatum, m.dagar_efter_start),
+        deadline,
         status: m.status,
-      }))
-    )
+      }
+    })
+    await supabase.from('uppgift').insert(nyaUppgifter)
   }
 
   revalidatePath('/projekt')
