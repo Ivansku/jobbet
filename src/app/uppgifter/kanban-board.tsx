@@ -53,6 +53,9 @@ type Typ = {
   skapa_uppgifter_vid_klar: boolean
 }
 type Projekt = { id: string; namn: string }
+// Den riktiga projekt-containern (kund/status/beskrivning) — skild från "Projekt"-typen
+// ovan, som egentligen är uppgiftsprojekt-taggen (visas numera som "Kategori" i formuläret).
+type ProjektContainer = { id: string; namn: string; kund_id: string | null }
 type Anteckningsblock = { id: string; namn: string; genererar_uppgift: boolean }
 type UppgiftAnteckning = {
   block_id: string
@@ -71,6 +74,7 @@ type Uppgift = {
   kund_id: string | null
   typ_id: string | null
   uppgiftsprojekt_id: string | null
+  projekt_id: string | null
   serie_id: string | null
   sortordning: number
   tidsatgang_timmar: number | null
@@ -167,6 +171,7 @@ export function KanbanBoard({
   kunder,
   typer,
   projekt,
+  projektContainer,
   serier,
   kontaktpersoner,
   block,
@@ -185,6 +190,7 @@ export function KanbanBoard({
   kunder: Kund[]
   typer: Typ[]
   projekt: Projekt[]
+  projektContainer: ProjektContainer[]
   serier: Serie[]
   kontaktpersoner: Kontaktperson[]
   block: Anteckningsblock[]
@@ -268,6 +274,7 @@ export function KanbanBoard({
               kund_id: (rad.kund_id as string | null) ?? null,
               typ_id: (rad.typ_id as string | null) ?? null,
               uppgiftsprojekt_id: (rad.uppgiftsprojekt_id as string | null) ?? null,
+              projekt_id: (rad.projekt_id as string | null) ?? null,
               serie_id: (rad.serie_id as string | null) ?? null,
               sortordning: rad.sortordning as number,
               tidsatgang_timmar: (rad.tidsatgang_timmar as number | null) ?? null,
@@ -312,6 +319,7 @@ export function KanbanBoard({
   const kundMap = new Map(kunder.map((k) => [k.id, k.namn]))
   const typMap = new Map(typer.map((t) => [t.id, t.namn]))
   const projektMap = new Map(projekt.map((p) => [p.id, p.namn]))
+  const projektContainerMap = new Map(projektContainer.map((p) => [p.id, p.namn]))
   const weekDateSet = new Set(weekDates)
 
   // Vilken kolumn en uppgift hör hemma i just nu — samma regel som filtreringen
@@ -462,6 +470,7 @@ export function KanbanBoard({
               kundMap={kundMap}
               typMap={typMap}
               projektMap={projektMap}
+              projektContainerMap={projektContainerMap}
               currentPersonId={currentPersonId}
               kapacitetPerDag={arbetstimmarPerVecka / ARBETSDAGAR_PER_VECKA}
               onSelect={setRedigerar}
@@ -486,6 +495,7 @@ export function KanbanBoard({
               kundMap={kundMap}
               typMap={typMap}
               projektMap={projektMap}
+              projektContainerMap={projektContainerMap}
             />
           </div>
         ) : null}
@@ -498,6 +508,7 @@ export function KanbanBoard({
           kunder={kunder}
           typer={typer}
           projekt={projekt}
+          projektContainer={projektContainer}
           serier={serier}
           kontaktpersoner={kontaktpersoner}
           block={block}
@@ -531,6 +542,7 @@ function KanbanColumn({
   kundMap,
   typMap,
   projektMap,
+  projektContainerMap,
   currentPersonId,
   kapacitetPerDag,
   onSelect,
@@ -545,6 +557,7 @@ function KanbanColumn({
   kundMap: Map<string, string>
   typMap: Map<string, string>
   projektMap: Map<string, string>
+  projektContainerMap: Map<string, string>
   currentPersonId: string | null
   kapacitetPerDag: number
   onSelect: (u: Uppgift) => void
@@ -626,6 +639,7 @@ function KanbanColumn({
                 kundMap={kundMap}
                 typMap={typMap}
                 projektMap={projektMap}
+                projektContainerMap={projektContainerMap}
                 onSelect={onSelect}
                 onToggleStatus={onToggleStatus}
               />
@@ -652,6 +666,7 @@ function KanbanCard({
   kundMap,
   typMap,
   projektMap,
+  projektContainerMap,
   onSelect,
   onToggleStatus,
 }: {
@@ -661,6 +676,7 @@ function KanbanCard({
   kundMap: Map<string, string>
   typMap: Map<string, string>
   projektMap: Map<string, string>
+  projektContainerMap: Map<string, string>
   onSelect: (u: Uppgift) => void
   onToggleStatus: (u: Uppgift) => void
 }) {
@@ -697,6 +713,7 @@ function KanbanCard({
         kundMap={kundMap}
         typMap={typMap}
         projektMap={projektMap}
+        projektContainerMap={projektContainerMap}
         onToggleStatus={onToggleStatus}
       />
     </div>
@@ -710,6 +727,7 @@ function KortInnehall({
   kundMap,
   typMap,
   projektMap,
+  projektContainerMap,
   onToggleStatus,
 }: {
   uppgift: Uppgift
@@ -718,6 +736,7 @@ function KortInnehall({
   kundMap: Map<string, string>
   typMap: Map<string, string>
   projektMap: Map<string, string>
+  projektContainerMap: Map<string, string>
   onToggleStatus?: (u: Uppgift) => void
 }) {
   const klar = u.status === 'klar'
@@ -725,11 +744,12 @@ function KortInnehall({
   const forsenad = !!u.deadline && u.deadline < today && u.status !== 'klar'
   const ansvarigNamn = u.person_id ? personMap.get(u.person_id) : undefined
 
-  // Kompakt "brödsmula" (Kund · Projekt · Typ) istället för en badge per fält —
+  // Kompakt "brödsmula" (Kund · Projekt · Kategori · Typ) istället för en badge per fält —
   // ger samma överblick som den gamla "Kunden: Projekt: Typ - text"-konventionen,
   // men som kontext ovanför titeln snarare än utspritt i badges.
   const kontext = [
     u.kund_id && kundMap.get(u.kund_id),
+    u.projekt_id && projektContainerMap.get(u.projekt_id),
     u.uppgiftsprojekt_id && projektMap.get(u.uppgiftsprojekt_id),
     u.typ_id && typMap.get(u.typ_id),
   ].filter((v): v is string => Boolean(v))
@@ -909,6 +929,7 @@ function UppgiftFormular({
   kunder,
   typer,
   projekt,
+  projektContainer,
   serier,
   kontaktpersoner,
   block,
@@ -922,6 +943,7 @@ function UppgiftFormular({
   kunder: Kund[]
   typer: Typ[]
   projekt: Projekt[]
+  projektContainer: ProjektContainer[]
   serier: Serie[]
   kontaktpersoner: Kontaktperson[]
   block: Anteckningsblock[]
@@ -939,6 +961,7 @@ function UppgiftFormular({
     existing?.uppgift_deltagare.map((d) => d.kontaktperson_id) ?? []
   )
   const [uppgiftsprojektId, setUppgiftsprojektId] = useState(existing?.uppgiftsprojekt_id ?? '')
+  const [projektId, setProjektId] = useState(existing?.projekt_id ?? '')
   const [prioritet, setPrioritet] = useState(existing?.prioritet ?? 'lag')
   const [deadline, setDeadline] = useState(existing?.deadline ?? initialDeadline ?? '')
   const [status, setStatus] = useState(existing?.status ?? 'oppen')
@@ -985,6 +1008,7 @@ function UppgiftFormular({
         kundId,
         typId,
         uppgiftsprojektId,
+        projektId,
         prioritet,
         deadline: deadline || null,
         status,
@@ -1016,6 +1040,7 @@ function UppgiftFormular({
         kundId,
         typId,
         uppgiftsprojektId,
+        projektId,
         prioritet,
         deadline: deadline || null,
         status,
@@ -1113,13 +1138,13 @@ function UppgiftFormular({
               </Select>
             </Field>
 
-            <Field label="Projekt" htmlFor="uppgift-projekt">
+            <Field label="Kategori" htmlFor="uppgift-kategori">
               <Select
-                id="uppgift-projekt"
+                id="uppgift-kategori"
                 value={uppgiftsprojektId ?? ''}
                 onChange={(e) => setUppgiftsprojektId(e.target.value)}
               >
-                <option value="">Inget</option>
+                <option value="">Ingen</option>
                 {projekt.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.namn}
@@ -1132,6 +1157,21 @@ function UppgiftFormular({
           <Field label="Kund" htmlFor="uppgift-kund">
             <KundValjare id="uppgift-kund" kunder={kunder} value={kundId ?? ''} onChange={setKundId} />
           </Field>
+
+          {!aterkommande && (
+            <Field label="Projekt" htmlFor="uppgift-projekt">
+              <Select id="uppgift-projekt" value={projektId ?? ''} onChange={(e) => setProjektId(e.target.value)}>
+                <option value="">Inget</option>
+                {projektContainer
+                  .filter((p) => !kundId || !p.kund_id || p.kund_id === kundId)
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.namn}
+                    </option>
+                  ))}
+              </Select>
+            </Field>
+          )}
 
           {!aterkommande &&
             kundId &&

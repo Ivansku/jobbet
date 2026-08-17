@@ -61,6 +61,7 @@ export async function skapaUppgift(input: {
   kundId: string
   typId: string
   uppgiftsprojektId: string
+  projektId: string
   prioritet: string
   deadline: string | null
   status: string
@@ -83,6 +84,7 @@ export async function skapaUppgift(input: {
       kund_id: input.kundId || null,
       typ_id: input.typId || null,
       uppgiftsprojekt_id: input.uppgiftsprojektId || null,
+      projekt_id: input.projektId || null,
       prioritet: input.prioritet,
       deadline: input.deadline,
       status: input.status,
@@ -305,6 +307,7 @@ export async function uppdateraUppgift(
     kundId: string
     typId: string
     uppgiftsprojektId: string
+    projektId: string
     prioritet: string
     deadline: string | null
     status: string
@@ -327,6 +330,7 @@ export async function uppdateraUppgift(
       kund_id: input.kundId || null,
       typ_id: input.typId || null,
       uppgiftsprojekt_id: input.uppgiftsprojektId || null,
+      projekt_id: input.projektId || null,
       prioritet: input.prioritet,
       deadline: input.deadline,
       status: input.status,

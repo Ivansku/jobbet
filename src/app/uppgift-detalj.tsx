@@ -43,6 +43,7 @@ export function UppgiftDetalj({
       kundId: uppgift.kund_id ?? '',
       typId: uppgift.typ_id ?? '',
       uppgiftsprojektId: uppgift.uppgiftsprojekt_id ?? '',
+      projektId: uppgift.projekt_id ?? '',
       prioritet: uppgift.prioritet,
       deadline: uppgift.deadline,
       status: uppgift.status,
