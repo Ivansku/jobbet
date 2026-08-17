@@ -7,6 +7,7 @@ import { SignOutButton } from './sign-out-button'
 const LANKAR = [
   { href: '/', label: 'Hem' },
   { href: '/uppgifter', label: 'Uppgifter' },
+  { href: '/projekt', label: 'Projekt' },
   { href: '/kunder', label: 'Kunder' },
   { href: '/rapporter', label: 'Rapporter' },
   { href: '/systemadministration', label: 'Systemadministration' },

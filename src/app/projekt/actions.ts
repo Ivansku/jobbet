@@ -5,24 +5,6 @@ import { createClient } from '@/lib/supabase/server'
 import { currentForetagId } from '@/lib/foretag'
 import { enTillRelation } from '@/lib/postgrest'
 
-export async function hamtaProjektForKund(kundId: string) {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('projekt')
-    .select('id, namn, status, beskrivning, uppgift(id, status)')
-    .eq('kund_id', kundId)
-    .order('namn')
-
-  return (data ?? []).map((p) => ({
-    id: p.id,
-    namn: p.namn,
-    status: p.status,
-    beskrivning: p.beskrivning,
-    antalUppgifter: p.uppgift.length,
-    antalKlara: p.uppgift.filter((u) => u.status === 'klar').length,
-  }))
-}
-
 export async function hamtaUppgifterForProjekt(projektId: string) {
   const supabase = await createClient()
   const { data } = await supabase
@@ -65,14 +47,14 @@ export async function skapaProjekt(input: {
     .select('id, namn')
     .single()
 
-  revalidatePath('/kunder')
+  revalidatePath('/projekt')
   revalidatePath('/uppgifter')
   return projekt
 }
 
 export async function uppdateraProjekt(
   id: string,
-  input: { namn: string; status: string; beskrivning: string }
+  input: { namn: string; status: string; beskrivning: string; kundId: string }
 ) {
   const namnTrimmat = input.namn.trim()
   if (!namnTrimmat) return
@@ -80,10 +62,15 @@ export async function uppdateraProjekt(
   const supabase = await createClient()
   await supabase
     .from('projekt')
-    .update({ namn: namnTrimmat, status: input.status, beskrivning: input.beskrivning || null })
+    .update({
+      namn: namnTrimmat,
+      status: input.status,
+      beskrivning: input.beskrivning || null,
+      kund_id: input.kundId || null,
+    })
     .eq('id', id)
 
-  revalidatePath('/kunder')
+  revalidatePath('/projekt')
   revalidatePath('/uppgifter')
 }
 
@@ -92,7 +79,7 @@ export async function uppdateraProjekt(
 export async function taBortProjekt(id: string) {
   const supabase = await createClient()
   await supabase.from('projekt').delete().eq('id', id)
-  revalidatePath('/kunder')
+  revalidatePath('/projekt')
   revalidatePath('/uppgifter')
 }
 
@@ -101,6 +88,6 @@ export async function taBortProjektMedUppgifter(id: string) {
   const supabase = await createClient()
   await supabase.from('uppgift').delete().eq('projekt_id', id)
   await supabase.from('projekt').delete().eq('id', id)
-  revalidatePath('/kunder')
+  revalidatePath('/projekt')
   revalidatePath('/uppgifter')
 }

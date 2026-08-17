@@ -2,26 +2,30 @@
 
 import { useEffect, useState } from 'react'
 import {
-  hamtaProjektForKund,
   hamtaUppgifterForProjekt,
   skapaProjekt,
   uppdateraProjekt,
   taBortProjekt,
   taBortProjektMedUppgifter,
-} from './projekt-actions'
+} from './actions'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Field } from '@/components/ui/field'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { EmptyState } from '@/components/ui/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { DeleteIconButton } from '@/components/ui/delete-icon-button'
+import { KundValjare } from '../uppgifter/kund-valjare'
 
+type Kund = { id: string; namn: string }
 type Projekt = {
   id: string
   namn: string
   status: string
   beskrivning: string | null
+  kundId: string | null
+  kundNamn: string | null
   antalUppgifter: number
   antalKlara: number
 }
@@ -41,51 +45,37 @@ const STATUS_TONE: Record<string, 'success' | 'warning' | 'neutral'> = {
   avslutat: 'neutral',
 }
 
-export function KundProjektSektion({ kundId }: { kundId: string }) {
-  const [projekt, setProjekt] = useState<Projekt[] | null>(null)
+export function ProjektVy({ projekt, kunder }: { projekt: Projekt[]; kunder: Kund[] }) {
   const [redigerar, setRedigerar] = useState<Projekt | 'ny' | null>(null)
 
-  async function laddaOm() {
-    const rader = await hamtaProjektForKund(kundId)
-    setProjekt(rader)
-  }
-
-  useEffect(() => {
-    let aktiv = true
-    hamtaProjektForKund(kundId).then((rader) => {
-      if (aktiv) setProjekt(rader)
-    })
-    return () => {
-      aktiv = false
-    }
-  }, [kundId])
-
   return (
-    <div className="border-t border-border-subtle pt-4">
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-stone-500">Projekt</h3>
-        <Button type="button" variant="secondary" size="sm" onClick={() => setRedigerar('ny')}>
+    <>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">Projekt</h1>
+        <Button variant="primary" onClick={() => setRedigerar('ny')}>
           Nytt projekt
         </Button>
       </div>
 
-      {!projekt || projekt.length === 0 ? (
-        <p className="text-xs text-stone-400">Inga projekt ännu.</p>
+      {projekt.length === 0 ? (
+        <EmptyState title="Inga projekt ännu" description="Lägg till ditt första projekt för att komma igång." />
       ) : (
-        <ul className="divide-y divide-border-subtle overflow-hidden rounded-lg border border-border-subtle">
+        <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle bg-surface">
           {projekt.map((p) => (
             <li key={p.id}>
               <button
-                type="button"
                 onClick={() => setRedigerar(p)}
-                className="flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-stone-50 dark:hover:bg-stone-800"
+                className="flex w-full items-center justify-between px-4 py-3 text-left text-sm transition-colors hover:bg-stone-50 dark:hover:bg-stone-800"
               >
                 <span className="flex min-w-0 items-center gap-2">
-                  <span className="truncate">{p.namn}</span>
+                  <span className="truncate font-medium">{p.namn}</span>
                   <Badge tone={STATUS_TONE[p.status] ?? 'neutral'}>{STATUS_LABEL[p.status] ?? p.status}</Badge>
                 </span>
-                <span className="shrink-0 text-xs text-stone-400">
-                  {p.antalKlara} av {p.antalUppgifter} klara
+                <span className="flex shrink-0 items-center gap-3 text-xs text-stone-400">
+                  <span>{p.kundNamn ?? 'Internt'}</span>
+                  <span>
+                    {p.antalKlara} av {p.antalUppgifter} klara
+                  </span>
                 </span>
               </button>
             </li>
@@ -94,29 +84,23 @@ export function KundProjektSektion({ kundId }: { kundId: string }) {
       )}
 
       {redigerar && (
-        <ProjektFormular
-          kundId={kundId}
-          existing={redigerar === 'ny' ? null : redigerar}
-          onClose={() => setRedigerar(null)}
-          onChanged={laddaOm}
-        />
+        <ProjektFormular kunder={kunder} existing={redigerar === 'ny' ? null : redigerar} onClose={() => setRedigerar(null)} />
       )}
-    </div>
+    </>
   )
 }
 
 function ProjektFormular({
-  kundId,
+  kunder,
   existing,
   onClose,
-  onChanged,
 }: {
-  kundId: string
+  kunder: Kund[]
   existing: Projekt | null
   onClose: () => void
-  onChanged: () => void
 }) {
   const [namn, setNamn] = useState(existing?.namn ?? '')
+  const [kundId, setKundId] = useState(existing?.kundId ?? '')
   const [status, setStatus] = useState(existing?.status ?? 'aktivt')
   const [beskrivning, setBeskrivning] = useState(existing?.beskrivning ?? '')
   const [uppgifter, setUppgifter] = useState<ProjektUppgift[] | null>(null)
@@ -141,13 +125,12 @@ function ProjektFormular({
     setSparar(true)
 
     if (existing) {
-      await uppdateraProjekt(existing.id, { namn, status, beskrivning })
+      await uppdateraProjekt(existing.id, { namn, status, beskrivning, kundId })
     } else {
       await skapaProjekt({ kundId, namn, status, beskrivning })
     }
 
     setSparar(false)
-    onChanged()
     onClose()
   }
 
@@ -160,7 +143,6 @@ function ProjektFormular({
       await taBortProjekt(existing.id)
     }
     setTarBort(false)
-    onChanged()
     onClose()
   }
 
@@ -168,7 +150,11 @@ function ProjektFormular({
     const medUppgifter = bekraftaTaBort === 'medUppgifter'
     return (
       <ConfirmDialog
-        title={medUppgifter ? `Ta bort projektet "${existing.namn}" och alla dess uppgifter?` : `Ta bort projektet "${existing.namn}"?`}
+        title={
+          medUppgifter
+            ? `Ta bort projektet "${existing.namn}" och alla dess uppgifter?`
+            : `Ta bort projektet "${existing.namn}"?`
+        }
         description={
           medUppgifter
             ? `Detta raderar även alla ${existing.antalUppgifter} uppgifter som hör till projektet. Går inte att ångra.`
@@ -199,6 +185,10 @@ function ProjektFormular({
 
         <Field label="Namn" htmlFor="projekt-namn">
           <Input id="projekt-namn" value={namn} onChange={(e) => setNamn(e.target.value)} required autoFocus />
+        </Field>
+
+        <Field label="Kund" htmlFor="projekt-kund">
+          <KundValjare id="projekt-kund" kunder={kunder} value={kundId} onChange={setKundId} />
         </Field>
 
         <Field label="Status" htmlFor="projekt-status">
