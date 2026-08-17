@@ -5,11 +5,11 @@ import { nuIStockholm, plusDagar, aktivtFlode } from '@/lib/dagsflode'
 
 const UPPGIFT_FALT = 'id, titel, status, deadline, klockslag, kund_id, outlook_event_id'
 
-// Dagens uppgifter är de enda som går att öppna i redigeringsformuläret från
-// Idag-sidan, så bara den listan behöver hela fältuppsättningen som
-// uppdateraUppgift (delad med Kanban-vyn) kräver för att kunna skriva tillbaka
-// oförändrade värden på allt utom det som faktiskt redigeras här.
-const DAGENS_UPPGIFT_FALT = `${UPPGIFT_FALT}, beskrivning, person_id, uppgiftsprojekt_id, prioritet, tidsatgang_timmar, typ_id, skapa_uppgifter_vid_klar, uppgift_deltagare(kontaktperson_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(block_id, innehall, uppgift_id_genererad, genererad:uppgift!uppgift_anteckning_uppgift_id_genererad_fkey(titel, deadline))`
+// Alla tre uppgiftslistorna på Hem-sidan (dagens, eftersläpning, imorgon) går att
+// öppna i redigeringsformuläret direkt från raden, så alla hämtas med hela
+// fältuppsättningen uppdateraUppgift (delad med Kanban-vyn) kräver för att kunna
+// skriva tillbaka oförändrade värden på allt utom det som faktiskt redigeras här.
+const UPPGIFT_DETALJERAD_FALT = `${UPPGIFT_FALT}, beskrivning, person_id, uppgiftsprojekt_id, prioritet, tidsatgang_timmar, typ_id, skapa_uppgifter_vid_klar, uppgift_deltagare(kontaktperson_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(block_id, innehall, uppgift_id_genererad, genererad:uppgift!uppgift_anteckning_uppgift_id_genererad_fkey(titel, deadline))`
 
 export default async function Home() {
   const supabase = await createClient()
@@ -51,20 +51,20 @@ export default async function Home() {
   ] = await Promise.all([
     supabase
       .from('uppgift')
-      .select(DAGENS_UPPGIFT_FALT)
+      .select(UPPGIFT_DETALJERAD_FALT)
       .eq('person_id', person.id)
       .eq('deadline', idag)
       .order('sortordning'),
     supabase
       .from('uppgift')
-      .select(UPPGIFT_FALT)
+      .select(UPPGIFT_DETALJERAD_FALT)
       .eq('person_id', person.id)
       .lt('deadline', idag)
       .neq('status', 'klar')
       .order('deadline'),
     supabase
       .from('uppgift')
-      .select(UPPGIFT_FALT)
+      .select(UPPGIFT_DETALJERAD_FALT)
       .eq('person_id', person.id)
       .eq('deadline', imorgon)
       .order('sortordning'),

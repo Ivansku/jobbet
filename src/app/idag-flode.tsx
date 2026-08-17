@@ -21,8 +21,9 @@ export type Uppgift = {
   outlook_event_id: string | null
 }
 // Rikare variant med allt uppdateraUppgift/MotesanteckningarSektion behöver —
-// bara dagensUppgifter hämtas med de här extra fälten, eftersom det är enda
-// listan som går att öppna i redigeringsformuläret från Idag-sidan.
+// dagensUppgifter, eftersläpning och imorgonUppgifter hämtas alla med de här
+// extra fälten, eftersom alla tre listornas rader går att öppna i
+// redigeringsformuläret från Hem-sidan.
 export type UppgiftDetaljerad = Uppgift & {
   beskrivning: string | null
   person_id: string | null
@@ -86,8 +87,8 @@ export function IdagFlode({
   idag: string
   imorgon: string
   dagensUppgifter: UppgiftDetaljerad[]
-  eftersläpning: Uppgift[]
-  imorgonUppgifter: Uppgift[]
+  eftersläpning: UppgiftDetaljerad[]
+  imorgonUppgifter: UppgiftDetaljerad[]
   fokusUppgiftIds: string[]
   aktivaFlexelModuler: string[]
   dagsavslut: Dagsavslut | null
@@ -183,7 +184,7 @@ export function IdagFlode({
             {flode === 'kvall' && <FlexelSteg idag={idag} aktivaFlexelModuler={aktivaFlexelModuler} />}
 
             {flode === 'kvall' && (
-              <ImorgonVantarSteg imorgonUppgifter={imorgonUppgifter} kunder={kunder} />
+              <ImorgonVantarSteg imorgonUppgifter={imorgonUppgifter} kunder={kunder} onOpenDetalj={setRedigerar} />
             )}
           </div>
         </div>
@@ -202,7 +203,16 @@ export function IdagFlode({
                   {eftersläpning.map((u) => (
                     <li
                       key={u.id}
-                      className="flex items-center gap-2 rounded-xl border border-border-subtle px-3 py-2 text-sm"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setRedigerar(u)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          setRedigerar(u)
+                        }
+                      }}
+                      className="flex cursor-pointer items-center gap-2 rounded-xl border border-border-subtle px-3 py-2 text-sm hover:bg-stone-50 dark:hover:bg-stone-800"
                     >
                       <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
                       <span className="min-w-0 flex-1 truncate">{u.titel}</span>

@@ -1,11 +1,18 @@
 import { EmptyState } from '@/components/ui/empty-state'
-import type { Uppgift, Kund } from './idag-flode'
+import type { UppgiftDetaljerad, Kund } from './idag-flode'
 
-// Samma dot-och-linje-visuella språk som IdagTimeline, men skrivskyddad —
-// ingen checkbox, ingen klick-till-redigera, ingen fokus-kant. Imorgondagens
-// uppgifter hämtas med det magra fältsettet (inte UppgiftDetaljerad), så det
-// finns inget att öppna ett redigeringsformulär mot ändå.
-export function ImorgonTidslinje({ uppgifter, kunder }: { uppgifter: Uppgift[]; kunder: Kund[] }) {
+// Samma dot-och-linje-visuella språk som IdagTimeline, men utan checkbox och
+// fokus-kant. Imorgondagens uppgifter hämtas med hela fältuppsättningen
+// (samma som Dagens tidslinje), så klick öppnar formuläret direkt.
+export function ImorgonTidslinje({
+  uppgifter,
+  kunder,
+  onOpenDetalj,
+}: {
+  uppgifter: UppgiftDetaljerad[]
+  kunder: Kund[]
+  onOpenDetalj: (u: UppgiftDetaljerad) => void
+}) {
   const kundMap = new Map(kunder.map((k) => [k.id, k.namn]))
 
   if (uppgifter.length === 0) {
@@ -28,7 +35,18 @@ export function ImorgonTidslinje({ uppgifter, kunder }: { uppgifter: Uppgift[]; 
               <span className={`w-px flex-1 ${i === uppgifter.length - 1 ? 'bg-transparent' : 'bg-border-subtle'}`} />
             </div>
             <div className="pb-2">
-              <div className="flex items-center gap-2.5 rounded-xl border border-border-subtle px-3.5 py-2.5 text-sm">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => onOpenDetalj(u)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onOpenDetalj(u)
+                  }
+                }}
+                className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-border-subtle px-3.5 py-2.5 text-sm hover:bg-stone-50 dark:hover:bg-stone-800"
+              >
                 <span className="min-w-0 flex-1 truncate">{u.titel}</span>
                 {meta && <span className="shrink-0 text-xs text-stone-400">{meta}</span>}
               </div>

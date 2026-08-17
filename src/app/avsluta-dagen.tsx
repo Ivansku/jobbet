@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Textarea, Select } from '@/components/ui/input'
 import { Eyebrow } from '@/components/ui/eyebrow'
 import { ImorgonTidslinje } from './imorgon-tidslinje'
-import type { Uppgift, Kund, Tanke } from './idag-flode'
+import type { UppgiftDetaljerad, Kund, Tanke } from './idag-flode'
 
 const MODUL_LABEL: Record<string, string> = {
   flex: 'Flex',
@@ -19,12 +19,20 @@ const MODUL_LABEL: Record<string, string> = {
 // Inget eget panel-omslag här längre — renderas som en fortsättning inuti
 // samma block som tidslinjen/Flexel (idag-flode.tsx äger panelen och den
 // vanliga mt-6-rytmen mellan sektioner).
-export function ImorgonVantarSteg({ imorgonUppgifter, kunder }: { imorgonUppgifter: Uppgift[]; kunder: Kund[] }) {
+export function ImorgonVantarSteg({
+  imorgonUppgifter,
+  kunder,
+  onOpenDetalj,
+}: {
+  imorgonUppgifter: UppgiftDetaljerad[]
+  kunder: Kund[]
+  onOpenDetalj: (u: UppgiftDetaljerad) => void
+}) {
   return (
     <div>
       <Eyebrow>Imorgon väntar</Eyebrow>
       <div className="mt-3">
-        <ImorgonTidslinje uppgifter={imorgonUppgifter} kunder={kunder} />
+        <ImorgonTidslinje uppgifter={imorgonUppgifter} kunder={kunder} onOpenDetalj={onOpenDetalj} />
       </div>
     </div>
   )
