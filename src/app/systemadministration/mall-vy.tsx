@@ -12,12 +12,13 @@ import {
   flyttaMallUppgift,
 } from './mall-actions'
 import { Button } from '@/components/ui/button'
-import { Input, Select, Textarea } from '@/components/ui/input'
+import { Input, Select } from '@/components/ui/input'
 import { Field } from '@/components/ui/field'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { DeleteIconButton } from '@/components/ui/delete-icon-button'
+import { MarkdownEditor } from '@/components/ui/markdown-editor'
 
 type Typ = { id: string; namn: string }
 type Kategori = { id: string; namn: string }
@@ -377,12 +378,7 @@ function MallUppgiftFormular({
         </Field>
 
         <Field label="Beskrivning" htmlFor="mall-uppgift-beskrivning">
-          <Textarea
-            id="mall-uppgift-beskrivning"
-            value={beskrivning ?? ''}
-            onChange={(e) => setBeskrivning(e.target.value)}
-            rows={2}
-          />
+          <MarkdownEditor id="mall-uppgift-beskrivning" value={beskrivning ?? ''} onChange={setBeskrivning} />
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
