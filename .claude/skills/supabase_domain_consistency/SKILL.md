@@ -1,14 +1,14 @@
 # Supabase Domain Consistency Skill
 
-Use this skill before modifying database schema, adding columns, changing relationships, or adding activity/points/ownership logic in the Hemma project.
+Use this skill before modifying database schema, adding columns, changing relationships, or adding ownership/scoping logic in the jobbet project.
 
 ---
 
 ## 1. Purpose
 
-Prevent and repair inconsistent database relationships, scattered ownership logic, weak references, and incorrect source-of-truth choices in the Hemma household app.
+Prevent and repair inconsistent database relationships, scattered ownership logic, weak references, and incorrect source-of-truth choices in the jobbet work-management app.
 
-This project has evolved organically. Several patterns were added incrementally rather than as a coherent model. This skill enforces the canonical model derived from the actual codebase and database as of its current state.
+This skill enforces the canonical model derived from the actual codebase and live database as of its current state (verified against Supabase project `jobbet`, ref `yqtrccftdutraolnfdat`).
 
 ---
 
@@ -16,15 +16,14 @@ This project has evolved organically. Several patterns were added incrementally 
 
 Use this skill when:
 
-- Adding a new column that tracks who did something (creator, completer, assignee)
-- Adding a new table that represents an action, event, or log entry
-- Changing how activity is surfaced in the activity feed
-- Changing how points are awarded or recorded
-- Adding a new entity that can be completed, assigned, or created by a member
+- Adding a new column that tracks who did something (creator, assignee, owner)
+- Adding a new table that represents a task, project, note, or scoped resource
+- Adding a new entity that belongs to a `foretag` (company/tenant)
 - Questioning whether a relationship needs a foreign key
 - Adding a column that appears to reference another table
 - Auditing an existing table for domain consistency
 - Noticing that app code compensates for a missing database relationship
+- Adding a new value to an enum-like `text` column (status, prioritet, roll, typ, modul)
 
 ---
 
@@ -34,87 +33,77 @@ Use this skill when:
 
 | Table | Purpose | Notes |
 |---|---|---|
-| `households` | Root entity. All data belongs to one household. | Every other table has `household_id NOT NULL`. |
-| `household_members` | Application-level actor. A person profile within a household. | May or may not have a linked `user_id` (Supabase Auth). `is_profile_only=true` means no login. |
-| `tasks` | One-off work items. Completable. | `created_by`, `completed_by`, `assigned_to`, `assigned_members`. |
-| `routines` | Recurring task templates with optional sub-steps. | `created_by`, `assigned_to`, `assigned_members`. Completion tracked differently — see §7. |
-| `routine_items` | Sub-steps within a routine. Completable. | `completed_by`, `completed_at`. No `created_by` (implicitly the routine editor). |
-| `budget_entries` | Budget line items (income, fixed, variable, savings, one-time). Completable. | `created_by`, `completed_by`, `assigned_to`. |
-| `budget_transactions` | Actual spend logged against a budget entry. | `member_ids[]` for tagging. No `created_by` FK. |
-| `budget_history` | Immutable audit log with JSONB snapshot of entry state. | FK to `budget_entries` is SET NULL on cascade delete; snapshot preserves data. |
-| `categories` | User-defined tags scoped to a household. Typed by usage area. | |
-| `point_events` | Scoring ledger only. Points awarded per member per action. | NOT an activity log. 5 optional entity FK columns. |
-| `member_achievements` | Badges earned by members. | `triggered_by_id/type` is a polymorphic soft reference. |
-| `achievements` | Global badge definitions. `key` is the canonical identifier. | |
-| `invites` | Household join links. Time-limited, single-use. | `created_by` → household_members. `used_by` → auth.users (soft ref). |
-| `push_subscriptions` | Web push tokens. Scoped by `user_id`, not member. | |
+| `foretag` | Root tenant entity. All company data belongs to one `foretag`. | Every scoped table has `foretag_id`. |
+| `person` | Application-level actor within a `foretag`. | Linked to Supabase Auth via `auth_user_id` (nullable — unlinked/profile rows are possible). `roll`: `admin` \| `medlem` \| `NULL`. `foretag_id` is **nullable** on this table only (see §5). |
+| `kund` | Customer, scoped to a `foretag`. | |
+| `kontaktperson` | Contact person at a `kund`. | `fornamn`/`efternamn`/`epost` nullable. |
+| `projekt` | Project. May belong to a `kund`. | `status` CHECK-constrained: `planerat`, `aktivt`, `pausat`, `avslutat`. Can originate from a `mall_projekt` template via `mall_projekt_id`. |
+| `projekt_medlem` | Junction: person ↔ projekt membership. | PK `(projekt_id, person_id)`. `roll`: `agare` \| `redigerare` \| `lasare`. |
+| `uppgift` | Task. Core work item. | `status`: `oppen`/`pagar`/`vantar`/`klar`. `prioritet`: `lag`/`medel`/`hog`. Optional `projekt_id`, `person_id` (assignee), `kund_id`, `typ_id`, `serie_id`, `kategori_id`, `anteckningsmall_id`. `ar_placeholder` marks template-derived rows not yet scheduled. Outlook sync fields (`outlook_event_id`, `obligatoriska_deltagare`, `valfria_deltagare`). Self-referencing `genererad_fran_uppgift_id`. |
+| `uppgiftstyp` | Task type, scoped to `foretag`. | Drives `skapa_uppgifter_vid_klar` (auto-generate follow-up tasks) and `visar_mailinnehall`. May carry a default `anteckningsmall_id`. |
+| `uppgift_serie` | Recurring task series/template. | `veckodagar` (int2[] restricted to 1-5), `intervall_veckor`, generates `uppgift` rows over time; `senast_genererad_datum` tracks generation cursor. |
+| `kategori` | Free-form tag, scoped to `foretag`. | |
+| `uppgift_deltagare` | Junction: uppgift ↔ kontaktperson. | PK `(uppgift_id, kontaktperson_id)`. `typ`: `obligatorisk` \| `valfri`. |
+| `kund_anteckning` | Customer note. | Markdown `innehall`. |
+| `kund_anteckning_deltagare` | Junction: kund_anteckning ↔ kontaktperson. | PK `(kund_anteckning_id, kontaktperson_id)`. |
+| `anteckningsmall` | Note template — groups `anteckningsblock`. | |
+| `anteckningsblock` | A block within a note template. | Can auto-generate a follow-up `uppgift` (`genererar_uppgift`, `uppgift_titel_mall`, `deadline_dagar_efter_motet`). |
+| `uppgift_anteckning` | An actual note instance on an `uppgift`, tied to a `block_id`. | Can itself have generated a follow-up task (`uppgift_id_genererad`). |
+| `mall_projekt` | Project template. | |
+| `mall_uppgift` | Task template within a `mall_projekt`. | Copied into real `uppgift` rows when a project is created from the template (`dagar_efter_start` offsets the deadline). |
+| `dagsfokus` | "Today's focus" pointer to one `uppgift` per person per day. | Person-scoped, not company-wide. |
+| `dagsavslut` / `dagsavslut_tanke` | End-of-day check-out and its reflection notes. | Person-scoped. `dagsavslut_tanke.uppgift_id_skapad` links a reflection to a task it spawned. |
+| `flexel_installning` / `flexel_post` / `flexel_kvotjustering` | Flex-time tracking: settings, ledger entries, quota adjustments. | `modul`: `flex`/`overtid`/`foraldraledig`(+`ledighet` on `flexel_post`). Person-scoped, admin manages settings. |
 
-### Actor hierarchy
-
-```
-auth.users              ← Supabase Auth identity (login only)
-    └── household_members   ← Application actor for ALL business logic
-            ├── is_profile_only = false  → can log in, can earn achievements
-            └── is_profile_only = true   → display-only, no login, no achievements
-```
-
-**Rule: All actions are attributed to `household_member.id`. Never attribute an action directly to `auth.users.id`.** The bridge is `household_members.user_id`.
+**Note on `projekt` / `projekt_medlem`:** an older note in this project's memory described these tables as unused. That is out of date — as of this audit both tables have live RLS policies, CHECK constraints, and an active UI (`src/app/projekt/`). Treat them as first-class, in-use tables unless you verify otherwise.
 
 ---
 
-## 4. Canonical Source of Truth Rules
+## 4. Actor Hierarchy and Multi-Tenant Scoping
 
-### 4.1 Activity source of truth
+```
+auth.users                 ← Supabase Auth identity (login only)
+    └── person                  ← Application actor, scoped by foretag_id
+            └── foretag_id → foretag   ← Tenant root; everything else scopes off this
+```
 
-Activity is tracked on entity rows, not on `point_events`.
+**Rule: every action is attributed to `person.id`, never directly to `auth.users.id`.** The bridge is `person.auth_user_id`.
 
-| Event | Source table | Timestamp column | Actor column |
-|---|---|---|---|
-| Task created | `tasks` | `created_at` | `created_by` → household_members |
-| Task completed | `tasks` | `completed_at` | `completed_by` → household_members |
-| Routine created | `routines` | `created_at` | `created_by` → household_members |
-| Routine completed | `point_events` (reason=`routine_completed`) | `created_at` | `member_id` → household_members |
-| Routine item completed | `routine_items` | `completed_at` | `completed_by` → household_members |
-| Budget entry created | `budget_entries` | `created_at` | `created_by` → household_members |
-| Budget entry completed | `budget_entries` | `completed_at` | `completed_by` → household_members |
-| Budget transaction logged | `budget_transactions` | `created_at` | `member_ids[0]` (display only) |
-| Achievement earned | `member_achievements` | `earned_at` | `member_id` → household_members |
-
-**Exception**: Routine completion uses `point_events(reason='routine_completed')` as the event source because routines recur — `is_completed` is reset per cycle and there is no per-completion actor column on the `routines` row. This is the only event type where `point_events` is the canonical activity source.
-
-**Do not query `point_events` to reconstruct activity for any other event type.**
-
-### 4.2 Points source of truth
-
-`point_events` is the scoring ledger. It records who earned points, how many, why (`reason`), and which entity triggered it. It is not an activity log. Not every activity creates a point event.
-
-### 4.3 Completion source of truth
-
-Completable entities track their own completion state with three columns that always move together:
+Three SECURITY DEFINER helper functions back every RLS policy:
 
 ```sql
-is_completed  BOOLEAN NOT NULL DEFAULT false
-completed_at  TIMESTAMPTZ NULL        -- NULL = not yet completed
-completed_by  UUID NULL REFERENCES household_members(id)
+current_foretag_id()  -- select foretag_id from person where auth_user_id = auth.uid()
+current_person_id()   -- select id from person where auth_user_id = auth.uid()
+is_admin()             -- select roll = 'admin' from person where auth_user_id = auth.uid()
 ```
 
-Never update `is_completed` without also writing `completed_at` and `completed_by` in the same operation.
+Use these — or the equivalent predicate — in every new RLS policy. Do not hand-roll a different lookup.
 
-### 4.4 Budget history source of truth
-
-`budget_history` is a JSONB snapshot log. The `budget_entry_id` FK may be NULL after the entry is deleted (ON DELETE SET NULL cascade). Use `snapshot->>'id'` to recover the original entry id for deleted entries. This is intentional — do not add NOT NULL to this column.
+**Exception to the "foretag_id NOT NULL everywhere" rule:** `person.foretag_id` is nullable. This appears intentional (a person can exist before being assigned to a company during onboarding) — verify current usage before assuming it is a bug.
 
 ---
 
-## 5. Ownership and Actor Rules
+## 5. Enum-Like Columns and CHECK Constraints
 
-1. `created_by` always references `household_members.id`, never `auth.users.id`.
-2. `completed_by` always references `household_members.id`.
-3. `assigned_to` always references `household_members.id` (FK enforced on all tables).
-4. `member_id` in `point_events` and `member_achievements` references `household_members.id` (FK enforced).
-5. Profile-only members (`is_profile_only = true`) have no `user_id`. They can be assigned tasks but cannot receive achievements. The `memberIsLinked()` guard in `lib/achievements.ts` enforces this.
-6. `user_id` columns (`household_members.user_id`, `push_subscriptions.user_id`, `invites.used_by`) reference `auth.users` — Supabase Auth identities, not application actors.
-7. Do not add a `user_id` column to any entity table to track who did something. Use `member_id`, `created_by`, or `completed_by` instead.
+These are the CHECK constraints that exist today. **Always verify the current constraint before inserting a new value, and ALTER it first if the value isn't covered** — this mirrors the root `CLAUDE.md` rule and is restated here for schema-change context.
+
+| Table.column | Allowed values |
+|---|---|
+| `uppgift.status` | `oppen`, `pagar`, `vantar`, `klar` |
+| `uppgift.prioritet` | `lag`, `medel`, `hog` |
+| `mall_uppgift.status` | `oppen`, `pagar`, `vantar`, `klar` |
+| `mall_uppgift.prioritet` | `lag`, `medel`, `hog` |
+| `uppgift_serie.prioritet` | `lag`, `medel`, `hog` |
+| `person.roll` | `NULL`, `admin`, `medlem` |
+| `projekt.status` | `planerat`, `aktivt`, `pausat`, `avslutat` |
+| `projekt_medlem.roll` | `agare`, `redigerare`, `lasare` |
+| `uppgift_deltagare.typ` | `obligatorisk`, `valfri` |
+| `flexel_installning.modul` | `flex`, `overtid`, `foraldraledig` |
+| `flexel_post.modul` | `flex`, `overtid`, `foraldraledig`, `ledighet` |
+
+Note the app-level Swedish labels shown in the UI (e.g. `STATUS_LABEL` maps) do not always match the raw DB values 1:1 (ASCII-only in the DB: `oppen`/`pagar`/`hog`/`lag` vs. `öppen`/`pågår`/`hög`/`låg` in `CLAUDE.md`/UI). When editing a CHECK constraint, add the raw ASCII value; the UI label mapping is a separate, app-side concern.
+
+After adding a new allowed value: `ALTER TABLE ... DROP CONSTRAINT ... ADD CONSTRAINT ... CHECK (...)`, then run `NOTIFY pgrst, 'reload schema'`.
 
 ---
 
@@ -124,130 +113,110 @@ Never update `is_completed` without also writing `completed_at` and `completed_b
 
 | Column pattern | Expected FK target | Nullable |
 |---|---|---|
-| `household_id` | `households(id)` | NOT NULL — all entity tables |
-| `created_by` | `household_members(id)` | Nullable |
-| `completed_by` | `household_members(id)` | Nullable |
-| `assigned_to` | `household_members(id)` | Nullable |
-| `member_id` | `household_members(id)` | NOT NULL |
-| `routine_id` | `routines(id)` | NOT NULL on routine_items |
-| `budget_entry_id` | `budget_entries(id)` | NOT NULL on transactions, nullable on history |
-| `category_id` | `categories(id)` | Nullable |
-| `achievement_key` | `achievements(key)` | NOT NULL on member_achievements |
+| `foretag_id` | `foretag(id)` | NOT NULL on every table except `person` |
+| `person_id` | `person(id)` | Usually nullable (assignee/owner); NOT NULL on person-scoped logs (`dagsfokus`, `dagsavslut`, `flexel_*`) |
+| `kund_id` | `kund(id)` | Nullable |
+| `projekt_id` | `projekt(id)` | Nullable on `uppgift`; NOT NULL on `projekt_medlem` |
+| `typ_id` | `uppgiftstyp(id)` | Nullable |
+| `serie_id` | `uppgift_serie(id)` | Nullable |
+| `kategori_id` | `kategori(id)` | Nullable |
+| `kontaktperson_id` | `kontaktperson(id)` | NOT NULL on junction tables |
+| `anteckningsmall_id` | `anteckningsmall(id)` | Nullable |
+| `block_id` | `anteckningsblock(id)` | NOT NULL on `uppgift_anteckning` |
+| `mall_projekt_id` | `mall_projekt(id)` | Nullable |
 
-### Accepted weak references (array columns — no FK possible)
+### Junction tables (composite PK, no surrogate key)
 
-| Column | Table | Type | Notes |
-|---|---|---|---|
-| `assigned_members` | tasks, routines | `text[]` | UUIDs as text. Historical. Kept in sync with `assigned_to` by app. |
-| `member_ids` | budget_transactions | `uuid[]` | Correctly typed. No FK. Tags involved members. |
-| `assigned_member_ids` | routine_items | `uuid[]` | Correctly typed. No FK. |
+- `projekt_medlem (projekt_id, person_id)`
+- `uppgift_deltagare (uppgift_id, kontaktperson_id)`
+- `kund_anteckning_deltagare (kund_anteckning_id, kontaktperson_id)`
 
-Do not add scalar FK columns to patch individual elements of these arrays. Document the limitation instead.
+Follow this pattern for new many-to-many relationships rather than introducing a surrogate `id` unless the junction row needs to be referenced from elsewhere.
 
-### Polymorphic reference
+### Self-references
 
-`member_achievements.triggered_by_id` + `triggered_by_type` — no FK possible. In-use types: `'task'`, `'routine'`.
-
----
-
-## 7. Activity Log Rules
-
-1. Do not use `point_events.created_at` as the activity timestamp except for `routine_completed` events.
-2. Do not infer the actor from `point_events.member_id` for any event except `routine_completed`.
-3. Not every action generates a point event. The activity feed must not be limited to point-generating actions.
-4. The activity feed day window is 04:00 local time to 04:00 the next day.
-5. When adding a new completable entity: add `completed_at` and `completed_by` to its table. Do not rely on `point_events` for completion attribution.
-6. When adding a new creatable entity that needs activity attribution: add `created_by uuid REFERENCES household_members(id)`.
-7. When deciding whether a new event type belongs in the feed: check `DashboardActivityFeed.tsx` and add the source query there, not a `point_events` workaround.
+- `uppgift.genererad_fran_uppgift_id` → `uppgift(id)` — links an auto-generated follow-up task back to its source.
+- `dagsavslut_tanke.uppgift_id_skapad` → `uppgift(id)` — links a reflection to the task it spawned.
 
 ---
 
-## 8. Points Rules
+## 7. Recurring & Template Generation Rules
 
-1. Points are awarded via `awardPoints()` or `awardSharedPoints()` in `lib/points.ts`. Do not write to `point_events` directly in components.
-2. Point values are calculated by `calcPoints(duration, threshold)`. Points are a function of time cost and difficulty only.
-3. `reason` is a CHECK-constrained enum. Current values: `task_created`, `task_completed`, `routine_created`, `routine_completed`, `routine_item_created`, `budget_entry_created`, `budget_transaction_created`. Adding a new reason requires updating the CHECK constraint in a migration.
-4. Each `point_events` row should reference exactly one source entity (one of the five optional FK columns). No constraint enforces this yet — it is a known gap.
-5. When the source entity is deleted, the FK in `point_events` is SET NULL. Point totals are unaffected.
-6. Shared tasks/routines split points equally across all active (non-profile-only) household members via `awardSharedPoints()`.
-7. Only linked members (`is_profile_only = false`, `user_id IS NOT NULL`) receive achievements.
-8. `point_events` completion counts (e.g., `reason='task_completed'`) are used as authoritative completion counters in `lib/achievements.ts`. Do not circumvent this.
+jobbet has two distinct "generate real rows from a template" mechanisms — do not conflate them:
 
----
+1. **Recurring series**: `uppgift_serie` → `uppgift`. Driven by `veckodagar` + `intervall_veckor`, cursor tracked in `senast_genererad_datum`. New `uppgift` rows copy `person_id`, `kund_id`, `typ_id`, `kategori_id`, `prioritet`, `tidsatgang_timmar`, `klockslag` from the series.
+2. **Project templates**: `mall_projekt` → `projekt`, and `mall_uppgift` → `uppgift` (offset by `dagar_efter_start` days from the project's `startdatum`).
+3. **Note-driven task generation**: `anteckningsblock.genererar_uppgift` — when true, saving a note in that block can create a follow-up `uppgift` (titled from `uppgift_titel_mall`, deadline offset by `deadline_dagar_efter_motet`). The generated task is linked back via `uppgift_anteckning.uppgift_id_genererad`.
 
-## 9. RLS Rules
-
-1. All policies use `authenticated` role, not `public`. Anonymous DB access is blocked.
-2. All household-scoped tables use `get_my_household_id()` as the filter predicate.
-3. `invites` SELECT uses `auth.uid() IS NOT NULL` (no household filter) — intentional, because new users read their invite before joining.
-4. `achievements` SELECT uses `USING (true)` — all authenticated users may read global definitions.
-5. `push_subscriptions` has both a `service_role` ALL policy (for the edge function) and a user-scoped `authenticated` policy.
-6. When adding a new table: always enable RLS and add policies with `authenticated` role and `household_id = get_my_household_id()` unless there is a documented reason not to.
+When adding a new template/generation path, follow the existing pattern (explicit copy of scoped columns, not a shared-row/alias approach) and keep `foretag_id` set explicitly on every generated row — never inherit it implicitly through a join.
 
 ---
 
-## 10. Foreign Key Rules
+## 8. RLS Rules
 
-1. All `household_id` columns must have a FK to `households(id)` — no exceptions.
-2. All `*_by` columns must have a FK to `household_members(id)`.
-3. All `member_id` columns must have a FK to `household_members(id)`.
-4. `category_id` must have a FK to `categories(id)`.
-5. Array columns cannot have FK constraints in PostgreSQL. Accept this and document the soft reference.
-6. When a FK is missing and the column stores a UUID from a known table, flag it before making any changes.
-7. `budget_history.budget_entry_id` is intentionally nullable (ON DELETE SET NULL). Do not change to NOT NULL without also changing the delete cascade and implementing soft-delete.
+1. All policies use the `public` role in `pg_policies` (no `anon`-only exposure observed) and gate on `current_foretag_id()` / `current_person_id()` / `is_admin()`.
+2. Company-wide resources (`kund`, `uppgift`, `projekt`, `kategori`, `uppgiftstyp`, notes, templates) use `foretag_id = current_foretag_id()` for SELECT, and the same plus `is_admin()` for mutating admin-only tables (`kund`, `kategori`, `uppgiftstyp`, `person` writes).
+3. Person-scoped resources (`dagsfokus`, `dagsavslut`, `dagsavslut_tanke`, `flexel_post`, `flexel_kvotjustering`) use `person_id = current_person_id()` for SELECT/INSERT/DELETE, without a separate `foretag_id` read-gate (though `foretag_id` is still required on INSERT `with_check`).
+4. `flexel_installning` SELECT allows either the owning person or an admin in the same company: `person_id = current_person_id() OR (foretag_id = current_foretag_id() AND is_admin())`.
+5. `person` SELECT allows either same-company rows or the caller's own row: `foretag_id = current_foretag_id() OR auth_user_id = auth.uid()` — needed because a person's `foretag_id` can be null before onboarding completes.
+6. `projekt_medlem` SELECT is nested: visible only if the caller is an admin in that project's company, or already a member of that project.
+7. When adding a new table: always enable RLS, and add SELECT/INSERT/UPDATE/DELETE policies scoped by `foretag_id = current_foretag_id()` (or `person_id = current_person_id()` for genuinely personal data), using `is_admin()` for privileged mutations. This matches the `CLAUDE.md` multi-tenant rule.
 
 ---
 
-## 11. Naming Consistency Rules
+## 9. Foreign Key Rules
+
+1. All `foretag_id` columns (except `person.foretag_id`) must have a FK to `foretag(id)` and be `NOT NULL`.
+2. All junction tables must have composite FKs on both sides plus their own `foretag_id` (all three junction tables in this schema carry `foretag_id` directly, not just derived through the parent — preserve this pattern, it keeps RLS predicates simple and index-friendly).
+3. Array columns (`uppgift_serie.veckodagar`) cannot have FK constraints — this is expected, not a gap.
+4. When a FK is missing and the column stores a UUID from a known table, flag it before making any changes.
+
+---
+
+## 10. Naming Consistency Rules
 
 ### Established column naming conventions
 
 | Concept | Canonical name | Type |
 |---|---|---|
-| Household scoping | `household_id` | `uuid NOT NULL` |
-| Creation actor | `created_by` | `uuid NULL → household_members` |
-| Creation time | `created_at` | `timestamptz NULL DEFAULT now()` |
-| Completion actor | `completed_by` | `uuid NULL → household_members` |
-| Completion time | `completed_at` | `timestamptz NULL` |
-| Completion state | `is_completed` | `boolean NOT NULL DEFAULT false` |
-| Primary assignee | `assigned_to` | `uuid NULL → household_members` |
-| Multi-person array | `assigned_members` (tasks/routines) | `text[] DEFAULT '{}'` |
-| Multi-person array | `assigned_member_ids` (routine_items) | `uuid[] DEFAULT '{}'` |
-| Multi-person array | `member_ids` (budget_transactions) | `uuid[] NULL` |
-| Points actor | `member_id` | `uuid NOT NULL → household_members` |
-| Category FK | `category_id` | `uuid NULL → categories` |
-| Legacy category text | `category` | `text NULL` (deprecated, awaiting drop) |
+| Tenant scoping | `foretag_id` | `uuid NOT NULL → foretag` (nullable only on `person`) |
+| Actor / assignee | `person_id` | `uuid NULL → person` (NOT NULL on person-scoped logs) |
+| Creation time | `created_at` / `skapad_at` | `timestamptz NOT NULL DEFAULT now()` — **both spellings are in active use** (`created_at` is the majority; `uppgift_anteckning`, `anteckningsblock`, `kund_anteckning` use `skapad_at`/`uppdaterad_at`). Match whichever convention the table you're extending already uses — do not silently rename existing columns to unify this.
+| Status | `status` | `text` + CHECK constraint |
+| Priority | `prioritet` | `text` + CHECK constraint, default `'lag'` |
+| Customer FK | `kund_id` | `uuid NULL → kund` |
+| Project FK | `projekt_id` | `uuid NULL → projekt` |
+| Category FK | `kategori_id` | `uuid NULL → kategori` |
+| Task type FK | `typ_id` | `uuid NULL → uppgiftstyp` |
 
 ### Rules for new columns
 
-- New `*_by` column → reference `household_members(id)`, never `auth.users`.
-- New `assigned_to` column → `uuid NULL REFERENCES household_members(id)`.
-- New member array column → use `uuid[]`, not `text[]`.
-- Adding completion → add all three: `is_completed`, `completed_at`, `completed_by`.
-- New text enum column → add a CHECK constraint immediately.
+- New actor column → reference `person(id)`, never `auth.users`.
+- New tenant-scoped table → `foretag_id uuid NOT NULL REFERENCES foretag(id)`.
+- New text enum column → add a CHECK constraint immediately (per root `CLAUDE.md`).
+- Match the table's existing `created_at` vs `skapad_at` convention rather than introducing a third naming style.
 
 ---
 
-## 12. Pre-Change Checklist
+## 11. Pre-Change Checklist
 
 Answer all of these before making any schema change:
 
-**Ownership**
-- [ ] Does this column track an actor? Does it use `household_members.id` (not `auth.users.id`)?
-- [ ] Is this creation, completion, or assignment? Use the canonical column names.
+**Ownership & scoping**
+- [ ] Does this column track an actor? Does it reference `person.id` (not `auth.users.id`)?
+- [ ] Does the new table have `foretag_id NOT NULL REFERENCES foretag(id)`?
 
 **Relationships**
 - [ ] Does this column store a UUID from another table? Add a FK.
 - [ ] Should the FK be nullable or NOT NULL? Match the business rule.
 - [ ] What happens when the parent row is deleted? CASCADE, RESTRICT, or SET NULL?
 
+**Enums**
+- [ ] Is this an enum-like text column? Does a CHECK constraint already exist (§5)? Extend it, don't skip it.
+
 **Duplication check**
 - [ ] Does a column with this semantic already exist under a different name?
 - [ ] Is this data derivable from existing columns? Prefer not to store derived data.
-
-**Activity and points**
-- [ ] Does this action generate activity? Add `created_at`/`created_by` or `completed_at`/`completed_by` on the entity.
-- [ ] Does this action award points? Use `awardPoints()`. Need a new `reason` value? Update the CHECK constraint.
 
 **Scope**
 - [ ] Is this the smallest change that solves the problem? Prefer additive, targeted changes over broad refactors.
@@ -255,20 +224,17 @@ Answer all of these before making any schema change:
 
 **Code search**
 - [ ] Grep all references to the column or table being changed before renaming or removing.
-- [ ] Check `types/index.ts` — all columns must be represented there.
-- [ ] Check `DashboardActivityFeed.tsx` — does this event need to appear in the feed?
-- [ ] Check `lib/achievements.ts` and `lib/points.ts` for any usage.
+- [ ] Check the relevant `types`/interfaces in the Next.js app — columns should be represented there.
 
 **RLS**
 - [ ] Does the new table have RLS enabled?
-- [ ] Does every policy use `authenticated` role?
-- [ ] Is the predicate `household_id = get_my_household_id()`?
+- [ ] Does every policy use `current_foretag_id()`, `current_person_id()`, or `is_admin()` consistently with §8?
 
 ---
 
-## 13. Repair Workflow
+## 12. Repair Workflow
 
-1. **Identify the symptom** — missing FK, scattered attribution, wrong source of truth, naming inconsistency.
+1. **Identify the symptom** — missing FK, wrong scoping, wrong source of truth, naming inconsistency.
 2. **Grep the codebase** — search all reads and writes of the affected column or table. Do not change schema based on DB inspection alone.
 3. **Check live data** — count nulls, count mismatches, check for orphaned rows before adding constraints.
 4. **Propose the canonical fix** — state which rule from this skill is violated and what the fix should be.
@@ -276,16 +242,13 @@ Answer all of these before making any schema change:
 6. **Migrate data before constraining** — if adding NOT NULL, first verify zero nulls or backfill.
 7. **Apply the fix** — use Supabase MCP. Apply the smallest change that fixes the violation.
 8. **Verify** — run verification SQL immediately.
-9. **Update application code** — update types, queries, inserts, and the activity feed if affected.
-10. **Update documentation** — update relevant docs (schema docs, CLAUDE.md references) when the change affects documented behavior.
-11. **Save to repository** — write SQL to `supabase/migrations/` with a date-prefixed filename.
-12. **Reload PostgREST** — run `NOTIFY pgrst, 'reload schema'` after every DDL change.
+9. **Update application code** — update types and queries.
+10. **Update documentation** — update `CLAUDE.md` if the change affects a documented rule (e.g. a CHECK constraint's allowed values).
+11. **Reload PostgREST** — run `NOTIFY pgrst, 'reload schema'` after every DDL change, per root `CLAUDE.md`.
 
 ---
 
-## 14. Verification Workflow
-
-Always run verification SQL after applying changes. Include verification queries (commented) in the migration file.
+## 13. Verification Workflow
 
 ```sql
 -- Verify FK exists
@@ -301,16 +264,12 @@ FROM information_schema.columns
 WHERE table_schema = 'public' AND table_name = '<table>' AND column_name = '<column>';
 
 -- Verify CHECK constraint
-SELECT constraint_name, check_clause
-FROM information_schema.check_constraints
-WHERE constraint_name LIKE '%<table>%';
+SELECT conname, pg_get_constraintdef(oid)
+FROM pg_constraint
+WHERE contype = 'c' AND conrelid = '<table>'::regclass;
 
--- Verify index
-SELECT indexname, indexdef FROM pg_indexes
-WHERE schemaname = 'public' AND tablename = '<table>';
-
--- Verify RLS policy role
-SELECT policyname, roles, cmd FROM pg_policies
+-- Verify RLS policy predicate
+SELECT policyname, roles, cmd, qual, with_check FROM pg_policies
 WHERE schemaname = 'public' AND tablename = '<table>';
 
 -- Verify null count before adding NOT NULL
@@ -319,7 +278,7 @@ SELECT COUNT(*) FROM <table> WHERE <column> IS NULL;
 
 ---
 
-## 15. Output Format
+## 14. Output Format
 
 When running an audit or repair, return:
 
@@ -334,95 +293,42 @@ When running an audit or repair, return:
 
 ---
 
-## 16. Destructive Changes — Always Warn First
+## 15. Destructive Changes — Always Warn First
 
-Before performing any of the following, explicitly warn the user and wait for confirmation:
+Before performing any of the following, explicitly warn the user and wait for confirmation (this restates the root `CLAUDE.md` Stop Rules for schema work specifically):
 
-- Dropping a table
-- Dropping a column
+- Dropping a table or column
 - Deleting data (DELETE without WHERE, or bulk deletes)
 - Changing a column type (`ALTER COLUMN ... TYPE`)
 - Changing or tightening a CHECK constraint on a populated column
-- Changing an RLS policy (scope, role, or predicate)
+- Changing an RLS policy (scope, role, or predicate) — any multi-tenant scoping change requires approval per root `CLAUDE.md`
 - Disabling RLS on any table
-- Merging two tables (moving data from one table into another and dropping the source)
+- Merging two tables
 
 ---
 
-## 17. Things Claude Must Not Do
+## 16. Things Claude Must Not Do
 
-- Do not use `point_events` as an activity log for any event except `routine_completed`.
-- Do not use `auth.users.id` (user_id) as the actor for application actions.
-- Do not add `created_by` as a substitute for `user_id`. They represent different identities.
-- Do not add a scalar FK column to compensate for a missing FK on an array column.
+- Do not use `auth.users.id` as the actor for application actions — always resolve to `person.id` via `auth_user_id`.
+- Do not insert or update rows without setting `foretag_id` to the correct tenant (except `person`, where it may legitimately be null pre-onboarding).
+- Do not add a new enum value to a CHECK-constrained column without first altering the constraint in a migration.
 - Do not rename a column that is still referenced by application code.
 - Do not add NOT NULL without first verifying zero nulls in live data.
 - Do not drop a column without confirming zero code references via grep.
-- Do not add a new `reason` value to `point_events` without updating the CHECK constraint in a migration.
-- Do not remove the `assigned_to` / `assigned_members` dual-column pattern without updating all code referencing it.
-- Do not assume `budget_history.budget_entry_id` being null is a bug.
-- Do not write to the `category` (text) legacy columns — they are deprecated and empty.
-- Do not change any RLS policy role from `authenticated` to `public`.
+- Do not silently unify the `created_at`/`skapad_at` naming split — it is existing, load-bearing inconsistency, not a bug to fix opportunistically.
+- Do not change any RLS policy predicate without explicit user approval (multi-tenant scoping — root `CLAUDE.md` Stop Rule).
+- Do not add logic that depends on `projekt`/`projekt_medlem` being unused — they are actively used (see §3 note); verify current status in `CLAUDE.md` before trusting an older note.
 
 ---
 
-## 18. Things Claude May Do Directly in Supabase
+## 17. Things Claude May Do Directly in Supabase
 
-These are safe to apply directly without user confirmation:
+These are safe to apply directly without user confirmation, consistent with root `CLAUDE.md` (direct Supabase changes are allowed on this project):
 
 - `CREATE INDEX IF NOT EXISTS` — always safe, always concurrent
 - Adding a nullable column with an FK (additive, no data risk)
 - Adding a CHECK constraint to a new or empty column
-- Tightening an RLS policy (role or predicate)
-- Clearing deprecated data (e.g., nulling the `category` text column)
-- Dropping a duplicate RLS policy with identical logic to a surviving policy
 - Running `NOTIFY pgrst, 'reload schema'`
+- Read-only inventory queries (schema, constraints, RLS policies, row counts)
 
-Always verify after applying and always save SQL to the repository.
-
----
-
-## 19. Things Claude Should Mark for Later Cleanup
-
-| Issue | Why deferred | Recommended action |
-|---|---|---|
-| `tasks.assigned_members text[]` and `routines.assigned_members text[]` store UUIDs as text | Requires coordinated code + schema migration across 5+ call sites and the edge function | Change to `uuid[]` in a dedicated PR |
-| `tasks.category` and `routines.category` text columns — now empty | Verify empty for a full cycle before DROP | DROP after 30 days of confirmed zero writes |
-| `budget_transactions` has no `created_by` FK | `member_ids[]` is used; unclear if first element is always the creator | Clarify semantics, then add `created_by` if needed |
-| `budget_history.budget_entry_id` nullable FK — nulled on entry delete | Proper fix is soft-delete (`deleted_at`) on budget_entries | Implement soft-delete before adding NOT NULL here |
-| `point_events` 5 FK columns with no mutual exclusivity constraint | A row with two source FKs is meaningless | Add `CHECK` that at most one FK is non-null; long-term migrate to `(entity_type, entity_id)` |
-| `routine_items` has no `created_by` | Items are edited in context of their parent routine | Add if item-level creation attribution is needed in the activity feed |
-| `categories.created_at` nullable | Should be `NOT NULL DEFAULT now()` | Verify zero nulls, then add constraint |
-| `household_members.created_at` nullable | Should be `NOT NULL DEFAULT now()` | Verify zero nulls, then add constraint |
-| `routines.is_completed` semantics unclear | Routines recur — when and how is `is_completed` reset? | Document reset logic or add `last_completed_at` to separate cycle state from history |
-
----
-
-## Appendix A: Point Event Reasons and Source Tables
-
-| reason | source table | FK column used | Actor |
-|---|---|---|---|
-| `task_created` | tasks | `task_id` | `member_id` = creator |
-| `task_completed` | tasks | `task_id` | `member_id` = completer |
-| `routine_created` | routines | `routine_id` | `member_id` = creator |
-| `routine_completed` | routines | `routine_id` | `member_id` = completer |
-| `routine_item_created` | routine_items | `routine_item_id` | `member_id` = creator |
-| `budget_entry_created` | budget_entries | `budget_entry_id` | `member_id` = creator |
-| `budget_transaction_created` | budget_transactions | `budget_transaction_id` | `member_id` = logger |
-
----
-
-## Appendix B: Activity Feed Data Sources (Canonical)
-
-```
-DashboardActivityFeed.tsx — queries for day window (04:00–04:00):
-
-tasks.created_at           + created_by    → "X skapade [task]"
-tasks.completed_at         + completed_by  → "X slutförde [task]"
-routine_items.completed_at + completed_by  → "X slutförde [item] i [routine]"
-point_events(routine_completed).created_at + member_id → "X slutförde [routine]"
-budget_entries.created_at  + created_by    → "X lade till [entry] [amount] kr"
-budget_entries.completed_at + completed_by → "X avklarade [entry] [amount] kr"
-budget_transactions.created_at + member_ids[0] → "X loggade [tx] [amount] kr under [entry]"
-member_achievements.earned_at + member_id  → badge chip
-```
+Always verify after applying, and always save the SQL to `supabase/migrations/` (or the project's equivalent) if the project tracks migrations in-repo.
