@@ -11,7 +11,7 @@ export default async function ProjektPage() {
       supabase
         .from('projekt')
         .select(
-          `id, namn, status, beskrivning, startdatum, kund_id, kund:kund_id(namn), mall_projekt_id, uppgift(${PROJEKT_UPPGIFT_FALT})`
+          `id, namn, status, beskrivning, startdatum, kund_id, kund:kund_id(namn), mall_projekt_id, farg, uppgift(${PROJEKT_UPPGIFT_FALT})`
         )
         .order('namn'),
       supabase.from('kund').select('id, namn').order('namn'),
@@ -52,6 +52,7 @@ export default async function ProjektPage() {
       kundId: p.kund_id,
       kundNamn: enTillRelation(p.kund)?.namn ?? null,
       mallProjektId: p.mall_projekt_id,
+      farg: p.farg,
       antalUppgifter: uppgifter.length,
       antalKlara: uppgifter.filter((u) => u.status === 'klar').length,
       uppgifter,

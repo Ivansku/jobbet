@@ -128,7 +128,7 @@ export default async function UppgifterPage({
       .select('id, namn, anteckningsmall_id, skapa_uppgifter_vid_klar, visar_mailinnehall')
       .order('namn'),
     supabase.from('kategori').select('id, namn').order('namn'),
-    supabase.from('projekt').select('id, namn, kund_id').order('namn'),
+    supabase.from('projekt').select('id, namn, kund_id, farg').order('namn'),
     supabase
       .from('uppgift_serie')
       .select(

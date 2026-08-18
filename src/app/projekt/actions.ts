@@ -31,6 +31,7 @@ export async function skapaProjekt(input: {
   beskrivning: string
   startdatum: string
   mallProjektId: string
+  farg: string | null
 }) {
   const namnTrimmat = input.namn.trim()
   if (!namnTrimmat || !input.mallProjektId || !input.startdatum) return null
@@ -49,6 +50,7 @@ export async function skapaProjekt(input: {
       beskrivning: input.beskrivning || null,
       startdatum: input.startdatum,
       mall_projekt_id: input.mallProjektId,
+      farg: input.farg,
     })
     .select('id, namn')
     .single()
@@ -132,7 +134,14 @@ export async function skapaUppgifterFranMall(projektId: string) {
 
 export async function uppdateraProjekt(
   id: string,
-  input: { namn: string; status: string; beskrivning: string; kundId: string; startdatum: string }
+  input: {
+    namn: string
+    status: string
+    beskrivning: string
+    kundId: string
+    startdatum: string
+    farg: string | null
+  }
 ) {
   const namnTrimmat = input.namn.trim()
   if (!namnTrimmat) return
@@ -146,6 +155,7 @@ export async function uppdateraProjekt(
       beskrivning: input.beskrivning || null,
       kund_id: input.kundId || null,
       startdatum: input.startdatum,
+      farg: input.farg,
     })
     .eq('id', id)
 

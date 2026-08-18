@@ -19,6 +19,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { DeleteIconButton } from '@/components/ui/delete-icon-button'
 import { KundValjare } from '../uppgifter/kund-valjare'
+import { PROJEKT_FARGER } from '@/lib/projekt-farg'
 
 type Kund = { id: string; namn: string }
 type Mall = { id: string; namn: string }
@@ -31,6 +32,7 @@ type Projekt = {
   kundId: string | null
   kundNamn: string | null
   mallProjektId: string | null
+  farg: string | null
   antalUppgifter: number
   antalKlara: number
   uppgifter: ProjektUppgift[]
@@ -150,7 +152,15 @@ function ProjektKolumn({
               className="flex flex-col gap-1 rounded-lg border border-border-subtle bg-surface p-3 text-left text-sm shadow-sm transition-shadow hover:shadow-md"
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="truncate font-medium">{p.namn}</span>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  {p.farg && (
+                    <span
+                      aria-hidden
+                      className={`h-2 w-2 shrink-0 rounded-full ${PROJEKT_FARGER.find((f) => f.value === p.farg)?.dot ?? ''}`}
+                    />
+                  )}
+                  <span className="truncate font-medium">{p.namn}</span>
+                </span>
                 <Badge tone={STATUS_TONE[p.status] ?? 'neutral'}>{STATUS_LABEL[p.status] ?? p.status}</Badge>
               </div>
               <div className="flex items-center justify-between gap-2 text-xs text-stone-400">
@@ -173,6 +183,41 @@ function ProjektKolumn({
           </button>
         )}
       </div>
+    </div>
+  )
+}
+
+// Fast palett av namngivna toner istället för en fri hex-väljare — säkerställer att
+// varje val redan har ljust/mörkt-läge-varianter definierade och matchar databasens
+// CHECK-constraint (se @/lib/projekt-farg). "Ingen" nollställer till standardytan.
+function FargValjare({ value, onChange }: { value: string | null; onChange: (v: string | null) => void }) {
+  return (
+    <div role="group" aria-label="Färg" className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onClick={() => onChange(null)}
+        aria-pressed={value === null}
+        title="Ingen färg"
+        className={`flex h-7 w-7 items-center justify-center rounded-full border-2 text-stone-400 transition-colors ${
+          value === null ? 'border-accent-500' : 'border-border-subtle hover:border-stone-400'
+        }`}
+      >
+        <span className="h-2 w-2 rounded-full bg-stone-300 dark:bg-stone-600" />
+      </button>
+      {PROJEKT_FARGER.map((f) => (
+        <button
+          key={f.value}
+          type="button"
+          onClick={() => onChange(f.value)}
+          aria-pressed={value === f.value}
+          title={f.label}
+          className={`flex h-7 w-7 items-center justify-center rounded-full border-2 transition-colors ${
+            value === f.value ? 'border-accent-500' : 'border-transparent hover:border-stone-300'
+          }`}
+        >
+          <span className={`h-5 w-5 rounded-full ${f.dot}`} />
+        </button>
+      ))}
     </div>
   )
 }
@@ -205,6 +250,7 @@ function ProjektFormular({
   const [status, setStatus] = useState(existing?.status ?? 'aktivt')
   const [startdatum, setStartdatum] = useState(existing?.startdatum ?? idagISO())
   const [beskrivning, setBeskrivning] = useState(existing?.beskrivning ?? '')
+  const [farg, setFarg] = useState<string | null>(existing?.farg ?? null)
   const [uppgifter, setUppgifter] = useState<ProjektUppgift[]>(existing?.uppgifter ?? [])
   const [redigerarUppgift, setRedigerarUppgift] = useState<ProjektUppgift | null>(null)
   const [sparar, setSparar] = useState(false)
@@ -232,9 +278,9 @@ function ProjektFormular({
     setSparar(true)
 
     if (existing) {
-      await uppdateraProjekt(existing.id, { namn, status, beskrivning, kundId, startdatum })
+      await uppdateraProjekt(existing.id, { namn, status, beskrivning, kundId, startdatum, farg })
     } else {
-      await skapaProjekt({ kundId, namn, status, beskrivning, startdatum, mallProjektId: mallId })
+      await skapaProjekt({ kundId, namn, status, beskrivning, startdatum, mallProjektId: mallId, farg })
     }
 
     setSparar(false)
@@ -358,6 +404,10 @@ function ProjektFormular({
             onChange={(e) => setBeskrivning(e.target.value)}
             rows={3}
           />
+        </Field>
+
+        <Field label="Färg" htmlFor="projekt-farg">
+          <FargValjare value={farg} onChange={setFarg} />
         </Field>
 
         {existing && (

@@ -44,6 +44,7 @@ import { SerieVy, SerieFormular } from './serie-vy'
 import { MotesanteckningarSektion } from './motesanteckningar-sektion'
 import { TidigareMotenSektion } from './tidigare-moten-sektion'
 import { KopplaPlaceholderSektion } from './koppla-placeholder-sektion'
+import { projektKortBakgrund } from '@/lib/projekt-farg'
 
 type Person = { id: string; namn: string }
 type Kund = { id: string; namn: string }
@@ -55,7 +56,7 @@ type Typ = {
   visar_mailinnehall: boolean
 }
 type Kategori = { id: string; namn: string }
-type Projekt = { id: string; namn: string; kund_id: string | null }
+type Projekt = { id: string; namn: string; kund_id: string | null; farg: string | null }
 type Anteckningsblock = {
   id: string
   namn: string
@@ -336,6 +337,7 @@ export function KanbanBoard({
   const typMap = new Map(typer.map((t) => [t.id, t.namn]))
   const kategoriMap = new Map(kategori.map((k) => [k.id, k.namn]))
   const projektMap = new Map(projekt.map((p) => [p.id, p.namn]))
+  const projektFargMap = new Map(projekt.map((p) => [p.id, p.farg]))
   const weekDateSet = new Set(weekDates)
 
   // Vilken kolumn en uppgift hör hemma i just nu — samma regel som filtreringen
@@ -487,6 +489,7 @@ export function KanbanBoard({
               typMap={typMap}
               kategoriMap={kategoriMap}
               projektMap={projektMap}
+              projektFargMap={projektFargMap}
               currentPersonId={currentPersonId}
               kapacitetPerDag={arbetstimmarPerVecka / ARBETSDAGAR_PER_VECKA}
               onSelect={setRedigerar}
@@ -500,9 +503,11 @@ export function KanbanBoard({
       <DragOverlay>
         {aktivUppgift ? (
           <div
-            className={`rounded-xl border border-border-subtle border-l-4 bg-surface p-3 shadow-lg ${
-              (PRIORITET_BORDER[aktivUppgift.prioritet] ?? PRIORITET_BORDER.medel)
-            } ${aktivUppgift.status === 'klar' ? 'opacity-60' : ''}`}
+            className={`rounded-xl border border-border-subtle border-l-4 p-3 shadow-lg ${projektKortBakgrund(
+              aktivUppgift.projekt_id ? projektFargMap.get(aktivUppgift.projekt_id) : null
+            )} ${PRIORITET_BORDER[aktivUppgift.prioritet] ?? PRIORITET_BORDER.medel} ${
+              aktivUppgift.status === 'klar' ? 'opacity-60' : ''
+            }`}
           >
             <KortInnehall
               uppgift={aktivUppgift}
@@ -560,6 +565,7 @@ function KanbanColumn({
   typMap,
   kategoriMap,
   projektMap,
+  projektFargMap,
   currentPersonId,
   kapacitetPerDag,
   onSelect,
@@ -575,6 +581,7 @@ function KanbanColumn({
   typMap: Map<string, string>
   kategoriMap: Map<string, string>
   projektMap: Map<string, string>
+  projektFargMap: Map<string, string | null>
   currentPersonId: string | null
   kapacitetPerDag: number
   onSelect: (u: Uppgift) => void
@@ -657,6 +664,7 @@ function KanbanColumn({
                 typMap={typMap}
                 kategoriMap={kategoriMap}
                 projektMap={projektMap}
+                projektFargMap={projektFargMap}
                 onSelect={onSelect}
                 onToggleStatus={onToggleStatus}
               />
@@ -684,6 +692,7 @@ function KanbanCard({
   typMap,
   kategoriMap,
   projektMap,
+  projektFargMap,
   onSelect,
   onToggleStatus,
 }: {
@@ -694,6 +703,7 @@ function KanbanCard({
   typMap: Map<string, string>
   kategoriMap: Map<string, string>
   projektMap: Map<string, string>
+  projektFargMap: Map<string, string | null>
   onSelect: (u: Uppgift) => void
   onToggleStatus: (u: Uppgift) => void
 }) {
@@ -711,6 +721,7 @@ function KanbanCard({
     setDropRef(node)
   }
   const border = PRIORITET_BORDER[u.prioritet] ?? PRIORITET_BORDER.medel
+  const bakgrund = projektKortBakgrund(u.projekt_id ? projektFargMap.get(u.projekt_id) : null)
   const klar = u.status === 'klar'
 
   return (
@@ -719,7 +730,7 @@ function KanbanCard({
       {...listeners}
       {...attributes}
       onClick={() => onSelect(u)}
-      className={`cursor-pointer rounded-xl border border-border-subtle border-l-4 bg-surface p-3 shadow-sm transition-shadow hover:shadow-md ${border} ${
+      className={`cursor-pointer rounded-xl border border-border-subtle border-l-4 p-3 shadow-sm transition-shadow hover:shadow-md ${bakgrund} ${border} ${
         klar ? 'opacity-60' : ''
       } ${isDragging ? 'opacity-30' : ''} ${isOver ? 'ring-2 ring-accent-400' : ''}`}
     >
