@@ -1,7 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { skapaProjekt, uppdateraProjekt, taBortProjekt, taBortProjektMedUppgifter, hamtaProjektUppgifter } from './actions'
+import {
+  skapaProjekt,
+  uppdateraProjekt,
+  taBortProjekt,
+  taBortProjektMedUppgifter,
+  hamtaProjektUppgifter,
+  skapaUppgifterFranMall,
+} from './actions'
 import { ProjektUppgiftFormular, type ProjektUppgiftDetaljerad, type Typ, type Anteckningsblock } from './projekt-uppgift-formular'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
@@ -203,10 +210,19 @@ function ProjektFormular({
   const [sparar, setSparar] = useState(false)
   const [bekraftaTaBort, setBekraftaTaBort] = useState<'kopplaLoss' | 'medUppgifter' | null>(null)
   const [tarBort, setTarBort] = useState(false)
+  const [skapaUppgifterLaddar, setSkapaUppgifterLaddar] = useState(false)
 
   async function laddaOmUppgifter() {
     if (!existing) return
     setUppgifter(await hamtaProjektUppgifter(existing.id))
+  }
+
+  async function handleSkapaUppgifterFranMall() {
+    if (!existing) return
+    setSkapaUppgifterLaddar(true)
+    await skapaUppgifterFranMall(existing.id)
+    await laddaOmUppgifter()
+    setSkapaUppgifterLaddar(false)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -354,7 +370,23 @@ function ProjektFormular({
             </div>
 
             {uppgifter.length === 0 ? (
-              <p className="text-xs text-stone-400">Inga uppgifter i projektet ännu.</p>
+              existing.mallProjektId ? (
+                <div className="flex flex-col items-start gap-2">
+                  <p className="text-xs text-stone-400">
+                    Inga uppgifter skapade än — mallen är kopplad men väntar på att aktiveras.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    loading={skapaUppgifterLaddar}
+                    onClick={handleSkapaUppgifterFranMall}
+                  >
+                    Skapa uppgifter från mall
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-xs text-stone-400">Inga uppgifter i projektet ännu.</p>
+              )
             ) : (
               <ul className="divide-y divide-border-subtle overflow-hidden rounded-lg border border-border-subtle">
                 {uppgifter.map((u) => (

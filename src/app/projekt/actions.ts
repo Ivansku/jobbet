@@ -55,52 +55,79 @@ export async function skapaProjekt(input: {
 
   if (!projekt) return null
 
-  // Instansierar mallens uppgiftsmallar som riktiga uppgifter kopplade till
-  // det nya projektet. Första uppgiftens "dagar efter start" räknas från
-  // projektets startdatum — varje efterföljande uppgifts "dagar efter
-  // föregående" räknas kedjat från den uppgiften innan (inte alltid från
-  // startdatum), så datumet ackumuleras genom hela listan i tur och ordning.
+  revalidatePath('/projekt')
+  return projekt
+}
+
+// Instansierar mallens uppgiftsmallar som riktiga uppgifter kopplade till ett
+// befintligt projekt. Separat, explicit åtgärd (egen knapp i UI) istället för
+// en automatisk bieffekt av att skapa projektet eller ändra dess status —
+// vissa projekt (t.ex. "planerade men ej fastställda") ska kunna existera med
+// en mall kopplad utan att direkt få tiotals uppgifter med okända datum.
+// Guardas mot att köras igen: instansierar bara om projektet saknar uppgifter.
+export async function skapaUppgifterFranMall(projektId: string) {
+  const supabase = await createClient()
+  const { data: projekt } = await supabase
+    .from('projekt')
+    .select('foretag_id, kund_id, startdatum, mall_projekt_id')
+    .eq('id', projektId)
+    .single()
+
+  if (!projekt || !projekt.mall_projekt_id) return null
+
+  const { count } = await supabase
+    .from('uppgift')
+    .select('id', { count: 'exact', head: true })
+    .eq('projekt_id', projektId)
+
+  if (count && count > 0) return null
+
+  // Första uppgiftens "dagar efter start" räknas från projektets
+  // startdatum — varje efterföljande uppgifts "dagar efter föregående"
+  // räknas kedjat från den uppgiften innan (inte alltid från startdatum),
+  // så datumet ackumuleras genom hela listan i tur och ordning.
   const { data: mallUppgifter } = await supabase
     .from('mall_uppgift')
     .select(
-      'titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, ar_placeholder, anteckningsmall_id'
+      'id, titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, ar_placeholder, anteckningsmall_id'
     )
-    .eq('mall_projekt_id', input.mallProjektId)
+    .eq('mall_projekt_id', projekt.mall_projekt_id)
     .order('sortordning')
 
-  if (mallUppgifter && mallUppgifter.length > 0) {
-    let foregaendeDatum = input.startdatum
-    // sortordning sätts explicit istället för att förlita sig på kolumnens
-    // clock_timestamp()-standardvärde — annars avgörs den inbördes ordningen
-    // mellan flera mall-uppgifter som hamnar på samma dag av när varje rad
-    // råkar bli infogad, inte av ordningen de har i mallen.
-    const nyaUppgifter = mallUppgifter.map((m, index) => {
-      const deadline = leggTillDagar(foregaendeDatum, m.dagar_efter_start)
-      foregaendeDatum = deadline
-      return {
-        foretag_id: foretagId,
-        projekt_id: projekt.id,
-        kund_id: input.kundId || null,
-        titel: m.titel,
-        beskrivning: m.beskrivning,
-        typ_id: m.typ_id,
-        kategori_id: m.kategori_id,
-        prioritet: m.prioritet,
-        person_id: m.person_id,
-        tidsatgang_timmar: m.tidsatgang_timmar,
-        deadline,
-        status: m.status,
-        ar_placeholder: m.ar_placeholder,
-        anteckningsmall_id: m.anteckningsmall_id,
-        sortordning: epokForDatum(deadline) + index,
-      }
-    })
-    await supabase.from('uppgift').insert(nyaUppgifter)
-  }
+  if (!mallUppgifter || mallUppgifter.length === 0) return null
+
+  let foregaendeDatum = projekt.startdatum
+  // sortordning sätts explicit istället för att förlita sig på kolumnens
+  // clock_timestamp()-standardvärde — annars avgörs den inbördes ordningen
+  // mellan flera mall-uppgifter som hamnar på samma dag av när varje rad
+  // råkar bli infogad, inte av ordningen de har i mallen.
+  const nyaUppgifter = mallUppgifter.map((m, index) => {
+    const deadline = leggTillDagar(foregaendeDatum, m.dagar_efter_start)
+    foregaendeDatum = deadline
+    return {
+      foretag_id: projekt.foretag_id,
+      projekt_id: projektId,
+      mall_uppgift_id: m.id,
+      kund_id: projekt.kund_id,
+      titel: m.titel,
+      beskrivning: m.beskrivning,
+      typ_id: m.typ_id,
+      kategori_id: m.kategori_id,
+      prioritet: m.prioritet,
+      person_id: m.person_id,
+      tidsatgang_timmar: m.tidsatgang_timmar,
+      deadline,
+      status: m.status,
+      ar_placeholder: m.ar_placeholder,
+      anteckningsmall_id: m.anteckningsmall_id,
+      sortordning: epokForDatum(deadline) + index,
+    }
+  })
+  await supabase.from('uppgift').insert(nyaUppgifter)
 
   revalidatePath('/projekt')
   revalidatePath('/uppgifter')
-  return projekt
+  return true
 }
 
 export async function uppdateraProjekt(
