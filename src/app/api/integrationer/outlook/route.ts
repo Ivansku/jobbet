@@ -185,6 +185,12 @@ export async function POST(request: NextRequest) {
 
   const { eventId, subject, start, end, bodyPreview, ownerEmail, requiredAttendees, optionalAttendees, actionType } =
     body
+  console.info('[outlook-webhook] mottagen payload', {
+    subject,
+    actionType,
+    requiredAttendees,
+    optionalAttendees,
+  })
   if (!eventId || !ownerEmail) {
     return NextResponse.json({ error: 'Saknar obligatoriska fält' }, { status: 400 })
   }
@@ -233,6 +239,16 @@ export async function POST(request: NextRequest) {
 
   if (!subject || !start || !end) {
     return NextResponse.json({ error: 'Saknar obligatoriska fält' }, { status: 400 })
+  }
+
+  // Stående blockeringar utan deltagare (t.ex. "Lunch", "Fokustid") ska inte
+  // bli uppgifter — bara riktiga möten med minst en deltagare läses in. Gäller
+  // inte raderingar (hanteras redan ovan) eftersom Outlooks delete-trigger
+  // ofta saknar deltagarfälten helt.
+  const harDeltagare =
+    parsaDeltagarlista(requiredAttendees).length > 0 || parsaDeltagarlista(optionalAttendees).length > 0
+  if (!harDeltagare) {
+    return NextResponse.json({ ok: true, action: 'ingen_deltagare' })
   }
 
   const startMs = new Date(start).getTime()
