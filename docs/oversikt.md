@@ -53,7 +53,7 @@ Detta dokument är en levande sammanfattning av vad appen gör och hur den är u
 - Kundkontakter med e-post och "senast kontaktad"-status, inklusive ett "planerat möte"-datum härlett från kommande uppgifter kontakten är deltagare i
 - Återkommande uppgifter (serier) med redigerbart startdatum utan att generera felaktiga förekomster bakåt i tiden
 - Uppgiftstyper och kategorier som admin-hanterade taggnings-listor
-- Outlook-kalendersynk (enkelriktad, via webhook): möten skapar/uppdaterar uppgifter automatiskt, tolkar ämnesraden för att tagga rätt kund (konventionen "Kund, QNOVA - Titel"), matchar/skapar kontaktpersoner utifrån mötesdeltagarnas mailadresser, hanterar tidszon (Stockholm/DST) på servern
+- Outlook-kalendersynk (enkelriktad, via webhook): möten skapar/uppdaterar uppgifter automatiskt, tolkar ämnesraden för att tagga rätt kund (konventionen "Kund, QNOVA - Titel"), matchar/skapar kontaktpersoner utifrån mötesdeltagarnas mailadresser, hanterar tidszon (Stockholm/DST) på servern. Hoppar över möten utan riktiga deltagare — mailboxägarens egen adress räknas bort ur deltagarlistan innan filtret slår till, eftersom Outlooks PowerAutomate-trigger listar ägaren som required attendee även på egna, deltagarlösa kalenderblockeringar (t.ex. återkommande "Kundmöte/Kundarbete"-block). ~150 historiska sådana uppgifter, skapade innan filtret fanns, städades bort manuellt.
 - Manuell sortering av kort inom samma dagskolumn i Kanban-vyn, utöver drag-and-drop mellan dagar
 - Tidsåtgång (timmar) och klockslag på uppgifter, med tidsåtgång som standardvärde på serier
 - Snabbare veckonavigering i Kanban-vyn (client-side navigering istället för full omladdning)
