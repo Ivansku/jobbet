@@ -609,9 +609,9 @@ export async function hamtaTidigareMoten(kundId: string, excludeUppgiftId: strin
 
 // Kopplar en riktig uppgift till en väntande placeholder i samma projekt: skriver
 // projekt_id (från det projekt som var valt i formuläret när kopplingen gjordes) och
-// fyller i kategori_id om det är tomt på den riktiga uppgiften och placeholdern hade
-// ett värde — skriver annars aldrig över redan ifyllda fält. Tar också över
-// placeholderns sortordning, så den riktiga uppgiften hamnar på samma plats i
+// fyller i kategori_id/anteckningsmall_id om de är tomma på den riktiga uppgiften och
+// placeholdern hade ett värde — skriver annars aldrig över redan ifyllda fält. Tar också
+// över placeholderns sortordning, så den riktiga uppgiften hamnar på samma plats i
 // projektlistan som placeholdern hade (mallens tänkta ordning) istället för att sortera
 // om baserat på det verkliga mötets datum, som ofta avviker från vad mallen planerade.
 // Raderar sedan placeholder-raden. projektId kommer från formulärets (osparade) val,
@@ -623,14 +623,14 @@ export async function kopplaTillPlaceholder(riktigUppgiftId: string, projektId: 
 
   const { data: riktig } = await supabase
     .from('uppgift')
-    .select('id, kategori_id')
+    .select('id, kategori_id, anteckningsmall_id')
     .eq('id', riktigUppgiftId)
     .single()
   if (!riktig) return { success: false as const }
 
   const { data: placeholder } = await supabase
     .from('uppgift')
-    .select('id, projekt_id, kategori_id, sortordning')
+    .select('id, projekt_id, kategori_id, sortordning, anteckningsmall_id')
     .eq('id', placeholderId)
     .eq('ar_placeholder', true)
     .single()
@@ -643,6 +643,9 @@ export async function kopplaTillPlaceholder(riktigUppgiftId: string, projektId: 
       sortordning: placeholder.sortordning,
       ...(riktig.kategori_id == null && placeholder.kategori_id != null
         ? { kategori_id: placeholder.kategori_id }
+        : {}),
+      ...(riktig.anteckningsmall_id == null && placeholder.anteckningsmall_id != null
+        ? { anteckningsmall_id: placeholder.anteckningsmall_id }
         : {}),
     })
     .eq('id', riktigUppgiftId)

@@ -488,7 +488,7 @@ function MallUppgiftFormular({
         </div>
 
         {visaAnteckningsmallValjare && (
-          <Field label="Anteckningsmall (avviker från typens standard)" htmlFor="mall-uppgift-anteckningsmall">
+          <Field label="Anteckningsmall" htmlFor="mall-uppgift-anteckningsmall">
             <Select
               id="mall-uppgift-anteckningsmall"
               value={anteckningsmallId}
