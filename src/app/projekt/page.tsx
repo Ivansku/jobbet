@@ -22,7 +22,7 @@ export default async function ProjektPage() {
         .order('namn'),
       supabase
         .from('anteckningsblock')
-        .select('id, namn, genererar_uppgift, anteckningsmall_id')
+        .select('id, namn, beskrivning, genererar_uppgift, anteckningsmall_id')
         .eq('aktiv', true)
         .order('sortordning'),
     ])

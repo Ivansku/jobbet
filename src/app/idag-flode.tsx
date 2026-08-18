@@ -52,7 +52,13 @@ export type Typ = {
   skapa_uppgifter_vid_klar: boolean
   visar_mailinnehall: boolean
 }
-export type Block = { id: string; namn: string; genererar_uppgift: boolean; anteckningsmall_id: string }
+export type Block = {
+  id: string
+  namn: string
+  beskrivning: string | null
+  genererar_uppgift: boolean
+  anteckningsmall_id: string
+}
 export type Tanke = { id: string; text: string; uppgift_id_skapad: string | null }
 export type Dagsavslut = { id: string }
 

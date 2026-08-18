@@ -2,6 +2,19 @@
 
 import { useState } from 'react'
 import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  MouseSensor,
+  TouchSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
+import {
   skapaAnteckningsmall,
   uppdateraAnteckningsmall,
   taBortAnteckningsmall,
@@ -9,10 +22,10 @@ import {
   skapaAnteckningsblock,
   uppdateraAnteckningsblock,
   sattAnteckningsblockAktiv,
-  flyttaAnteckningsblock,
+  omordnaAnteckningsblock,
 } from './anteckningsmall-actions'
 import { Button } from '@/components/ui/button'
-import { Input, Select } from '@/components/ui/input'
+import { Input, Select, Textarea } from '@/components/ui/input'
 import { Field } from '@/components/ui/field'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -23,6 +36,7 @@ import { DeleteIconButton } from '@/components/ui/delete-icon-button'
 type Anteckningsblock = {
   id: string
   namn: string
+  beskrivning: string | null
   sortordning: number
   aktiv: boolean
   genererar_uppgift: boolean
@@ -33,22 +47,6 @@ type Anteckningsblock = {
 }
 type Anteckningsmall = { id: string; namn: string; block: Anteckningsblock[] }
 type Uppgiftstyp = { id: string; namn: string }
-
-function ChevronUpIcon({ className = '' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M18 15l-6-6-6 6" />
-    </svg>
-  )
-}
-
-function ChevronDownIcon({ className = '' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M6 9l6 6 6-6" />
-    </svg>
-  )
-}
 
 export function AnteckningsmallVy({ mallar, typer }: { mallar: Anteckningsmall[]; typer: Uppgiftstyp[] }) {
   const [redigerar, setRedigerar] = useState<Anteckningsmall | 'ny' | null>(null)
@@ -110,6 +108,7 @@ function AnteckningsmallFormular({
   const [sparar, setSparar] = useState(false)
   const [visaBekraftelse, setVisaBekraftelse] = useState(false)
   const [tarBort, setTarBort] = useState(false)
+  const [aktivId, setAktivId] = useState<string | null>(null)
 
   async function laddaOmBlock() {
     if (!mall) return
@@ -140,10 +139,10 @@ function AnteckningsmallFormular({
     onClose()
   }
 
-  async function handleFlytta(id: string, riktning: 'upp' | 'ner') {
-    await flyttaAnteckningsblock(id, riktning)
-    await laddaOmBlock()
-  }
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } })
+  )
 
   if (visaBekraftelse && mall) {
     return (
@@ -170,6 +169,46 @@ function AnteckningsmallFormular({
   }
 
   const sorterade = [...block].sort((a, b) => a.sortordning - b.sortordning)
+
+  const aktivIndex = aktivId ? sorterade.findIndex((b) => b.id === aktivId) : -1
+  const aktivBlock = aktivIndex >= 0 ? sorterade[aktivIndex] : null
+
+  function handleDragStart(event: DragStartEvent) {
+    setAktivId(String(event.active.id))
+  }
+
+  // Samma "släpp före/efter beroende på pekarens position"-princip som
+  // mall-vy.tsx och Kanban-tavlan använder. sortordning sätts lokalt till
+  // nya indexet direkt, annars sorterar `sorterade` om sig till den gamla
+  // ordningen igen vid nästa render (den härleds alltid från sortordning).
+  function handleDragEnd(event: DragEndEvent) {
+    setAktivId(null)
+    const { active, over } = event
+    if (!over) return
+    const id = String(active.id)
+    const overId = String(over.id)
+    if (id === overId) return
+
+    const fran = sorterade.findIndex((b) => b.id === id)
+    const malIndex = sorterade.findIndex((b) => b.id === overId)
+    if (fran === -1 || malIndex === -1) return
+
+    const activeRect = active.rect.current.translated
+    const overRect = over.rect
+    const infogaEfter =
+      !!activeRect && activeRect.top + activeRect.height / 2 > overRect.top + overRect.height / 2
+
+    let till = infogaEfter ? malIndex + 1 : malIndex
+    if (fran < till) till -= 1
+
+    const nyOrdning = [...sorterade]
+    const [flyttat] = nyOrdning.splice(fran, 1)
+    nyOrdning.splice(till, 0, flyttat)
+
+    const nyttBlock = nyOrdning.map((b, i) => ({ ...b, sortordning: i }))
+    setBlock(nyttBlock)
+    omordnaAnteckningsblock(nyttBlock.map((b) => b.id))
+  }
 
   return (
     <Modal onClose={onClose} labelledBy="anteckningsmall-formular-title">
@@ -209,43 +248,30 @@ function AnteckningsmallFormular({
             {sorterade.length === 0 ? (
               <p className="text-xs text-stone-400">Inga block i mallen ännu.</p>
             ) : (
-              <ul className="divide-y divide-border-subtle overflow-hidden rounded-lg border border-border-subtle">
-                {sorterade.map((b, i) => (
-                  <li key={b.id} className="flex items-center gap-1 px-2 py-1.5">
-                    <div className="flex flex-col">
-                      <button
-                        type="button"
-                        onClick={() => handleFlytta(b.id, 'upp')}
-                        disabled={i === 0}
-                        aria-label={`Flytta "${b.namn}" upp`}
-                        className="rounded p-1 text-stone-400 transition-colors hover:bg-stone-100 disabled:opacity-30 dark:hover:bg-stone-800"
-                      >
-                        <ChevronUpIcon className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleFlytta(b.id, 'ner')}
-                        disabled={i === sorterade.length - 1}
-                        aria-label={`Flytta "${b.namn}" ner`}
-                        className="rounded p-1 text-stone-400 transition-colors hover:bg-stone-100 disabled:opacity-30 dark:hover:bg-stone-800"
-                      >
-                        <ChevronDownIcon className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setRedigerarBlock(b)}
-                      className="flex flex-1 items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-stone-50 dark:hover:bg-stone-800"
-                    >
-                      <span className="truncate">{b.namn}</span>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+              >
+                <ul className="divide-y divide-border-subtle overflow-hidden rounded-lg border border-border-subtle">
+                  {sorterade.map((b) => (
+                    <AnteckningsblockRad key={b.id} block={b} onSelect={() => setRedigerarBlock(b)} />
+                  ))}
+                </ul>
+
+                <DragOverlay>
+                  {aktivBlock ? (
+                    <div className="flex items-center justify-between gap-2 rounded-lg border border-border-subtle bg-surface px-2 py-1.5 text-sm shadow-lg">
+                      <span className="truncate">{aktivBlock.namn}</span>
                       <div className="flex items-center gap-2">
-                        {!b.aktiv && <Badge>Inaktiv</Badge>}
+                        {!aktivBlock.aktiv && <Badge>Inaktiv</Badge>}
                         <span className="text-xs text-stone-400">Redigera</span>
                       </div>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
             )}
           </div>
         )}
@@ -263,6 +289,36 @@ function AnteckningsmallFormular({
   )
 }
 
+// Hela raden är draggable/droppable och öppnar redigeringsformuläret vid klick
+// — samma mönster som MallUppgiftRad i mall-vy.tsx och KanbanCard i
+// uppgifter/kanban-board.tsx.
+function AnteckningsblockRad({ block: b, onSelect }: { block: Anteckningsblock; onSelect: () => void }) {
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({ id: b.id })
+  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: b.id })
+  const setNodeRef = (node: HTMLElement | null) => {
+    setDragRef(node)
+    setDropRef(node)
+  }
+
+  return (
+    <li
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      onClick={onSelect}
+      className={`flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm transition-colors hover:bg-stone-50 dark:hover:bg-stone-800 ${
+        isDragging ? 'opacity-30' : ''
+      } ${isOver ? 'ring-2 ring-inset ring-accent-400' : ''}`}
+    >
+      <span className="truncate">{b.namn}</span>
+      <div className="flex items-center gap-2">
+        {!b.aktiv && <Badge>Inaktiv</Badge>}
+        <span className="text-xs text-stone-400">Redigera</span>
+      </div>
+    </li>
+  )
+}
+
 function AnteckningsblockFormular({
   anteckningsmallId,
   existing,
@@ -277,6 +333,7 @@ function AnteckningsblockFormular({
   onChanged: () => void
 }) {
   const [namn, setNamn] = useState(existing?.namn ?? '')
+  const [beskrivning, setBeskrivning] = useState(existing?.beskrivning ?? '')
   const [genererarUppgift, setGenererarUppgift] = useState(existing?.genererar_uppgift ?? false)
   const [uppgiftTitelMall, setUppgiftTitelMall] = useState(existing?.uppgift_titel_mall ?? '')
   const [uppgiftTypId, setUppgiftTypId] = useState(existing?.uppgift_typ_id ?? '')
@@ -295,6 +352,7 @@ function AnteckningsblockFormular({
 
     const input = {
       namn,
+      beskrivning,
       genererarUppgift,
       uppgiftTitelMall,
       uppgiftTypId,
@@ -336,6 +394,16 @@ function AnteckningsblockFormular({
             placeholder="T.ex. TODO"
             required
             autoFocus
+          />
+        </Field>
+
+        <Field label="Beskrivning" htmlFor="block-beskrivning">
+          <Textarea
+            id="block-beskrivning"
+            value={beskrivning}
+            onChange={(e) => setBeskrivning(e.target.value)}
+            placeholder="T.ex. Fråga efter budget och tidsplan innan mötet avslutas"
+            rows={2}
           />
         </Field>
 

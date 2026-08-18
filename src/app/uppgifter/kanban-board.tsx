@@ -56,7 +56,13 @@ type Typ = {
 }
 type Kategori = { id: string; namn: string }
 type Projekt = { id: string; namn: string; kund_id: string | null }
-type Anteckningsblock = { id: string; namn: string; genererar_uppgift: boolean; anteckningsmall_id: string }
+type Anteckningsblock = {
+  id: string
+  namn: string
+  beskrivning: string | null
+  genererar_uppgift: boolean
+  anteckningsmall_id: string
+}
 type UppgiftAnteckning = {
   block_id: string
   innehall: string

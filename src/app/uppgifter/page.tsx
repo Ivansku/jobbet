@@ -138,7 +138,7 @@ export default async function UppgifterPage({
     supabase.from('kontaktperson').select('id, kund_id, fornamn, efternamn, epost').order('fornamn'),
     supabase
       .from('anteckningsblock')
-      .select('id, namn, genererar_uppgift, anteckningsmall_id')
+      .select('id, namn, beskrivning, genererar_uppgift, anteckningsmall_id')
       .eq('aktiv', true)
       .order('sortordning'),
   ])

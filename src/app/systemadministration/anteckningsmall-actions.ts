@@ -42,7 +42,7 @@ export async function hamtaAnteckningsblockForMall(anteckningsmallId: string) {
   const { data } = await supabase
     .from('anteckningsblock')
     .select(
-      'id, namn, sortordning, aktiv, genererar_uppgift, uppgift_titel_mall, uppgift_typ_id, deadline_dagar_efter_motet, kundvisning_standard'
+      'id, namn, beskrivning, sortordning, aktiv, genererar_uppgift, uppgift_titel_mall, uppgift_typ_id, deadline_dagar_efter_motet, kundvisning_standard'
     )
     .eq('anteckningsmall_id', anteckningsmallId)
     .order('sortordning')
@@ -51,6 +51,7 @@ export async function hamtaAnteckningsblockForMall(anteckningsmallId: string) {
 
 type AnteckningsblockInput = {
   namn: string
+  beskrivning: string
   genererarUppgift: boolean
   uppgiftTitelMall: string
   uppgiftTypId: string
@@ -89,6 +90,7 @@ export async function skapaAnteckningsblock(input: AnteckningsblockInput & { ant
     foretag_id: foretagId,
     anteckningsmall_id: input.anteckningsmallId,
     namn: input.namn.trim(),
+    beskrivning: input.beskrivning.trim() || null,
     genererar_uppgift: input.genererarUppgift,
     uppgift_titel_mall: input.uppgiftTitelMall.trim() || null,
     uppgift_typ_id: input.uppgiftTypId || null,
@@ -109,6 +111,7 @@ export async function uppdateraAnteckningsblock(id: string, input: Anteckningsbl
     .from('anteckningsblock')
     .update({
       namn: input.namn.trim(),
+      beskrivning: input.beskrivning.trim() || null,
       genererar_uppgift: input.genererarUppgift,
       uppgift_titel_mall: input.uppgiftTitelMall.trim() || null,
       uppgift_typ_id: input.uppgiftTypId || null,
@@ -127,31 +130,13 @@ export async function sattAnteckningsblockAktiv(id: string, aktiv: boolean) {
   revalidatePath('/systemadministration')
 }
 
-// Byter sortordning med grannen ovanför/under, skopat till samma anteckningsmall
-// — samma mönster som flyttaMallUppgift i mall-actions.ts.
-export async function flyttaAnteckningsblock(id: string, riktning: 'upp' | 'ner') {
+// Sätter sortordning till indexet i den ordnade listan — anropas efter en
+// drag-and-drop-omordning i anteckningsmall-vy.tsx, som redan känner till hela
+// den nya ordningen. Samma mönster som omordnaMallUppgifter i mall-actions.ts.
+export async function omordnaAnteckningsblock(ordnadeIds: string[]) {
   const supabase = await createClient()
-  const { data: block } = await supabase
-    .from('anteckningsblock')
-    .select('anteckningsmall_id, sortordning')
-    .eq('id', id)
-    .single()
-  if (!block) return
-
-  const grannQuery = supabase
-    .from('anteckningsblock')
-    .select('id, sortordning')
-    .eq('anteckningsmall_id', block.anteckningsmall_id)
-
-  const { data: granne } = await (riktning === 'upp'
-    ? grannQuery.lt('sortordning', block.sortordning).order('sortordning', { ascending: false })
-    : grannQuery.gt('sortordning', block.sortordning).order('sortordning', { ascending: true })
+  await Promise.all(
+    ordnadeIds.map((id, i) => supabase.from('anteckningsblock').update({ sortordning: i }).eq('id', id))
   )
-    .limit(1)
-    .maybeSingle()
-  if (!granne) return
-
-  await supabase.from('anteckningsblock').update({ sortordning: granne.sortordning }).eq('id', id)
-  await supabase.from('anteckningsblock').update({ sortordning: block.sortordning }).eq('id', granne.id)
   revalidatePath('/systemadministration')
 }

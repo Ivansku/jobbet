@@ -34,7 +34,7 @@ function CloseIcon({ className = '' }: { className?: string }) {
   )
 }
 
-type Block = { id: string; namn: string; genererar_uppgift: boolean }
+type Block = { id: string; namn: string; beskrivning: string | null; genererar_uppgift: boolean }
 type Anteckning = {
   block_id: string
   innehall: string
@@ -297,7 +297,7 @@ export function MotesanteckningarSektion({
           // "expanderad" ovan) ihop blocken istället för att låta dem svämma över och
           // faktiskt gå att scrolla till.
           <div key={block.id} className="shrink-0">
-            <Field label={block.namn} htmlFor={`block-${block.id}`}>
+            <Field label={block.namn} htmlFor={`block-${block.id}`} hint={block.beskrivning ?? undefined}>
               <MarkdownEditor
                 id={`block-${block.id}`}
                 value={innehallForBlock(block.id)}

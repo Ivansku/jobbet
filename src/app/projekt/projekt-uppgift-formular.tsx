@@ -10,7 +10,13 @@ import { MarkdownEditor } from '@/components/ui/markdown-editor'
 import { Button } from '@/components/ui/button'
 
 export type Typ = { id: string; namn: string; anteckningsmall_id: string | null; skapa_uppgifter_vid_klar: boolean }
-export type Anteckningsblock = { id: string; namn: string; genererar_uppgift: boolean; anteckningsmall_id: string }
+export type Anteckningsblock = {
+  id: string
+  namn: string
+  beskrivning: string | null
+  genererar_uppgift: boolean
+  anteckningsmall_id: string
+}
 type UppgiftAnteckning = {
   block_id: string
   innehall: string
