@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -23,6 +23,7 @@ import {
   uppdateraMallUppgift,
   taBortMallUppgift,
   omordnaMallUppgifter,
+  sparaAnteckningskallor,
 } from './mall-actions'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -37,7 +38,7 @@ import { MarkdownEditor } from '@/components/ui/markdown-editor'
 type Typ = { id: string; namn: string; anteckningsmall_id: string | null }
 type Kategori = { id: string; namn: string }
 type Person = { id: string; namn: string }
-type Anteckningsmall = { id: string; namn: string }
+type Anteckningsmall = { id: string; namn: string; block: { id: string; namn: string; aktiv: boolean }[] }
 type MallUppgift = {
   id: string
   titel: string
@@ -52,6 +53,7 @@ type MallUppgift = {
   sortordning: number
   ar_placeholder: boolean
   anteckningsmall_id: string | null
+  anteckningskallor: string[]
 }
 type MallProjekt = { id: string; namn: string; antalUppgifter: number; uppgifter: MallUppgift[] }
 
@@ -241,6 +243,7 @@ function MallFormular({
       <MallUppgiftFormular
         mallProjektId={mall.id}
         existing={redigerarUppgift === 'ny' ? null : redigerarUppgift}
+        allaUppgifter={uppgifter}
         arForsta={arForsta}
         typer={typer}
         kategori={kategori}
@@ -386,6 +389,7 @@ function MallUppgiftRad({
 function MallUppgiftFormular({
   mallProjektId,
   existing,
+  allaUppgifter,
   arForsta,
   typer,
   kategori,
@@ -397,6 +401,7 @@ function MallUppgiftFormular({
 }: {
   mallProjektId: string
   existing: MallUppgift | null
+  allaUppgifter: MallUppgift[]
   arForsta: boolean
   typer: Typ[]
   kategori: Kategori[]
@@ -419,11 +424,33 @@ function MallUppgiftFormular({
   const [anteckningsmallId, setAnteckningsmallId] = useState(existing?.anteckningsmall_id ?? '')
   const [sparar, setSparar] = useState(false)
   const [tarBort, setTarBort] = useState(false)
+  const [valdaBlock, setValdaBlock] = useState<string[]>(existing?.anteckningskallor ?? [])
 
   // Bara typer som har anteckningar aktiverade kan få en override — annars
   // finns ingen standardmall att avvika från.
   const valdTyp = typer.find((t) => t.id === typId)
   const visaAnteckningsmallValjare = Boolean(valdTyp?.anteckningsmall_id)
+
+  // Block som kan väljas som källa: alla block från andra uppgiftsmallar i samma
+  // projektmall som har en anteckningsmall satt. Härlett direkt ur props som
+  // redan finns i minnet (från sidladdningen) — ingen server-runda vid öppning,
+  // annars syns en fördröjning varje gång man klickar på en uppgiftsmall.
+  const kallaGrupper = useMemo(() => {
+    return allaUppgifter
+      .filter((u) => u.anteckningsmall_id && u.id !== existing?.id)
+      .map((u) => {
+        const mall = anteckningsmallar.find((a) => a.id === u.anteckningsmall_id)
+        return {
+          mallUppgiftTitel: u.titel,
+          block: (mall?.block ?? []).filter((b) => b.aktiv).map((b) => ({ id: b.id, namn: b.namn })),
+        }
+      })
+      .filter((g) => g.block.length > 0)
+  }, [allaUppgifter, anteckningsmallar, existing])
+
+  function toggleKallaBlock(blockId: string) {
+    setValdaBlock((prev) => (prev.includes(blockId) ? prev.filter((id) => id !== blockId) : [...prev, blockId]))
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -446,6 +473,7 @@ function MallUppgiftFormular({
 
     if (existing) {
       await uppdateraMallUppgift(existing.id, input)
+      await sparaAnteckningskallor(existing.id, valdaBlock)
     } else {
       await skapaMallUppgift({ mallProjektId, ...input })
     }
@@ -597,6 +625,37 @@ function MallUppgiftFormular({
             placeholder-rad i projektet, redo att kopplas till en riktig uppgift senare (t.ex. ett
             Outlook-möte som ännu inte är bokat).
           </p>
+        )}
+
+        {existing && kallaGrupper.length > 0 && (
+          <div className="border-t border-border-subtle pt-3">
+            <h3 className="mb-1 text-sm font-semibold text-stone-500">Fyll beskrivningen automatiskt</h3>
+            <p className="mb-2 text-xs text-stone-400">
+              Bocka i vilka anteckningsblock från andra mötesuppgifter i mallen som ska fylla den här
+              uppgiftens beskrivning, första gången ett projekt genererat från mallen får sina anteckningar
+              ifyllda.
+            </p>
+            <div className="flex flex-col gap-3">
+              {kallaGrupper.map((g) => (
+                <div key={g.mallUppgiftTitel}>
+                  <p className="mb-1 text-xs font-medium text-stone-400">{g.mallUppgiftTitel}</p>
+                  <div className="flex flex-col gap-1">
+                    {g.block.map((b) => (
+                      <label key={b.id} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={valdaBlock.includes(b.id)}
+                          onChange={() => toggleKallaBlock(b.id)}
+                          className="h-4 w-4 accent-accent-600"
+                        />
+                        {b.namn}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
         <div className="mt-1 flex justify-end gap-2">

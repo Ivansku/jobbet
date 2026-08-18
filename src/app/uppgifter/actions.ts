@@ -352,6 +352,7 @@ export async function uppdateraUppgift(
 
   if (input.status === 'klar') {
     await genereraOmAktiverat(supabase, id, foretagId)
+    await fyllINedstromsBeskrivningarFranAnteckningar(supabase, id)
   }
 
   revalidatePath('/uppgifter')
@@ -372,10 +373,12 @@ export async function uppdateraStatus(id: string, status: string) {
   if (status === 'klar') {
     const foretagId = await currentForetagId()
     if (foretagId) await genereraOmAktiverat(supabase, id, foretagId)
+    await fyllINedstromsBeskrivningarFranAnteckningar(supabase, id)
   }
 
   revalidatePath('/uppgifter')
   revalidatePath('/')
+  revalidatePath('/projekt')
 }
 
 export async function taBortUppgift(id: string) {
@@ -501,8 +504,77 @@ export async function genereraUppgifterFranAnteckningar(uppgiftId: string) {
 
   const supabase = await createClient()
   const antalGenererade = await genereraUppgifterKarna(supabase, uppgiftId, foretagId)
-  if (antalGenererade > 0) revalidatePath('/uppgifter')
+  await fyllINedstromsBeskrivningarFranAnteckningar(supabase, uppgiftId)
+  revalidatePath('/uppgifter')
+  revalidatePath('/projekt')
   return { antalGenererade }
+}
+
+// Fyller i beskrivningen på andra uppgifter i samma projekt (t.ex. "Konfigurera")
+// med anteckningar från en mötesuppgift, enligt mappningen admin satt upp i mallen
+// (mall_uppgift_anteckningskalla: vilken mall-uppgift som ska ha vilka block).
+// Skriver bara in text när mottagarens beskrivning fortfarande är tom — rör
+// aldrig ett fält någon redan fyllt i manuellt, samma princip som
+// kopplaTillPlaceholder använder för kategori/anteckningsmall.
+async function fyllINedstromsBeskrivningarFranAnteckningar(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  motesUppgiftId: string
+) {
+  const { data: mote } = await supabase
+    .from('uppgift')
+    .select('projekt_id')
+    .eq('id', motesUppgiftId)
+    .single()
+  if (!mote?.projekt_id) return
+
+  const { data: anteckningar } = await supabase
+    .from('uppgift_anteckning')
+    .select('block_id, innehall, block:block_id(namn)')
+    .eq('uppgift_id', motesUppgiftId)
+
+  const ifyllda = (anteckningar ?? [])
+    .map((a) => ({
+      block_id: a.block_id,
+      innehall: (a.innehall ?? '').trim(),
+      namn: enTillRelation(a.block)?.namn ?? '',
+    }))
+    .filter((a) => a.innehall)
+  if (ifyllda.length === 0) return
+
+  const { data: kallor } = await supabase
+    .from('mall_uppgift_anteckningskalla')
+    .select('mall_uppgift_id, block_id, sortordning')
+    .in(
+      'block_id',
+      ifyllda.map((a) => a.block_id)
+    )
+  if (!kallor || kallor.length === 0) return
+
+  const perMallUppgift = new Map<string, typeof kallor>()
+  for (const k of kallor) {
+    perMallUppgift.set(k.mall_uppgift_id, [...(perMallUppgift.get(k.mall_uppgift_id) ?? []), k])
+  }
+
+  for (const [mallUppgiftId, blockRefs] of perMallUppgift) {
+    const { data: mal } = await supabase
+      .from('uppgift')
+      .select('id, beskrivning')
+      .eq('projekt_id', mote.projekt_id)
+      .eq('mall_uppgift_id', mallUppgiftId)
+      .maybeSingle()
+    if (!mal || (mal.beskrivning ?? '').trim()) continue
+
+    const text = blockRefs
+      .slice()
+      .sort((a, b) => a.sortordning - b.sortordning)
+      .map((ref) => ifyllda.find((a) => a.block_id === ref.block_id))
+      .filter((a): a is (typeof ifyllda)[number] => !!a)
+      .map((a) => `# ${a.namn}\n${a.innehall}`)
+      .join('\n\n')
+    if (!text) continue
+
+    await supabase.from('uppgift').update({ beskrivning: text }).eq('id', mal.id)
+  }
 }
 
 // Körs varje gång en uppgift sätts till klar (dropdown i formuläret eller

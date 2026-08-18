@@ -52,19 +52,27 @@ export default async function SystemadministrationPage() {
     supabase
       .from('mall_projekt')
       .select(
-        'id, namn, mall_uppgift(id, titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, sortordning, ar_placeholder, anteckningsmall_id)'
+        'id, namn, mall_uppgift(id, titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, sortordning, ar_placeholder, anteckningsmall_id, mall_uppgift_anteckningskalla(block_id, sortordning))'
       )
       .order('namn'),
   ])
 
-  // Uppgiftsmallarna hämtas färdigt här (server-side) istället för att
-  // MallVy ska behöva hämta dem själv vid öppning — annars syns en
-  // fördröjning varje gång en mall öppnas.
+  // Uppgiftsmallarna (inklusive vilka anteckningsblock som ska fylla deras
+  // beskrivning, se mall_uppgift_anteckningskalla) hämtas färdigt här
+  // (server-side) istället för att MallVy ska behöva hämta dem själv vid
+  // öppning — annars syns en fördröjning varje gång en uppgiftsmall öppnas.
   const mallar = (mallProjekt ?? []).map((m) => ({
     id: m.id,
     namn: m.namn,
     antalUppgifter: m.mall_uppgift.length,
-    uppgifter: [...m.mall_uppgift].sort((a, b) => a.sortordning - b.sortordning),
+    uppgifter: [...m.mall_uppgift]
+      .sort((a, b) => a.sortordning - b.sortordning)
+      .map(({ mall_uppgift_anteckningskalla, ...u }) => ({
+        ...u,
+        anteckningskallor: [...mall_uppgift_anteckningskalla]
+          .sort((a, b) => a.sortordning - b.sortordning)
+          .map((k) => k.block_id),
+      })),
   }))
 
   const anteckningsmallar = (anteckningsmall ?? []).map((m) => ({

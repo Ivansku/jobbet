@@ -42,11 +42,17 @@ export async function hamtaMallUppgifter(mallProjektId: string) {
   const { data } = await supabase
     .from('mall_uppgift')
     .select(
-      'id, titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, sortordning, ar_placeholder, anteckningsmall_id'
+      'id, titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, sortordning, ar_placeholder, anteckningsmall_id, mall_uppgift_anteckningskalla(block_id, sortordning)'
     )
     .eq('mall_projekt_id', mallProjektId)
     .order('sortordning')
-  return data ?? []
+
+  return (data ?? []).map(({ mall_uppgift_anteckningskalla, ...u }) => ({
+    ...u,
+    anteckningskallor: [...mall_uppgift_anteckningskalla]
+      .sort((a, b) => a.sortordning - b.sortordning)
+      .map((k) => k.block_id),
+  }))
 }
 
 export async function skapaMallUppgift(input: {
@@ -151,4 +157,25 @@ export async function omordnaMallUppgifter(ordnadeIds: string[]) {
     ordnadeIds.map((id, i) => supabase.from('mall_uppgift').update({ sortordning: i }).eq('id', id))
   )
   revalidatePath('/systemadministration')
+}
+
+// Skriver alltid över hela listan (radera + återskapa) istället för att diffa
+// — samma mönster som synkaDeltagare i uppgifter/actions.ts. sortordning sätts
+// till vald ordning i UI:t, den ordningen blockens innehåll konkateneras i när
+// beskrivningen fylls i.
+export async function sparaAnteckningskallor(mallUppgiftId: string, blockIds: string[]) {
+  const foretagId = await currentForetagId()
+  if (!foretagId) return
+
+  const supabase = await createClient()
+  await supabase.from('mall_uppgift_anteckningskalla').delete().eq('mall_uppgift_id', mallUppgiftId)
+  if (blockIds.length === 0) return
+  await supabase.from('mall_uppgift_anteckningskalla').insert(
+    blockIds.map((blockId, i) => ({
+      mall_uppgift_id: mallUppgiftId,
+      block_id: blockId,
+      foretag_id: foretagId,
+      sortordning: i,
+    }))
+  )
 }
