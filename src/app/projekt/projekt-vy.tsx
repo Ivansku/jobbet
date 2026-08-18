@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { skapaProjekt, uppdateraProjekt, taBortProjekt, taBortProjektMedUppgifter } from './actions'
+import { skapaProjekt, uppdateraProjekt, taBortProjekt, taBortProjektMedUppgifter, hamtaProjektUppgifter } from './actions'
+import { ProjektUppgiftFormular, type ProjektUppgiftDetaljerad, type Typ, type Anteckningsblock } from './projekt-uppgift-formular'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Field } from '@/components/ui/field'
@@ -28,13 +29,7 @@ type Projekt = {
   uppgifter: ProjektUppgift[]
 }
 
-type ProjektUppgift = {
-  id: string
-  titel: string
-  status: string
-  deadline: string | null
-  ansvarigNamn: string | null
-}
+type ProjektUppgift = ProjektUppgiftDetaljerad & { ansvarigNamn: string | null }
 
 const STATUS_LABEL: Record<string, string> = { aktivt: 'Aktivt', pausat: 'Pausat', avslutat: 'Avslutat' }
 const STATUS_TONE: Record<string, 'success' | 'warning' | 'neutral'> = {
@@ -43,7 +38,19 @@ const STATUS_TONE: Record<string, 'success' | 'warning' | 'neutral'> = {
   avslutat: 'neutral',
 }
 
-export function ProjektVy({ projekt, kunder, mallar }: { projekt: Projekt[]; kunder: Kund[]; mallar: Mall[] }) {
+export function ProjektVy({
+  projekt,
+  kunder,
+  mallar,
+  typer,
+  block,
+}: {
+  projekt: Projekt[]
+  kunder: Kund[]
+  mallar: Mall[]
+  typer: Typ[]
+  block: Anteckningsblock[]
+}) {
   const [redigerar, setRedigerar] = useState<Projekt | 'ny' | null>(null)
   const [nyMallId, setNyMallId] = useState<string | null>(null)
 
@@ -90,6 +97,8 @@ export function ProjektVy({ projekt, kunder, mallar }: { projekt: Projekt[]; kun
         <ProjektFormular
           kunder={kunder}
           mallar={mallar}
+          typer={typer}
+          block={block}
           existing={redigerar === 'ny' ? null : redigerar}
           initialMallId={nyMallId}
           onClose={() => setRedigerar(null)}
@@ -163,12 +172,16 @@ function idagISO() {
 function ProjektFormular({
   kunder,
   mallar,
+  typer,
+  block,
   existing,
   initialMallId,
   onClose,
 }: {
   kunder: Kund[]
   mallar: Mall[]
+  typer: Typ[]
+  block: Anteckningsblock[]
   existing: Projekt | null
   initialMallId: string | null
   onClose: () => void
@@ -179,10 +192,16 @@ function ProjektFormular({
   const [status, setStatus] = useState(existing?.status ?? 'aktivt')
   const [startdatum, setStartdatum] = useState(existing?.startdatum ?? idagISO())
   const [beskrivning, setBeskrivning] = useState(existing?.beskrivning ?? '')
-  const uppgifter = existing?.uppgifter ?? []
+  const [uppgifter, setUppgifter] = useState<ProjektUppgift[]>(existing?.uppgifter ?? [])
+  const [redigerarUppgift, setRedigerarUppgift] = useState<ProjektUppgift | null>(null)
   const [sparar, setSparar] = useState(false)
   const [bekraftaTaBort, setBekraftaTaBort] = useState<'kopplaLoss' | 'medUppgifter' | null>(null)
   const [tarBort, setTarBort] = useState(false)
+
+  async function laddaOmUppgifter() {
+    if (!existing) return
+    setUppgifter(await hamtaProjektUppgifter(existing.id))
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -210,6 +229,19 @@ function ProjektFormular({
     }
     setTarBort(false)
     onClose()
+  }
+
+  if (redigerarUppgift && existing) {
+    return (
+      <ProjektUppgiftFormular
+        uppgift={redigerarUppgift}
+        projektId={existing.id}
+        typer={typer}
+        block={block}
+        onClose={() => setRedigerarUppgift(null)}
+        onChanged={laddaOmUppgifter}
+      />
+    )
   }
 
   if (bekraftaTaBort && existing) {
@@ -319,13 +351,19 @@ function ProjektFormular({
             ) : (
               <ul className="divide-y divide-border-subtle overflow-hidden rounded-lg border border-border-subtle">
                 {uppgifter.map((u) => (
-                  <li key={u.id} className="flex items-center justify-between px-3 py-2 text-sm">
-                    <span className={`truncate ${u.status === 'klar' ? 'text-stone-400 line-through' : ''}`}>
-                      {u.titel}
-                    </span>
-                    <span className="shrink-0 text-xs text-stone-400">
-                      {u.ansvarigNamn ?? ''} {u.deadline ?? ''}
-                    </span>
+                  <li key={u.id}>
+                    <button
+                      type="button"
+                      onClick={() => setRedigerarUppgift(u)}
+                      className="flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-stone-50 dark:hover:bg-stone-800"
+                    >
+                      <span className={`truncate ${u.status === 'klar' ? 'text-stone-400 line-through' : ''}`}>
+                        {u.titel}
+                      </span>
+                      <span className="shrink-0 text-xs text-stone-400">
+                        {u.ansvarigNamn ?? ''} {u.deadline ?? ''}
+                      </span>
+                    </button>
                   </li>
                 ))}
               </ul>

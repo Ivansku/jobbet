@@ -356,6 +356,7 @@ export async function uppdateraUppgift(
 
   revalidatePath('/uppgifter')
   revalidatePath('/')
+  revalidatePath('/projekt')
 }
 
 export async function flyttaUppgift(id: string, deadline: string | null, sortordning: number) {

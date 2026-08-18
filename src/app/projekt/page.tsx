@@ -2,19 +2,30 @@ import { createClient } from '@/lib/supabase/server'
 import { AppNav } from '../nav'
 import { enTillRelation } from '@/lib/postgrest'
 import { ProjektVy } from './projekt-vy'
+import { PROJEKT_UPPGIFT_FALT } from './uppgift-falt'
 
 export default async function ProjektPage() {
   const supabase = await createClient()
-  const [{ data: projekt }, { data: kunder }, { data: mallar }] = await Promise.all([
-    supabase
-      .from('projekt')
-      .select(
-        'id, namn, status, beskrivning, startdatum, kund_id, kund:kund_id(namn), mall_projekt_id, uppgift(id, titel, status, deadline, sortordning, person:person_id(namn))'
-      )
-      .order('namn'),
-    supabase.from('kund').select('id, namn').order('namn'),
-    supabase.from('mall_projekt').select('id, namn').order('namn'),
-  ])
+  const [{ data: projekt }, { data: kunder }, { data: mallar }, { data: typer }, { data: block }] =
+    await Promise.all([
+      supabase
+        .from('projekt')
+        .select(
+          `id, namn, status, beskrivning, startdatum, kund_id, kund:kund_id(namn), mall_projekt_id, uppgift(${PROJEKT_UPPGIFT_FALT})`
+        )
+        .order('namn'),
+      supabase.from('kund').select('id, namn').order('namn'),
+      supabase.from('mall_projekt').select('id, namn').order('namn'),
+      supabase
+        .from('uppgiftstyp')
+        .select('id, namn, anteckningsmall_id, skapa_uppgifter_vid_klar')
+        .order('namn'),
+      supabase
+        .from('anteckningsblock')
+        .select('id, namn, genererar_uppgift, anteckningsmall_id')
+        .eq('aktiv', true)
+        .order('sortordning'),
+    ])
 
   // Uppgifterna hämtas färdigt här (server-side) istället för att ProjektVy
   // ska hämta dem själv vid öppning — annars syns en fördröjning varje gång
@@ -28,14 +39,9 @@ export default async function ProjektPage() {
     // (se kopplaTillPlaceholder) ärver placeholderns sortordning men behåller sin egen
     // (ofta senare) verkliga deadline — sortering på deadline skulle då slänga ner den
     // längst ner i listan istället för att låta den ligga kvar på mallens plats.
-    const uppgifter = [...p.uppgift].sort((a, b) => a.sortordning - b.sortordning)
-      .map((u) => ({
-        id: u.id,
-        titel: u.titel,
-        status: u.status,
-        deadline: u.deadline,
-        ansvarigNamn: enTillRelation(u.person)?.namn ?? null,
-      }))
+    const uppgifter = [...p.uppgift]
+      .sort((a, b) => a.sortordning - b.sortordning)
+      .map((u) => ({ ...u, ansvarigNamn: enTillRelation(u.person)?.namn ?? null }))
 
     return {
       id: p.id,
@@ -56,7 +62,13 @@ export default async function ProjektPage() {
     <>
       <AppNav />
       <main className="flex-1 p-6 md:p-8">
-        <ProjektVy projekt={projektRader} kunder={kunder ?? []} mallar={mallar ?? []} />
+        <ProjektVy
+          projekt={projektRader}
+          kunder={kunder ?? []}
+          mallar={mallar ?? []}
+          typer={typer ?? []}
+          block={block ?? []}
+        />
       </main>
     </>
   )

@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { currentForetagId } from '@/lib/foretag'
+import { enTillRelation } from '@/lib/postgrest'
+import { PROJEKT_UPPGIFT_FALT } from './uppgift-falt'
 
 // Ren datumaritmetik i UTC — samma mönster som motsvarande hjälpfunktion i
 // uppgifter/actions.ts, för att räkna ut varje genererad uppgifts deadline
@@ -140,4 +142,23 @@ export async function taBortProjektMedUppgifter(id: string) {
   await supabase.from('projekt').delete().eq('id', id)
   revalidatePath('/projekt')
   revalidatePath('/uppgifter')
+}
+
+// Uppdaterar bara den öppna projekt-modalens egen lista efter att en uppgift
+// redigerats i uppgiftsformuläret — samma mönster som hamtaMallUppgifter i
+// systemadministration/mall-actions.ts (lokal state, inte automatiskt synkad
+// från nya server-props när modalen redan är öppen). Samma fältlista som
+// page.tsx använder vid första sidladdningen, så formen på datan matchar.
+export async function hamtaProjektUppgifter(projektId: string) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('uppgift')
+    .select(PROJEKT_UPPGIFT_FALT)
+    .eq('projekt_id', projektId)
+    .order('sortordning')
+
+  return (data ?? []).map((u) => ({
+    ...u,
+    ansvarigNamn: enTillRelation(u.person)?.namn ?? null,
+  }))
 }
