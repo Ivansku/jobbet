@@ -185,12 +185,6 @@ export async function POST(request: NextRequest) {
 
   const { eventId, subject, start, end, bodyPreview, ownerEmail, requiredAttendees, optionalAttendees, actionType } =
     body
-  console.info('[outlook-webhook] mottagen payload', {
-    subject,
-    actionType,
-    requiredAttendees,
-    optionalAttendees,
-  })
   if (!eventId || !ownerEmail) {
     return NextResponse.json({ error: 'Saknar obligatoriska fält' }, { status: 400 })
   }
