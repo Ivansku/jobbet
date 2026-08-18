@@ -241,13 +241,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Saknar obligatoriska fält' }, { status: 400 })
   }
 
-  // Stående blockeringar utan deltagare (t.ex. "Lunch", "Fokustid") ska inte
-  // bli uppgifter — bara riktiga möten med minst en deltagare läses in. Gäller
-  // inte raderingar (hanteras redan ovan) eftersom Outlooks delete-trigger
-  // ofta saknar deltagarfälten helt.
-  const harDeltagare =
-    parsaDeltagarlista(requiredAttendees).length > 0 || parsaDeltagarlista(optionalAttendees).length > 0
-  if (!harDeltagare) {
+  // Stående blockeringar utan riktiga deltagare (t.ex. "Lunch", "Fokustid")
+  // ska inte bli uppgifter — bara möten med minst en extern/annan deltagare
+  // läses in. Outlooks trigger listar mailboxägaren som required attendee
+  // även på egna ensamma blockeringar, så ägarens egen adress räknas bort
+  // innan vi avgör om det finns någon riktig deltagare. Gäller inte
+  // raderingar (hanteras redan ovan) eftersom Outlooks delete-trigger ofta
+  // saknar deltagarfälten helt.
+  const ownerEmailLower = ownerEmail.toLowerCase()
+  const ovrigaDeltagare = [
+    ...parsaDeltagarlista(requiredAttendees),
+    ...parsaDeltagarlista(optionalAttendees),
+  ].filter((epost) => epost !== ownerEmailLower)
+  if (ovrigaDeltagare.length === 0) {
     return NextResponse.json({ ok: true, action: 'ingen_deltagare' })
   }
 
