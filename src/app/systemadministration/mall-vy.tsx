@@ -12,6 +12,7 @@ import {
   flyttaMallUppgift,
 } from './mall-actions'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Input, Select } from '@/components/ui/input'
 import { Field } from '@/components/ui/field'
 import { Modal } from '@/components/ui/modal'
@@ -35,6 +36,7 @@ type MallUppgift = {
   tidsatgang_timmar: number | null
   dagar_efter_start: number
   sortordning: number
+  ar_placeholder: boolean
 }
 type MallProjekt = { id: string; namn: string; antalUppgifter: number; uppgifter: MallUppgift[] }
 
@@ -238,7 +240,12 @@ function MallFormular({
             ) : (
               <ul className="divide-y divide-border-subtle overflow-hidden rounded-lg border border-border-subtle">
                 {uppgifter.map((u, i) => (
-                  <li key={u.id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                  <li
+                    key={u.id}
+                    className={`flex items-center gap-2 px-3 py-2 text-sm ${
+                      u.ar_placeholder ? 'bg-stone-50 dark:bg-stone-800/50' : ''
+                    }`}
+                  >
                     <div className="flex shrink-0 flex-col">
                       <button
                         type="button"
@@ -264,7 +271,10 @@ function MallFormular({
                       onClick={() => setRedigerarUppgift(u)}
                       className="flex min-w-0 flex-1 items-center justify-between gap-2 text-left"
                     >
-                      <span className="truncate">{u.titel}</span>
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className="truncate">{u.titel}</span>
+                        {u.ar_placeholder && <Badge tone="neutral">Placeholder</Badge>}
+                      </span>
                       <span className="shrink-0 text-xs text-stone-400">Dag {kumulativaDagar[i]}</span>
                     </button>
                   </li>
@@ -317,6 +327,7 @@ function MallUppgiftFormular({
   const [personId, setPersonId] = useState(existing?.person_id ?? currentPersonId ?? '')
   const [tidsatgang, setTidsatgang] = useState(existing?.tidsatgang_timmar?.toString() ?? '')
   const [dagarEfterStart, setDagarEfterStart] = useState(existing?.dagar_efter_start?.toString() ?? '0')
+  const [arPlaceholder, setArPlaceholder] = useState(existing?.ar_placeholder ?? false)
   const [sparar, setSparar] = useState(false)
   const [tarBort, setTarBort] = useState(false)
 
@@ -335,6 +346,7 @@ function MallUppgiftFormular({
       personId,
       tidsatgangTimmar: tidsatgang.trim() ? Number(tidsatgang) : null,
       dagarEfterStart: Math.max(0, Number(dagarEfterStart) || 0),
+      arPlaceholder,
     }
 
     if (existing) {
@@ -457,6 +469,23 @@ function MallUppgiftFormular({
             />
           </Field>
         </div>
+
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={arPlaceholder}
+            onChange={(e) => setArPlaceholder(e.target.checked)}
+            className="h-4 w-4 accent-accent-600"
+          />
+          Detta är en placeholder
+        </label>
+        {arPlaceholder && (
+          <p className="text-xs text-stone-400">
+            När mallen används för att skapa ett riktigt projekt blir den här uppgiften en väntande
+            placeholder-rad i projektet, redo att kopplas till en riktig uppgift senare (t.ex. ett
+            Outlook-möte som ännu inte är bokat).
+          </p>
+        )}
 
         <div className="mt-1 flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>

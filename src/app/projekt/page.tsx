@@ -9,7 +9,7 @@ export default async function ProjektPage() {
     supabase
       .from('projekt')
       .select(
-        'id, namn, status, beskrivning, startdatum, kund_id, kund:kund_id(namn), mall_projekt_id, uppgift(id, titel, status, deadline, person:person_id(namn))'
+        'id, namn, status, beskrivning, startdatum, kund_id, kund:kund_id(namn), mall_projekt_id, uppgift(id, titel, status, deadline, sortordning, person:person_id(namn))'
       )
       .order('namn'),
     supabase.from('kund').select('id, namn').order('namn'),
@@ -20,13 +20,15 @@ export default async function ProjektPage() {
   // ska hämta dem själv vid öppning — annars syns en fördröjning varje gång
   // ett projekt öppnas.
   const projektRader = (projekt ?? []).map((p) => {
-    const uppgifter = [...p.uppgift]
-      .sort((a, b) => {
-        if (!a.deadline && !b.deadline) return 0
-        if (!a.deadline) return 1
-        if (!b.deadline) return -1
-        return a.deadline.localeCompare(b.deadline)
-      })
+    // Sorteras på sortordning (mallens/checklistans tänkta ordning) istället för
+    // deadline. Två skäl: (1) den inbäddade uppgift(...)-relationen saknar ORDER BY,
+    // så Postgres radordning för rader med samma/saknad deadline är odefinierad och
+    // kunde ändras av en vanlig UPDATE (t.ex. en klarmarkering), vilket syntes som att
+    // raden "hoppade" i listan. (2) en placeholder som kopplas till en riktig uppgift
+    // (se kopplaTillPlaceholder) ärver placeholderns sortordning men behåller sin egen
+    // (ofta senare) verkliga deadline — sortering på deadline skulle då slänga ner den
+    // längst ner i listan istället för att låta den ligga kvar på mallens plats.
+    const uppgifter = [...p.uppgift].sort((a, b) => a.sortordning - b.sortordning)
       .map((u) => ({
         id: u.id,
         titel: u.titel,

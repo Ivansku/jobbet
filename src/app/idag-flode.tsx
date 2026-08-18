@@ -34,6 +34,7 @@ export type UppgiftDetaljerad = Uppgift & {
   typ_id: string | null
   skapa_uppgifter_vid_klar: boolean | null
   mailinnehall: string | null
+  ar_placeholder: boolean
   uppgift_deltagare: { kontaktperson_id: string }[]
   uppgift_anteckning: {
     block_id: string

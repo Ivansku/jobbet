@@ -42,7 +42,7 @@ export async function hamtaMallUppgifter(mallProjektId: string) {
   const { data } = await supabase
     .from('mall_uppgift')
     .select(
-      'id, titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, sortordning'
+      'id, titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, sortordning, ar_placeholder'
     )
     .eq('mall_projekt_id', mallProjektId)
     .order('sortordning')
@@ -60,6 +60,7 @@ export async function skapaMallUppgift(input: {
   personId: string
   tidsatgangTimmar: number | null
   dagarEfterStart: number
+  arPlaceholder: boolean
 }) {
   const titelTrimmad = input.titel.trim()
   if (!titelTrimmad) return
@@ -88,6 +89,7 @@ export async function skapaMallUppgift(input: {
     person_id: input.personId || null,
     tidsatgang_timmar: input.tidsatgangTimmar,
     dagar_efter_start: input.dagarEfterStart,
+    ar_placeholder: input.arPlaceholder,
     sortordning: (sistaUppgift?.sortordning ?? 0) + 1,
   })
   revalidatePath('/systemadministration')
@@ -105,6 +107,7 @@ export async function uppdateraMallUppgift(
     personId: string
     tidsatgangTimmar: number | null
     dagarEfterStart: number
+    arPlaceholder: boolean
   }
 ) {
   const titelTrimmad = input.titel.trim()
@@ -123,6 +126,7 @@ export async function uppdateraMallUppgift(
       person_id: input.personId || null,
       tidsatgang_timmar: input.tidsatgangTimmar,
       dagar_efter_start: input.dagarEfterStart,
+      ar_placeholder: input.arPlaceholder,
     })
     .eq('id', id)
   revalidatePath('/systemadministration')

@@ -96,6 +96,7 @@ export default async function UppgifterPage({
   const [
     ,
     { data: uppgifter },
+    { data: placeholders },
     { data: personer },
     { data: kunder },
     { data: typer },
@@ -111,10 +112,15 @@ export default async function UppgifterPage({
     supabase
       .from('uppgift')
       .select(
-        'id, titel, beskrivning, status, prioritet, deadline, person_id, kund_id, typ_id, kategori_id, projekt_id, serie_id, sortordning, tidsatgang_timmar, klockslag, skapa_uppgifter_vid_klar, mailinnehall, uppgift_deltagare(kontaktperson_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(block_id, innehall, uppgift_id_genererad, genererad:uppgift!uppgift_anteckning_uppgift_id_genererad_fkey(titel, deadline))'
+        'id, titel, beskrivning, status, prioritet, deadline, person_id, kund_id, typ_id, kategori_id, projekt_id, serie_id, sortordning, tidsatgang_timmar, klockslag, skapa_uppgifter_vid_klar, mailinnehall, ar_placeholder, uppgift_deltagare(kontaktperson_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(block_id, innehall, uppgift_id_genererad, genererad:uppgift!uppgift_anteckning_uppgift_id_genererad_fkey(titel, deadline))'
       )
+      .eq('ar_placeholder', false)
       .or(`deadline.is.null,and(deadline.gte.${weekDates[0]},deadline.lte.${sundayISO})`)
       .order('sortordning'),
+    // Hämtas alltid färdigt här (litet antal rader) istället för att formuläret ska
+    // fråga vid öppning — annars syns en fördröjning innan "Koppla till
+    // placeholder" hinner avgöra om det finns något att koppla till.
+    supabase.from('uppgift').select('id, titel, deadline, projekt_id, typ_id').eq('ar_placeholder', true),
     supabase.from('person').select('id, namn').order('namn'),
     supabase.from('kund').select('id, namn').order('namn'),
     supabase
@@ -152,6 +158,7 @@ export default async function UppgifterPage({
           dagInfo={dagInfo}
           today={todayISODate()}
           uppgifter={uppgifter ?? []}
+          placeholders={placeholders ?? []}
           personer={personer ?? []}
           kunder={kunder ?? []}
           typer={typer ?? []}

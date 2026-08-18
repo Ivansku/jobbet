@@ -43,6 +43,7 @@ import { DeltagareValjare } from './deltagare-valjare'
 import { SerieVy, SerieFormular } from './serie-vy'
 import { MotesanteckningarSektion } from './motesanteckningar-sektion'
 import { TidigareMotenSektion } from './tidigare-moten-sektion'
+import { KopplaPlaceholderSektion } from './koppla-placeholder-sektion'
 
 type Person = { id: string; namn: string }
 type Kund = { id: string; namn: string }
@@ -62,6 +63,7 @@ type UppgiftAnteckning = {
   uppgift_id_genererad: string | null
   genererad: { titel: string; deadline: string | null }[] | null
 }
+type OppenPlaceholder = { id: string; titel: string; deadline: string | null; projekt_id: string | null; typ_id: string | null }
 type Uppgift = {
   id: string
   titel: string
@@ -80,6 +82,7 @@ type Uppgift = {
   klockslag: string | null
   skapa_uppgifter_vid_klar: boolean | null
   mailinnehall: string | null
+  ar_placeholder: boolean
   uppgift_deltagare: { kontaktperson_id: string }[]
   uppgift_anteckning: UppgiftAnteckning[]
 }
@@ -167,6 +170,7 @@ export function KanbanBoard({
   dagInfo,
   today,
   uppgifter,
+  placeholders,
   personer,
   kunder,
   typer,
@@ -186,6 +190,7 @@ export function KanbanBoard({
   dagInfo: Record<string, DagInfo>
   today: string
   uppgifter: Uppgift[]
+  placeholders: OppenPlaceholder[]
   personer: Person[]
   kunder: Kund[]
   typer: Typ[]
@@ -250,13 +255,14 @@ export function KanbanBoard({
 
           const rad = payload.new as Record<string, unknown>
           const deadline = (rad.deadline as string | null) ?? null
-          const horHemma = deadline === null || inomVisadVecka(deadline, mandagTid, sondagTid)
+          const arPlaceholder = (rad.ar_placeholder as boolean | undefined) ?? false
+          const horHemma = !arPlaceholder && (deadline === null || inomVisadVecka(deadline, mandagTid, sondagTid))
 
           setLiveUppgifter((state) => {
             const befintlig = state.find((u) => u.id === rad.id)
             if (!horHemma) {
-              // Hör inte hemma i den här veckans vy — ta bort om den redan fanns
-              // (t.ex. flyttad till en annan vecka), lägg aldrig till en ny.
+              // Hör inte hemma i vyn — antingen placeholder (visas aldrig) eller en
+              // annan veckas uppgift. Ta bort om den redan fanns, lägg aldrig till en ny.
               return befintlig ? state.filter((u) => u.id !== rad.id) : state
             }
 
@@ -281,6 +287,7 @@ export function KanbanBoard({
               klockslag: (rad.klockslag as string | null) ?? null,
               skapa_uppgifter_vid_klar: (rad.skapa_uppgifter_vid_klar as boolean | null) ?? null,
               mailinnehall: (rad.mailinnehall as string | null) ?? null,
+              ar_placeholder: (rad.ar_placeholder as boolean | undefined) ?? false,
               uppgift_deltagare: befintlig?.uppgift_deltagare ?? [],
               uppgift_anteckning: befintlig?.uppgift_anteckning ?? [],
             }
@@ -505,6 +512,7 @@ export function KanbanBoard({
       {redigerar && (
         <UppgiftFormular
           existing={redigerar === 'ny' ? null : redigerar}
+          placeholders={placeholders}
           personer={personer}
           kunder={kunder}
           typer={typer}
@@ -926,6 +934,7 @@ function AnsvarigAvatar({
 
 function UppgiftFormular({
   existing,
+  placeholders,
   personer,
   kunder,
   typer,
@@ -940,6 +949,7 @@ function UppgiftFormular({
   onClose,
 }: {
   existing: Uppgift | null
+  placeholders: OppenPlaceholder[]
   personer: Person[]
   kunder: Kund[]
   typer: Typ[]
@@ -969,6 +979,10 @@ function UppgiftFormular({
   const [tidsatgang, setTidsatgang] = useState(existing?.tidsatgang_timmar?.toString() ?? '')
   const [klockslag, setKlockslag] = useState(existing?.klockslag?.slice(0, 5) ?? '')
   const [mailinnehall, setMailinnehall] = useState(existing?.mailinnehall ?? '')
+  // Sätts aldrig manuellt här — placeholders skapas via Uppgiftsmallar och ärvs vid
+  // projektgenerering. Behålls oförändrat vid spara; styr bara om
+  // "Koppla till placeholder" ska visas nedan.
+  const arPlaceholder = existing?.ar_placeholder ?? false
   const [aterkommande, setAterkommande] = useState(false)
   const [veckodagar, setVeckodagar] = useState<number[]>([])
   const [intervallVeckor, setIntervallVeckor] = useState(1)
@@ -1018,6 +1032,7 @@ function UppgiftFormular({
         klockslag: klockslagVarde,
         deltagareIds,
         mailinnehall,
+        arPlaceholder,
       })
     } else if (aterkommande) {
       await skapaUppgiftSerie({
@@ -1051,6 +1066,7 @@ function UppgiftFormular({
         klockslag: klockslagVarde,
         deltagareIds,
         mailinnehall,
+        arPlaceholder,
       })
     }
 
@@ -1190,6 +1206,16 @@ function UppgiftFormular({
               </Field>
             )}
         </FormularSektion>
+
+        {existing && !arPlaceholder && projektId && (
+          <KopplaPlaceholderSektion
+            uppgiftId={existing.id}
+            projektId={projektId}
+            typId={typId}
+            placeholders={placeholders}
+            onLinked={onClose}
+          />
+        )}
 
         <FormularSektion label="Prioritet & status">
           <PillGrupp label="Prioritet" value={prioritet} onChange={setPrioritet} options={PRIORITET_PILLS} />

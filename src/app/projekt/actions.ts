@@ -17,6 +17,11 @@ function leggTillDagar(iso: string, dagar: number): string {
   return `${yy}-${mm}-${dd}`
 }
 
+function epokForDatum(iso: string): number {
+  const [y, m, d] = iso.split('-').map(Number)
+  return Date.UTC(y, m - 1, d) / 1000
+}
+
 export async function skapaProjekt(input: {
   kundId: string
   namn: string
@@ -56,14 +61,18 @@ export async function skapaProjekt(input: {
   const { data: mallUppgifter } = await supabase
     .from('mall_uppgift')
     .select(
-      'titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start'
+      'titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, ar_placeholder'
     )
     .eq('mall_projekt_id', input.mallProjektId)
     .order('sortordning')
 
   if (mallUppgifter && mallUppgifter.length > 0) {
     let foregaendeDatum = input.startdatum
-    const nyaUppgifter = mallUppgifter.map((m) => {
+    // sortordning sätts explicit istället för att förlita sig på kolumnens
+    // clock_timestamp()-standardvärde — annars avgörs den inbördes ordningen
+    // mellan flera mall-uppgifter som hamnar på samma dag av när varje rad
+    // råkar bli infogad, inte av ordningen de har i mallen.
+    const nyaUppgifter = mallUppgifter.map((m, index) => {
       const deadline = leggTillDagar(foregaendeDatum, m.dagar_efter_start)
       foregaendeDatum = deadline
       return {
@@ -79,6 +88,8 @@ export async function skapaProjekt(input: {
         tidsatgang_timmar: m.tidsatgang_timmar,
         deadline,
         status: m.status,
+        ar_placeholder: m.ar_placeholder,
+        sortordning: epokForDatum(deadline) + index,
       }
     })
     await supabase.from('uppgift').insert(nyaUppgifter)

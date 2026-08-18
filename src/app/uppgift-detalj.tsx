@@ -52,6 +52,7 @@ export function UppgiftDetalj({
       klockslag: uppgift.klockslag,
       deltagareIds: uppgift.uppgift_deltagare.map((d) => d.kontaktperson_id),
       mailinnehall,
+      arPlaceholder: uppgift.ar_placeholder,
     })
 
     setSparar(false)

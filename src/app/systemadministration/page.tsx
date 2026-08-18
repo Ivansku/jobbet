@@ -52,7 +52,7 @@ export default async function SystemadministrationPage() {
     supabase
       .from('mall_projekt')
       .select(
-        'id, namn, mall_uppgift(id, titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, sortordning)'
+        'id, namn, mall_uppgift(id, titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, sortordning, ar_placeholder)'
       )
       .order('namn'),
   ])

@@ -69,6 +69,7 @@ export async function skapaUppgift(input: {
   klockslag: string | null
   deltagareIds: string[]
   mailinnehall: string
+  arPlaceholder: boolean
 }) {
   const foretagId = await currentForetagId()
   if (!foretagId) return
@@ -92,6 +93,7 @@ export async function skapaUppgift(input: {
       tidsatgang_timmar: input.tidsatgangTimmar,
       klockslag: input.klockslag,
       mailinnehall: input.mailinnehall || null,
+      ar_placeholder: input.arPlaceholder,
       ...(sortordning !== undefined ? { sortordning } : {}),
     })
     .select('id')
@@ -317,6 +319,7 @@ export async function uppdateraUppgift(
     klockslag: string | null
     deltagareIds: string[]
     mailinnehall: string
+    arPlaceholder: boolean
   }
 ) {
   const foretagId = await currentForetagId()
@@ -340,6 +343,7 @@ export async function uppdateraUppgift(
       tidsatgang_timmar: input.tidsatgangTimmar,
       klockslag: input.klockslag,
       mailinnehall: input.mailinnehall || null,
+      ar_placeholder: input.arPlaceholder,
       ...(sortordning !== undefined ? { sortordning } : {}),
     })
     .eq('id', id)
@@ -601,4 +605,50 @@ export async function hamtaTidigareMoten(kundId: string, excludeUppgiftId: strin
       .slice(0, 2)
       .map((a) => `${enTillRelation(a.block)?.namn}: ${(a.innehall ?? '').slice(0, 80)}`),
   }))
+}
+
+// Kopplar en riktig uppgift till en väntande placeholder i samma projekt: skriver
+// projekt_id (från det projekt som var valt i formuläret när kopplingen gjordes) och
+// fyller i kategori_id om det är tomt på den riktiga uppgiften och placeholdern hade
+// ett värde — skriver annars aldrig över redan ifyllda fält. Tar också över
+// placeholderns sortordning, så den riktiga uppgiften hamnar på samma plats i
+// projektlistan som placeholdern hade (mallens tänkta ordning) istället för att sortera
+// om baserat på det verkliga mötets datum, som ofta avviker från vad mallen planerade.
+// Raderar sedan placeholder-raden. projektId kommer från formulärets (osparade) val,
+// inte från databasen — "Koppla" är en egen åtgärd som sparar oberoende av formulärets
+// "Spara"-knapp, så den riktiga uppgiftens projekt_id kan fortfarande vara tomt i
+// databasen när det här körs.
+export async function kopplaTillPlaceholder(riktigUppgiftId: string, projektId: string, placeholderId: string) {
+  const supabase = await createClient()
+
+  const { data: riktig } = await supabase
+    .from('uppgift')
+    .select('id, kategori_id')
+    .eq('id', riktigUppgiftId)
+    .single()
+  if (!riktig) return { success: false as const }
+
+  const { data: placeholder } = await supabase
+    .from('uppgift')
+    .select('id, projekt_id, kategori_id, sortordning')
+    .eq('id', placeholderId)
+    .eq('ar_placeholder', true)
+    .single()
+  if (!placeholder || placeholder.projekt_id !== projektId) return { success: false as const }
+
+  await supabase
+    .from('uppgift')
+    .update({
+      projekt_id: projektId,
+      sortordning: placeholder.sortordning,
+      ...(riktig.kategori_id == null && placeholder.kategori_id != null
+        ? { kategori_id: placeholder.kategori_id }
+        : {}),
+    })
+    .eq('id', riktigUppgiftId)
+
+  await supabase.from('uppgift').delete().eq('id', placeholderId)
+
+  revalidatePath('/uppgifter')
+  return { success: true as const }
 }

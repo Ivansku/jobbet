@@ -10,7 +10,7 @@ const UPPGIFT_FALT = 'id, titel, status, deadline, klockslag, kund_id, outlook_e
 // öppna i redigeringsformuläret direkt från raden, så alla hämtas med hela
 // fältuppsättningen uppdateraUppgift (delad med Kanban-vyn) kräver för att kunna
 // skriva tillbaka oförändrade värden på allt utom det som faktiskt redigeras här.
-const UPPGIFT_DETALJERAD_FALT = `${UPPGIFT_FALT}, beskrivning, person_id, kategori_id, projekt_id, prioritet, tidsatgang_timmar, typ_id, skapa_uppgifter_vid_klar, mailinnehall, uppgift_deltagare(kontaktperson_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(block_id, innehall, uppgift_id_genererad, genererad:uppgift!uppgift_anteckning_uppgift_id_genererad_fkey(titel, deadline))`
+const UPPGIFT_DETALJERAD_FALT = `${UPPGIFT_FALT}, beskrivning, person_id, kategori_id, projekt_id, prioritet, tidsatgang_timmar, typ_id, skapa_uppgifter_vid_klar, mailinnehall, ar_placeholder, uppgift_deltagare(kontaktperson_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(block_id, innehall, uppgift_id_genererad, genererad:uppgift!uppgift_anteckning_uppgift_id_genererad_fkey(titel, deadline))`
 
 export default async function Home() {
   const supabase = await createClient()
@@ -57,6 +57,7 @@ export default async function Home() {
       .select(UPPGIFT_DETALJERAD_FALT)
       .eq('person_id', person.id)
       .eq('deadline', idag)
+      .eq('ar_placeholder', false)
       .order('sortordning'),
     supabase
       .from('uppgift')
@@ -64,12 +65,14 @@ export default async function Home() {
       .eq('person_id', person.id)
       .lt('deadline', idag)
       .neq('status', 'klar')
+      .eq('ar_placeholder', false)
       .order('deadline'),
     supabase
       .from('uppgift')
       .select(UPPGIFT_DETALJERAD_FALT)
       .eq('person_id', person.id)
       .eq('deadline', imorgon)
+      .eq('ar_placeholder', false)
       .order('sortordning'),
     supabase.from('dagsfokus').select('uppgift_id').eq('person_id', person.id).eq('datum', idag),
     supabase.from('flexel_installning').select('modul').eq('person_id', person.id).eq('aktiv', true),
