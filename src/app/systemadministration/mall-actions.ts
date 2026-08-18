@@ -142,31 +142,13 @@ export async function taBortMallUppgift(id: string) {
   revalidatePath('/systemadministration')
 }
 
-// Byter sortordning med grannen ovanför/under — samma mönster som
-// flyttaAnteckningsblock i anteckningsmall-actions.ts.
-export async function flyttaMallUppgift(id: string, riktning: 'upp' | 'ner') {
+// Sätter sortordning till indexet i den ordnade listan — anropas efter en
+// drag-and-drop-omordning i mall-vy.tsx, som redan känner till hela den nya
+// ordningen (till skillnad från ett enstaka upp/ner-steg).
+export async function omordnaMallUppgifter(ordnadeIds: string[]) {
   const supabase = await createClient()
-  const { data: uppgift } = await supabase
-    .from('mall_uppgift')
-    .select('mall_projekt_id, sortordning')
-    .eq('id', id)
-    .single()
-  if (!uppgift) return
-
-  const grannQuery = supabase
-    .from('mall_uppgift')
-    .select('id, sortordning')
-    .eq('mall_projekt_id', uppgift.mall_projekt_id)
-
-  const { data: granne } = await (riktning === 'upp'
-    ? grannQuery.lt('sortordning', uppgift.sortordning).order('sortordning', { ascending: false })
-    : grannQuery.gt('sortordning', uppgift.sortordning).order('sortordning', { ascending: true })
+  await Promise.all(
+    ordnadeIds.map((id, i) => supabase.from('mall_uppgift').update({ sortordning: i }).eq('id', id))
   )
-    .limit(1)
-    .maybeSingle()
-  if (!granne) return
-
-  await supabase.from('mall_uppgift').update({ sortordning: granne.sortordning }).eq('id', id)
-  await supabase.from('mall_uppgift').update({ sortordning: uppgift.sortordning }).eq('id', granne.id)
   revalidatePath('/systemadministration')
 }

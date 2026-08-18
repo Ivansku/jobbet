@@ -2,6 +2,19 @@
 
 import { useState } from 'react'
 import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  MouseSensor,
+  TouchSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
+import {
   hamtaMallUppgifter,
   skapaMallProjekt,
   uppdateraMallProjekt,
@@ -9,7 +22,7 @@ import {
   skapaMallUppgift,
   uppdateraMallUppgift,
   taBortMallUppgift,
-  flyttaMallUppgift,
+  omordnaMallUppgifter,
 } from './mall-actions'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -133,6 +146,7 @@ function MallFormular({
   const [sparar, setSparar] = useState(false)
   const [visaBekraftelse, setVisaBekraftelse] = useState(false)
   const [tarBort, setTarBort] = useState(false)
+  const [aktivId, setAktivId] = useState<string | null>(null)
 
   async function laddaOmUppgifter() {
     if (!mall) return
@@ -163,9 +177,45 @@ function MallFormular({
     onClose()
   }
 
-  async function handleFlytta(id: string, riktning: 'upp' | 'ner') {
-    await flyttaMallUppgift(id, riktning)
-    await laddaOmUppgifter()
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } })
+  )
+
+  // Omordnar lokalt direkt (optimistiskt) utifrån vilken halva av mål-raden
+  // man släppte på, sparar sedan hela den nya ordningen till servern —
+  // samma "släpp före/efter beroende på pekarens position"-princip som
+  // Kanban-tavlans drag-and-drop i uppgifter/kanban-board.tsx.
+  function handleDragStart(event: DragStartEvent) {
+    setAktivId(String(event.active.id))
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    setAktivId(null)
+    const { active, over } = event
+    if (!over) return
+    const id = String(active.id)
+    const overId = String(over.id)
+    if (id === overId) return
+
+    const fran = uppgifter.findIndex((u) => u.id === id)
+    const malIndex = uppgifter.findIndex((u) => u.id === overId)
+    if (fran === -1 || malIndex === -1) return
+
+    const activeRect = active.rect.current.translated
+    const overRect = over.rect
+    const infogaEfter =
+      !!activeRect && activeRect.top + activeRect.height / 2 > overRect.top + overRect.height / 2
+
+    let till = infogaEfter ? malIndex + 1 : malIndex
+    if (fran < till) till -= 1
+
+    const nyOrdning = [...uppgifter]
+    const [flyttad] = nyOrdning.splice(fran, 1)
+    nyOrdning.splice(till, 0, flyttad)
+
+    setUppgifter(nyOrdning)
+    omordnaMallUppgifter(nyOrdning.map((u) => u.id))
   }
 
   if (visaBekraftelse && mall) {
@@ -211,6 +261,9 @@ function MallFormular({
     return acc
   }, [])
 
+  const aktivIndex = aktivId ? uppgifter.findIndex((u) => u.id === aktivId) : -1
+  const aktivUppgift = aktivIndex >= 0 ? uppgifter[aktivIndex] : null
+
   return (
     <Modal onClose={onClose} labelledBy="mall-formular-title">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -246,48 +299,35 @@ function MallFormular({
             {uppgifter.length === 0 ? (
               <p className="text-xs text-stone-400">Inga uppgifter i mallen ännu.</p>
             ) : (
-              <ul className="divide-y divide-border-subtle overflow-hidden rounded-lg border border-border-subtle">
-                {uppgifter.map((u, i) => (
-                  <li
-                    key={u.id}
-                    className={`flex items-center gap-2 px-3 py-2 text-sm ${
-                      u.ar_placeholder ? 'bg-stone-50 dark:bg-stone-800/50' : ''
-                    }`}
-                  >
-                    <div className="flex shrink-0 flex-col">
-                      <button
-                        type="button"
-                        disabled={i === 0}
-                        onClick={() => handleFlytta(u.id, 'upp')}
-                        aria-label={`Flytta "${u.titel}" upp`}
-                        className="leading-none text-stone-400 hover:text-stone-700 disabled:opacity-30 dark:hover:text-stone-200"
-                      >
-                        ▲
-                      </button>
-                      <button
-                        type="button"
-                        disabled={i === uppgifter.length - 1}
-                        onClick={() => handleFlytta(u.id, 'ner')}
-                        aria-label={`Flytta "${u.titel}" ner`}
-                        className="leading-none text-stone-400 hover:text-stone-700 disabled:opacity-30 dark:hover:text-stone-200"
-                      >
-                        ▼
-                      </button>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setRedigerarUppgift(u)}
-                      className="flex min-w-0 flex-1 items-center justify-between gap-2 text-left"
-                    >
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+              >
+                <ul className="divide-y divide-border-subtle overflow-hidden rounded-lg border border-border-subtle">
+                  {uppgifter.map((u, i) => (
+                    <MallUppgiftRad
+                      key={u.id}
+                      uppgift={u}
+                      dag={kumulativaDagar[i]}
+                      onSelect={() => setRedigerarUppgift(u)}
+                    />
+                  ))}
+                </ul>
+
+                <DragOverlay>
+                  {aktivUppgift ? (
+                    <div className="flex items-center justify-between gap-2 rounded-lg border border-border-subtle bg-surface px-3 py-2 text-sm shadow-lg">
                       <span className="flex min-w-0 items-center gap-1.5">
-                        <span className="truncate">{u.titel}</span>
-                        {u.ar_placeholder && <Badge tone="neutral">Placeholder</Badge>}
+                        <span className="truncate">{aktivUppgift.titel}</span>
+                        {aktivUppgift.ar_placeholder && <Badge tone="neutral">Placeholder</Badge>}
                       </span>
-                      <span className="shrink-0 text-xs text-stone-400">Dag {kumulativaDagar[i]}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+                      <span className="shrink-0 text-xs text-stone-400">Dag {kumulativaDagar[aktivIndex]}</span>
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
             )}
           </div>
         )}
@@ -302,6 +342,44 @@ function MallFormular({
         </div>
       </form>
     </Modal>
+  )
+}
+
+// Hela raden är draggable/droppable och öppnar redigeringsformuläret vid klick
+// — samma mönster som KanbanCard i uppgifter/kanban-board.tsx (dnd-kits
+// aktiveringsavstånd gör att ett vanligt klick utan rörelse inte tolkas som drag).
+function MallUppgiftRad({
+  uppgift: u,
+  dag,
+  onSelect,
+}: {
+  uppgift: MallUppgift
+  dag: number
+  onSelect: () => void
+}) {
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({ id: u.id })
+  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: u.id })
+  const setNodeRef = (node: HTMLElement | null) => {
+    setDragRef(node)
+    setDropRef(node)
+  }
+
+  return (
+    <li
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      onClick={onSelect}
+      className={`flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm transition-colors ${
+        u.ar_placeholder ? 'bg-stone-50 dark:bg-stone-800/50' : ''
+      } ${isDragging ? 'opacity-30' : ''} ${isOver ? 'ring-2 ring-inset ring-accent-400' : ''}`}
+    >
+      <span className="flex min-w-0 items-center gap-1.5">
+        <span className="truncate">{u.titel}</span>
+        {u.ar_placeholder && <Badge tone="neutral">Placeholder</Badge>}
+      </span>
+      <span className="shrink-0 text-xs text-stone-400">Dag {dag}</span>
+    </li>
   )
 }
 
