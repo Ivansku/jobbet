@@ -55,7 +55,7 @@ Use this skill when:
 | `dagsavslut` / `dagsavslut_tanke` | End-of-day check-out and its reflection notes. | Person-scoped. `dagsavslut_tanke.uppgift_id_skapad` links a reflection to a task it spawned. |
 | `flexel_installning` / `flexel_post` / `flexel_kvotjustering` | Flex-time tracking: settings, ledger entries, quota adjustments. | `modul`: `flex`/`overtid`/`foraldraledig`(+`ledighet` on `flexel_post`). Person-scoped, admin manages settings. |
 
-**Note on `projekt` / `projekt_medlem`:** an older note in this project's memory described these tables as unused. That is out of date — as of this audit both tables have live RLS policies, CHECK constraints, and an active UI (`src/app/projekt/`). Treat them as first-class, in-use tables unless you verify otherwise.
+**Note on `projekt` / `projekt_medlem`:** root `CLAUDE.md` lumps both tables together as "unused schema." That's only accurate for `projekt_medlem` — confirmed zero references in `src/` via grep. `projekt` itself is a core, actively-developed entity (10+ files reference it, including `src/app/projekt/`), despite having full DB-side support (RLS, CHECK constraint). Treat `projekt` as first-class; treat `projekt_medlem` as genuinely unused per the `CLAUDE.md` rule.
 
 ---
 
@@ -317,7 +317,7 @@ Before performing any of the following, explicitly warn the user and wait for co
 - Do not drop a column without confirming zero code references via grep.
 - Do not silently unify the `created_at`/`skapad_at` naming split — it is existing, load-bearing inconsistency, not a bug to fix opportunistically.
 - Do not change any RLS policy predicate without explicit user approval (multi-tenant scoping — root `CLAUDE.md` Stop Rule).
-- Do not add logic that depends on `projekt`/`projekt_medlem` being unused — they are actively used (see §3 note); verify current status in `CLAUDE.md` before trusting an older note.
+- Do not add logic that depends on `projekt` being unused — it is actively used (see §3 note). `projekt_medlem` genuinely is unused; don't add logic depending on it without explicit instruction, per root `CLAUDE.md`.
 
 ---
 
