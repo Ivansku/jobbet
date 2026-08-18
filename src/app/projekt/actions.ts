@@ -61,7 +61,7 @@ export async function skapaProjekt(input: {
   const { data: mallUppgifter } = await supabase
     .from('mall_uppgift')
     .select(
-      'titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, ar_placeholder'
+      'titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, ar_placeholder, anteckningsmall_id'
     )
     .eq('mall_projekt_id', input.mallProjektId)
     .order('sortordning')
@@ -89,6 +89,7 @@ export async function skapaProjekt(input: {
         deadline,
         status: m.status,
         ar_placeholder: m.ar_placeholder,
+        anteckningsmall_id: m.anteckningsmall_id,
         sortordning: epokForDatum(deadline) + index,
       }
     })

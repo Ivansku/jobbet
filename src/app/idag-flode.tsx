@@ -35,6 +35,7 @@ export type UppgiftDetaljerad = Uppgift & {
   skapa_uppgifter_vid_klar: boolean | null
   mailinnehall: string | null
   ar_placeholder: boolean
+  anteckningsmall_id: string | null
   uppgift_deltagare: { kontaktperson_id: string }[]
   uppgift_anteckning: {
     block_id: string
@@ -47,11 +48,11 @@ export type Kund = { id: string; namn: string }
 export type Typ = {
   id: string
   namn: string
-  visar_motesanteckningar: boolean
+  anteckningsmall_id: string | null
   skapa_uppgifter_vid_klar: boolean
   visar_mailinnehall: boolean
 }
-export type Block = { id: string; namn: string; genererar_uppgift: boolean }
+export type Block = { id: string; namn: string; genererar_uppgift: boolean; anteckningsmall_id: string }
 export type Tanke = { id: string; text: string; uppgift_id_skapad: string | null }
 export type Dagsavslut = { id: string }
 
@@ -147,9 +148,9 @@ export function IdagFlode({
   const klara = dagensUppgifter.filter((u) => klaraIds.has(u.id)).length
   const kundMap = new Map(kunder.map((k) => [k.id, k.namn]))
   // outlook_event_id säger bara att raden är synkad från Outlook-kalendern —
-  // manuellt skapade möten (typ "Möte") har den inte. visar_motesanteckningar
+  // manuellt skapade möten (typ "Möte") har den inte. anteckningsmall_id
   // är typens faktiska mötes-signal och fångar båda fallen.
-  const moteTypIds = new Set(typer.filter((t) => t.visar_motesanteckningar).map((t) => t.id))
+  const moteTypIds = new Set(typer.filter((t) => t.anteckningsmall_id != null).map((t) => t.id))
   const arMote = (u: UppgiftDetaljerad) => Boolean(u.outlook_event_id) || moteTypIds.has(u.typ_id ?? '')
   const fokusKandidater = dagensUppgifter.filter((u) => !arMote(u) && !klaraIds.has(u.id))
 

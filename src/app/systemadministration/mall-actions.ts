@@ -42,7 +42,7 @@ export async function hamtaMallUppgifter(mallProjektId: string) {
   const { data } = await supabase
     .from('mall_uppgift')
     .select(
-      'id, titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, sortordning, ar_placeholder'
+      'id, titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, sortordning, ar_placeholder, anteckningsmall_id'
     )
     .eq('mall_projekt_id', mallProjektId)
     .order('sortordning')
@@ -61,6 +61,7 @@ export async function skapaMallUppgift(input: {
   tidsatgangTimmar: number | null
   dagarEfterStart: number
   arPlaceholder: boolean
+  anteckningsmallId: string | null
 }) {
   const titelTrimmad = input.titel.trim()
   if (!titelTrimmad) return
@@ -90,6 +91,7 @@ export async function skapaMallUppgift(input: {
     tidsatgang_timmar: input.tidsatgangTimmar,
     dagar_efter_start: input.dagarEfterStart,
     ar_placeholder: input.arPlaceholder,
+    anteckningsmall_id: input.anteckningsmallId,
     sortordning: (sistaUppgift?.sortordning ?? 0) + 1,
   })
   revalidatePath('/systemadministration')
@@ -108,6 +110,7 @@ export async function uppdateraMallUppgift(
     tidsatgangTimmar: number | null
     dagarEfterStart: number
     arPlaceholder: boolean
+    anteckningsmallId: string | null
   }
 ) {
   const titelTrimmad = input.titel.trim()
@@ -127,6 +130,7 @@ export async function uppdateraMallUppgift(
       tidsatgang_timmar: input.tidsatgangTimmar,
       dagar_efter_start: input.dagarEfterStart,
       ar_placeholder: input.arPlaceholder,
+      anteckningsmall_id: input.anteckningsmallId,
     })
     .eq('id', id)
   revalidatePath('/systemadministration')
@@ -139,7 +143,7 @@ export async function taBortMallUppgift(id: string) {
 }
 
 // Byter sortordning med grannen ovanför/under — samma mönster som
-// flyttaAnteckningsblock i actions.ts.
+// flyttaAnteckningsblock i anteckningsmall-actions.ts.
 export async function flyttaMallUppgift(id: string, riktning: 'upp' | 'ner') {
   const supabase = await createClient()
   const { data: uppgift } = await supabase

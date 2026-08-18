@@ -31,6 +31,10 @@ export function UppgiftDetalj({
 
   const typ = typer.find((t) => t.id === uppgift.typ_id)
   const kundNamn = uppgift.kund_id ? kunder.find((k) => k.id === uppgift.kund_id)?.namn : undefined
+  // Uppgiftens egen anteckningsmall (satt vid projektgenerering) går före
+  // typens standard — men går aldrig att byta här, bara i Projektmallar.
+  const effektivMallId = uppgift.anteckningsmall_id ?? typ?.anteckningsmall_id ?? null
+  const mallBlock = block.filter((b) => b.anteckningsmall_id === effektivMallId)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -86,13 +90,13 @@ export function UppgiftDetalj({
           />
         </Field>
 
-        {typ?.visar_motesanteckningar && (
+        {effektivMallId && (
           <MotesanteckningarSektion
             uppgiftId={uppgift.id}
-            blocks={block}
+            blocks={mallBlock}
             status={uppgift.status}
             initialAnteckningar={uppgift.uppgift_anteckning}
-            initialAutoSkapaUppgifterVidKlar={uppgift.skapa_uppgifter_vid_klar ?? typ.skapa_uppgifter_vid_klar ?? false}
+            initialAutoSkapaUppgifterVidKlar={uppgift.skapa_uppgifter_vid_klar ?? typ?.skapa_uppgifter_vid_klar ?? false}
           />
         )}
 

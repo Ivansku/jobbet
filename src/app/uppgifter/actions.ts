@@ -587,10 +587,10 @@ export async function hamtaTidigareMoten(kundId: string, excludeUppgiftId: strin
   const { data } = await supabase
     .from('uppgift')
     .select(
-      'id, titel, deadline, typ:typ_id!inner(visar_motesanteckningar), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(innehall, block:block_id(namn))'
+      'id, titel, deadline, typ:typ_id!inner(anteckningsmall_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(innehall, block:block_id(namn))'
     )
     .eq('kund_id', kundId)
-    .eq('typ.visar_motesanteckningar', true)
+    .not('typ.anteckningsmall_id', 'is', null)
     .neq('id', excludeUppgiftId)
     .not('deadline', 'is', null)
     .order('deadline', { ascending: false })

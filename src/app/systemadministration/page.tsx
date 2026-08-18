@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { AppNav } from '../nav'
 import { UppgiftstypVy } from './uppgiftstyp-vy'
 import { KategoriVy } from './kategori-vy'
-import { AnteckningsblockVy } from './anteckningsblock-vy'
+import { AnteckningsmallVy } from './anteckningsmall-vy'
 import { AnvandareVy } from './anvandare-vy'
 import { MallVy } from './mall-vy'
 
@@ -26,22 +26,22 @@ export default async function SystemadministrationPage() {
   const [
     { data: typer },
     { data: kategori },
-    { data: block },
+    { data: anteckningsmall },
     { data: personer },
     { data: flexelInstallningar },
     { data: mallProjekt },
   ] = await Promise.all([
     supabase
       .from('uppgiftstyp')
-      .select('id, namn, visar_motesanteckningar, skapa_uppgifter_vid_klar, visar_mailinnehall')
+      .select('id, namn, anteckningsmall_id, skapa_uppgifter_vid_klar, visar_mailinnehall')
       .order('namn'),
     supabase.from('kategori').select('id, namn').order('namn'),
     supabase
-      .from('anteckningsblock')
+      .from('anteckningsmall')
       .select(
-        'id, namn, sortordning, aktiv, genererar_uppgift, uppgift_titel_mall, uppgift_typ_id, deadline_dagar_efter_motet, kundvisning_standard'
+        'id, namn, anteckningsblock(id, namn, sortordning, aktiv, genererar_uppgift, uppgift_titel_mall, uppgift_typ_id, deadline_dagar_efter_motet, kundvisning_standard)'
       )
-      .order('sortordning'),
+      .order('namn'),
     supabase
       .from('person')
       .select(
@@ -52,7 +52,7 @@ export default async function SystemadministrationPage() {
     supabase
       .from('mall_projekt')
       .select(
-        'id, namn, mall_uppgift(id, titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, sortordning, ar_placeholder)'
+        'id, namn, mall_uppgift(id, titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, sortordning, ar_placeholder, anteckningsmall_id)'
       )
       .order('namn'),
   ])
@@ -67,6 +67,12 @@ export default async function SystemadministrationPage() {
     uppgifter: [...m.mall_uppgift].sort((a, b) => a.sortordning - b.sortordning),
   }))
 
+  const anteckningsmallar = (anteckningsmall ?? []).map((m) => ({
+    id: m.id,
+    namn: m.namn,
+    block: [...m.anteckningsblock].sort((a, b) => a.sortordning - b.sortordning),
+  }))
+
   return (
     <>
       <AppNav />
@@ -74,7 +80,7 @@ export default async function SystemadministrationPage() {
         <h1 className="mb-6 text-2xl font-semibold tracking-tight">Systemadministration</h1>
         <div className="flex flex-col gap-10">
           <AnvandareVy personer={personer ?? []} flexelInstallningar={flexelInstallningar ?? []} />
-          <UppgiftstypVy typer={typer ?? []} />
+          <UppgiftstypVy typer={typer ?? []} anteckningsmallar={anteckningsmallar} />
           <KategoriVy kategori={kategori ?? []} />
           <MallVy
             mallar={mallar}
@@ -82,8 +88,9 @@ export default async function SystemadministrationPage() {
             kategori={kategori ?? []}
             personer={personer ?? []}
             currentPersonId={person?.id ?? null}
+            anteckningsmallar={anteckningsmallar}
           />
-          <AnteckningsblockVy block={block ?? []} typer={typer ?? []} />
+          <AnteckningsmallVy mallar={anteckningsmallar} typer={typer ?? []} />
         </div>
       </main>
     </>

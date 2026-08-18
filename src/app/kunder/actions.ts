@@ -59,10 +59,10 @@ export async function hamtaMotesanteckningarForKunder(kundIds: string[]) {
   const { data } = await supabase
     .from('uppgift')
     .select(
-      'id, kund_id, titel, deadline, typ:typ_id!inner(visar_motesanteckningar), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(innehall, block:block_id(namn, sortordning))'
+      'id, kund_id, titel, deadline, typ:typ_id!inner(anteckningsmall_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(innehall, block:block_id(namn, sortordning))'
     )
     .in('kund_id', kundIds)
-    .eq('typ.visar_motesanteckningar', true)
+    .not('typ.anteckningsmall_id', 'is', null)
     .order('deadline', { ascending: false })
 
   const perKund: Record<string, { id: string; titel: string; deadline: string | null; block: { namn: string; sortordning: number; innehall: string }[] }[]> = {}

@@ -50,13 +50,13 @@ type Kund = { id: string; namn: string }
 type Typ = {
   id: string
   namn: string
-  visar_motesanteckningar: boolean
+  anteckningsmall_id: string | null
   skapa_uppgifter_vid_klar: boolean
   visar_mailinnehall: boolean
 }
 type Kategori = { id: string; namn: string }
 type Projekt = { id: string; namn: string; kund_id: string | null }
-type Anteckningsblock = { id: string; namn: string; genererar_uppgift: boolean }
+type Anteckningsblock = { id: string; namn: string; genererar_uppgift: boolean; anteckningsmall_id: string }
 type UppgiftAnteckning = {
   block_id: string
   innehall: string
@@ -83,6 +83,7 @@ type Uppgift = {
   skapa_uppgifter_vid_klar: boolean | null
   mailinnehall: string | null
   ar_placeholder: boolean
+  anteckningsmall_id: string | null
   uppgift_deltagare: { kontaktperson_id: string }[]
   uppgift_anteckning: UppgiftAnteckning[]
 }
@@ -288,6 +289,7 @@ export function KanbanBoard({
               skapa_uppgifter_vid_klar: (rad.skapa_uppgifter_vid_klar as boolean | null) ?? null,
               mailinnehall: (rad.mailinnehall as string | null) ?? null,
               ar_placeholder: (rad.ar_placeholder as boolean | undefined) ?? false,
+              anteckningsmall_id: (rad.anteckningsmall_id as string | null) ?? null,
               uppgift_deltagare: befintlig?.uppgift_deltagare ?? [],
               uppgift_anteckning: befintlig?.uppgift_anteckning ?? [],
             }
@@ -1093,6 +1095,12 @@ function UppgiftFormular({
     )
   }
 
+  // Uppgiftens egen anteckningsmall (satt vid projektgenerering) går före
+  // typens standard — men går aldrig att byta här, bara i Projektmallar.
+  const valdTyp = typer.find((t) => t.id === typId)
+  const effektivMallId = existing?.anteckningsmall_id ?? valdTyp?.anteckningsmall_id ?? null
+  const mallBlock = block.filter((b) => b.anteckningsmall_id === effektivMallId)
+
   return (
     <Modal onClose={onClose} labelledBy="uppgift-formular-title">
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
@@ -1316,16 +1324,16 @@ function UppgiftFormular({
           )}
         </FormularSektion>
 
-        {existing?.id && typer.find((t) => t.id === typId)?.visar_motesanteckningar && (
+        {existing?.id && effektivMallId && (
           <FormularSektion label="Mötesanteckningar">
             <MotesanteckningarSektion
               uppgiftId={existing.id}
-              blocks={block}
+              blocks={mallBlock}
               status={status}
               initialAnteckningar={existing.uppgift_anteckning}
               initialAutoSkapaUppgifterVidKlar={
                 existing.skapa_uppgifter_vid_klar ??
-                typer.find((t) => t.id === typId)?.skapa_uppgifter_vid_klar ??
+                valdTyp?.skapa_uppgifter_vid_klar ??
                 false
               }
             />

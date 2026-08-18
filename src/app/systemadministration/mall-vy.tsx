@@ -21,9 +21,10 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { DeleteIconButton } from '@/components/ui/delete-icon-button'
 import { MarkdownEditor } from '@/components/ui/markdown-editor'
 
-type Typ = { id: string; namn: string }
+type Typ = { id: string; namn: string; anteckningsmall_id: string | null }
 type Kategori = { id: string; namn: string }
 type Person = { id: string; namn: string }
+type Anteckningsmall = { id: string; namn: string }
 type MallUppgift = {
   id: string
   titel: string
@@ -37,6 +38,7 @@ type MallUppgift = {
   dagar_efter_start: number
   sortordning: number
   ar_placeholder: boolean
+  anteckningsmall_id: string | null
 }
 type MallProjekt = { id: string; namn: string; antalUppgifter: number; uppgifter: MallUppgift[] }
 
@@ -46,12 +48,14 @@ export function MallVy({
   kategori,
   personer,
   currentPersonId,
+  anteckningsmallar,
 }: {
   mallar: MallProjekt[]
   typer: Typ[]
   kategori: Kategori[]
   personer: Person[]
   currentPersonId: string | null
+  anteckningsmallar: Anteckningsmall[]
 }) {
   const [redigerar, setRedigerar] = useState<MallProjekt | 'ny' | null>(null)
 
@@ -94,6 +98,7 @@ export function MallVy({
           kategori={kategori}
           personer={personer}
           currentPersonId={currentPersonId}
+          anteckningsmallar={anteckningsmallar}
           onClose={() => setRedigerar(null)}
         />
       )}
@@ -107,6 +112,7 @@ function MallFormular({
   kategori,
   personer,
   currentPersonId,
+  anteckningsmallar,
   onClose,
 }: {
   existing: MallProjekt | null
@@ -114,6 +120,7 @@ function MallFormular({
   kategori: Kategori[]
   personer: Person[]
   currentPersonId: string | null
+  anteckningsmallar: Anteckningsmall[]
   onClose: () => void
 }) {
   // Lokal kopia av mallen — startar som prop:en, men uppdateras till det nyss
@@ -189,6 +196,7 @@ function MallFormular({
         kategori={kategori}
         personer={personer}
         currentPersonId={currentPersonId}
+        anteckningsmallar={anteckningsmallar}
         onClose={() => setRedigerarUppgift(null)}
         onChanged={laddaOmUppgifter}
       />
@@ -305,6 +313,7 @@ function MallUppgiftFormular({
   kategori,
   personer,
   currentPersonId,
+  anteckningsmallar,
   onClose,
   onChanged,
 }: {
@@ -315,6 +324,7 @@ function MallUppgiftFormular({
   kategori: Kategori[]
   personer: Person[]
   currentPersonId: string | null
+  anteckningsmallar: Anteckningsmall[]
   onClose: () => void
   onChanged: () => void
 }) {
@@ -328,8 +338,14 @@ function MallUppgiftFormular({
   const [tidsatgang, setTidsatgang] = useState(existing?.tidsatgang_timmar?.toString() ?? '')
   const [dagarEfterStart, setDagarEfterStart] = useState(existing?.dagar_efter_start?.toString() ?? '0')
   const [arPlaceholder, setArPlaceholder] = useState(existing?.ar_placeholder ?? false)
+  const [anteckningsmallId, setAnteckningsmallId] = useState(existing?.anteckningsmall_id ?? '')
   const [sparar, setSparar] = useState(false)
   const [tarBort, setTarBort] = useState(false)
+
+  // Bara typer som har anteckningar aktiverade kan få en override — annars
+  // finns ingen standardmall att avvika från.
+  const valdTyp = typer.find((t) => t.id === typId)
+  const visaAnteckningsmallValjare = Boolean(valdTyp?.anteckningsmall_id)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -347,6 +363,7 @@ function MallUppgiftFormular({
       tidsatgangTimmar: tidsatgang.trim() ? Number(tidsatgang) : null,
       dagarEfterStart: Math.max(0, Number(dagarEfterStart) || 0),
       arPlaceholder,
+      anteckningsmallId: visaAnteckningsmallValjare ? anteckningsmallId || null : null,
     }
 
     if (existing) {
@@ -469,6 +486,23 @@ function MallUppgiftFormular({
             />
           </Field>
         </div>
+
+        {visaAnteckningsmallValjare && (
+          <Field label="Anteckningsmall (avviker från typens standard)" htmlFor="mall-uppgift-anteckningsmall">
+            <Select
+              id="mall-uppgift-anteckningsmall"
+              value={anteckningsmallId}
+              onChange={(e) => setAnteckningsmallId(e.target.value)}
+            >
+              <option value="">Använd typens standard</option>
+              {anteckningsmallar.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.namn}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
 
         <label className="flex items-center gap-2 text-sm font-medium">
           <input

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { skapaUppgiftstyp, uppdateraUppgiftstyp, taBortUppgiftstyp } from './actions'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Input, Select } from '@/components/ui/input'
 import { Field } from '@/components/ui/field'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -13,12 +13,19 @@ import { DeleteIconButton } from '@/components/ui/delete-icon-button'
 type Uppgiftstyp = {
   id: string
   namn: string
-  visar_motesanteckningar: boolean
+  anteckningsmall_id: string | null
   skapa_uppgifter_vid_klar: boolean
   visar_mailinnehall: boolean
 }
+type Anteckningsmall = { id: string; namn: string }
 
-export function UppgiftstypVy({ typer }: { typer: Uppgiftstyp[] }) {
+export function UppgiftstypVy({
+  typer,
+  anteckningsmallar,
+}: {
+  typer: Uppgiftstyp[]
+  anteckningsmallar: Anteckningsmall[]
+}) {
   const [redigerar, setRedigerar] = useState<Uppgiftstyp | 'ny' | null>(null)
 
   return (
@@ -54,6 +61,7 @@ export function UppgiftstypVy({ typer }: { typer: Uppgiftstyp[] }) {
       {redigerar && (
         <TypFormular
           existing={redigerar === 'ny' ? null : redigerar}
+          anteckningsmallar={anteckningsmallar}
           onClose={() => setRedigerar(null)}
         />
       )}
@@ -61,11 +69,17 @@ export function UppgiftstypVy({ typer }: { typer: Uppgiftstyp[] }) {
   )
 }
 
-function TypFormular({ existing, onClose }: { existing: Uppgiftstyp | null; onClose: () => void }) {
+function TypFormular({
+  existing,
+  anteckningsmallar,
+  onClose,
+}: {
+  existing: Uppgiftstyp | null
+  anteckningsmallar: Anteckningsmall[]
+  onClose: () => void
+}) {
   const [namn, setNamn] = useState(existing?.namn ?? '')
-  const [visarMotesanteckningar, setVisarMotesanteckningar] = useState(
-    existing?.visar_motesanteckningar ?? false
-  )
+  const [anteckningsmallId, setAnteckningsmallId] = useState(existing?.anteckningsmall_id ?? '')
   const [skapaUppgifterVidKlar, setSkapaUppgifterVidKlar] = useState(
     existing?.skapa_uppgifter_vid_klar ?? false
   )
@@ -79,10 +93,11 @@ function TypFormular({ existing, onClose }: { existing: Uppgiftstyp | null; onCl
     if (!namn.trim()) return
     setSparar(true)
 
+    const mallId = anteckningsmallId || null
     if (existing) {
-      await uppdateraUppgiftstyp(existing.id, namn, visarMotesanteckningar, skapaUppgifterVidKlar, visarMailinnehall)
+      await uppdateraUppgiftstyp(existing.id, namn, mallId, skapaUppgifterVidKlar, visarMailinnehall)
     } else {
-      await skapaUppgiftstyp(namn, visarMotesanteckningar, skapaUppgifterVidKlar, visarMailinnehall)
+      await skapaUppgiftstyp(namn, mallId, skapaUppgifterVidKlar, visarMailinnehall)
     }
 
     setSparar(false)
@@ -133,20 +148,25 @@ function TypFormular({ existing, onClose }: { existing: Uppgiftstyp | null; onCl
             autoFocus
           />
         </Field>
-        <label className="flex items-center gap-2 text-sm font-medium">
-          <input
-            type="checkbox"
-            checked={visarMotesanteckningar}
+        <Field label="Visa anteckningar" htmlFor="typ-anteckningsmall">
+          <Select
+            id="typ-anteckningsmall"
+            value={anteckningsmallId}
             onChange={(e) => {
-              const varde = e.target.checked
-              setVisarMotesanteckningar(varde)
+              const varde = e.target.value
+              setAnteckningsmallId(varde)
               if (!varde) setSkapaUppgifterVidKlar(false)
             }}
-            className="h-4 w-4 accent-accent-600"
-          />
-          Visa mötesanteckningar på uppgifter
-        </label>
-        {visarMotesanteckningar && (
+          >
+            <option value="">Visa inte anteckningar</option>
+            {anteckningsmallar.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.namn}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        {anteckningsmallId && (
           <label className="flex items-center gap-2 text-sm font-medium">
             <input
               type="checkbox"
