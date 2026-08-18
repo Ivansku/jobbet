@@ -190,7 +190,16 @@ function ProjektKolumn({
 // Fast palett av namngivna toner istället för en fri hex-väljare — säkerställer att
 // varje val redan har ljust/mörkt-läge-varianter definierade och matchar databasens
 // CHECK-constraint (se @/lib/projekt-farg). "Ingen" nollställer till standardytan.
+//
+// Markeringen ritas som en ring (box-shadow) direkt på swatchen istället för en
+// nästlad border+prick-struktur — en nästlad prick centrerades inte pålitligt i alla
+// browsers, medan en ring alltid beräknas utifrån elementets egen box och därför
+// garanterat blir koncentrisk.
 function FargValjare({ value, onChange }: { value: string | null; onChange: (v: string | null) => void }) {
+  const RING_VALD = 'ring-2 ring-accent-500 ring-offset-2 ring-offset-surface'
+  const RING_OVALD =
+    'ring-1 ring-inset ring-black/10 hover:ring-2 hover:ring-stone-300 hover:ring-offset-2 hover:ring-offset-surface dark:ring-white/10'
+
   return (
     <div role="group" aria-label="Färg" className="flex flex-wrap items-center gap-2">
       <button
@@ -198,11 +207,11 @@ function FargValjare({ value, onChange }: { value: string | null; onChange: (v: 
         onClick={() => onChange(null)}
         aria-pressed={value === null}
         title="Ingen färg"
-        className={`flex h-7 w-7 items-center justify-center rounded-full border-2 text-stone-400 transition-colors ${
-          value === null ? 'border-accent-500' : 'border-border-subtle hover:border-stone-400'
+        className={`h-7 w-7 rounded-full bg-stone-100 transition-shadow dark:bg-stone-800 ${
+          value === null ? RING_VALD : RING_OVALD
         }`}
       >
-        <span className="h-2 w-2 rounded-full bg-stone-300 dark:bg-stone-600" />
+        <span className="sr-only">Ingen färg</span>
       </button>
       {PROJEKT_FARGER.map((f) => (
         <button
@@ -211,11 +220,11 @@ function FargValjare({ value, onChange }: { value: string | null; onChange: (v: 
           onClick={() => onChange(f.value)}
           aria-pressed={value === f.value}
           title={f.label}
-          className={`flex h-7 w-7 items-center justify-center rounded-full border-2 transition-colors ${
-            value === f.value ? 'border-accent-500' : 'border-transparent hover:border-stone-300'
+          className={`h-7 w-7 rounded-full transition-shadow ${f.dot} ${
+            value === f.value ? RING_VALD : RING_OVALD
           }`}
         >
-          <span className={`h-5 w-5 rounded-full ${f.dot}`} />
+          <span className="sr-only">{f.label}</span>
         </button>
       ))}
     </div>
