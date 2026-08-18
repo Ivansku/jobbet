@@ -1,6 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { AppNav } from '../nav'
 import { KundVy } from './kund-vy'
+import { hamtaMotesanteckningarForKunder } from './actions'
+import { hamtaManuellaAnteckningarForKunder } from './manuell-anteckning-actions'
+import { hamtaMailanteckningarForKunder } from './mail-actions'
 
 export default async function KunderPage() {
   const supabase = await createClient()
@@ -12,11 +15,24 @@ export default async function KunderPage() {
       .order('fornamn'),
   ])
 
+  const kundIds = (kunder ?? []).map((k) => k.id)
+  const [motesanteckningar, manuellaAnteckningar, mailanteckningar] = await Promise.all([
+    hamtaMotesanteckningarForKunder(kundIds),
+    hamtaManuellaAnteckningarForKunder(kundIds),
+    hamtaMailanteckningarForKunder(kundIds),
+  ])
+
   return (
     <>
       <AppNav />
       <main className="mx-auto w-full max-w-2xl flex-1 p-6 md:p-8">
-        <KundVy kunder={kunder ?? []} kontaktpersoner={kontaktpersoner ?? []} />
+        <KundVy
+          kunder={kunder ?? []}
+          kontaktpersoner={kontaktpersoner ?? []}
+          motesanteckningar={motesanteckningar}
+          manuellaAnteckningar={manuellaAnteckningar}
+          mailanteckningar={mailanteckningar}
+        />
       </main>
     </>
   )

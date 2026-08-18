@@ -11,7 +11,11 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { DeleteIconButton } from '@/components/ui/delete-icon-button'
 import { MailtoIconLink } from '@/components/ui/mailto-icon-link'
-import { KundMotesanteckningarSektion } from './kund-motesanteckningar-sektion'
+import { KundMotesanteckningarSektion, type Mote } from './kund-motesanteckningar-sektion'
+import { KundManuellaAnteckningarSektion } from './kund-manuella-anteckningar-sektion'
+import type { ManuellAnteckning } from './manuell-anteckning-actions'
+import { KundMailanteckningarSektion } from './kund-mailanteckningar-sektion'
+import type { MailMote } from './mail-actions'
 
 type Kund = { id: string; namn: string }
 type Kontaktperson = {
@@ -41,7 +45,19 @@ function planeratDatum(k: Kontaktperson): string | null {
   return datum[0] ?? null
 }
 
-export function KundVy({ kunder, kontaktpersoner }: { kunder: Kund[]; kontaktpersoner: Kontaktperson[] }) {
+export function KundVy({
+  kunder,
+  kontaktpersoner,
+  motesanteckningar,
+  manuellaAnteckningar,
+  mailanteckningar,
+}: {
+  kunder: Kund[]
+  kontaktpersoner: Kontaktperson[]
+  motesanteckningar: Record<string, Mote[]>
+  manuellaAnteckningar: Record<string, ManuellAnteckning[]>
+  mailanteckningar: Record<string, MailMote[]>
+}) {
   const [redigerar, setRedigerar] = useState<Kund | 'ny' | null>(null)
   const [oppnaKontaktId, setOppnaKontaktId] = useState<string | null>(null)
   const [sok, setSok] = useState('')
@@ -148,6 +164,9 @@ export function KundVy({ kunder, kontaktpersoner }: { kunder: Kund[]; kontaktper
           kontaktpersoner={
             redigerar === 'ny' ? [] : kontaktpersoner.filter((k) => k.kund_id === redigerar.id)
           }
+          moten={redigerar === 'ny' ? [] : (motesanteckningar[redigerar.id] ?? [])}
+          manuellaAnteckningar={redigerar === 'ny' ? [] : (manuellaAnteckningar[redigerar.id] ?? [])}
+          mailmoten={redigerar === 'ny' ? [] : (mailanteckningar[redigerar.id] ?? [])}
           initialKontaktId={oppnaKontaktId}
           onClose={() => setRedigerar(null)}
         />
@@ -159,11 +178,17 @@ export function KundVy({ kunder, kontaktpersoner }: { kunder: Kund[]; kontaktper
 function KundFormular({
   existing,
   kontaktpersoner,
+  moten,
+  manuellaAnteckningar,
+  mailmoten,
   initialKontaktId,
   onClose,
 }: {
   existing: Kund | null
   kontaktpersoner: Kontaktperson[]
+  moten: Mote[]
+  manuellaAnteckningar: ManuellAnteckning[]
+  mailmoten: MailMote[]
   initialKontaktId: string | null
   onClose: () => void
 }) {
@@ -237,7 +262,17 @@ function KundFormular({
           />
         )}
 
-        {existing && <KundMotesanteckningarSektion kundId={existing.id} />}
+        {existing && <KundMotesanteckningarSektion moten={moten} />}
+
+        {existing && <KundMailanteckningarSektion moten={mailmoten} />}
+
+        {existing && (
+          <KundManuellaAnteckningarSektion
+            kundId={existing.id}
+            anteckningar={manuellaAnteckningar}
+            kontaktpersoner={kontaktpersoner}
+          />
+        )}
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>

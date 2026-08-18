@@ -1,28 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { hamtaMotesanteckningarForKund } from './actions'
+import { useState } from 'react'
+import { MarkdownViewer } from '@/components/ui/markdown-viewer'
 
-type Mote = {
+export type Mote = {
   id: string
   titel: string
   deadline: string | null
   block: { namn: string; innehall: string }[]
 }
 
-export function KundMotesanteckningarSektion({ kundId }: { kundId: string }) {
-  const [moten, setMoten] = useState<Mote[] | null>(null)
+// Data kommer numera som en prop från sidans server-fetch (page.tsx) istället för
+// att hämtas här i en useEffect — annars hann kundkortet visas tomt innan
+// nätverksanropet hunnit svara.
+export function KundMotesanteckningarSektion({ moten }: { moten: Mote[] }) {
   const [oppna, setOppna] = useState<Set<string>>(new Set())
-
-  useEffect(() => {
-    let aktiv = true
-    hamtaMotesanteckningarForKund(kundId).then((rader) => {
-      if (aktiv) setMoten(rader)
-    })
-    return () => {
-      aktiv = false
-    }
-  }, [kundId])
 
   function toggle(id: string) {
     setOppna((state) => {
@@ -33,7 +25,7 @@ export function KundMotesanteckningarSektion({ kundId }: { kundId: string }) {
     })
   }
 
-  if (!moten || moten.length === 0) return null
+  if (moten.length === 0) return null
 
   return (
     <div className="border-t border-border-subtle pt-4">
@@ -57,9 +49,7 @@ export function KundMotesanteckningarSektion({ kundId }: { kundId: string }) {
                   m.block.map((b, i) => (
                     <div key={i}>
                       <p className="text-xs font-semibold text-stone-500">{b.namn}</p>
-                      <p className="whitespace-pre-wrap text-xs text-stone-600 dark:text-stone-300">
-                        {b.innehall}
-                      </p>
+                      <MarkdownViewer value={b.innehall} className="text-xs text-stone-600 dark:text-stone-300" />
                     </div>
                   ))
                 )}
