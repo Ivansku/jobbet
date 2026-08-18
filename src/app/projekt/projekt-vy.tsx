@@ -31,8 +31,14 @@ type Projekt = {
 
 type ProjektUppgift = ProjektUppgiftDetaljerad & { ansvarigNamn: string | null }
 
-const STATUS_LABEL: Record<string, string> = { aktivt: 'Aktivt', pausat: 'Pausat', avslutat: 'Avslutat' }
+const STATUS_LABEL: Record<string, string> = {
+  planerat: 'Planerat',
+  aktivt: 'Aktivt',
+  pausat: 'Pausat',
+  avslutat: 'Avslutat',
+}
 const STATUS_TONE: Record<string, 'success' | 'warning' | 'neutral'> = {
+  planerat: 'neutral',
   aktivt: 'success',
   pausat: 'warning',
   avslutat: 'neutral',
@@ -311,6 +317,7 @@ function ProjektFormular({
         <div className="grid grid-cols-2 gap-3">
           <Field label="Status" htmlFor="projekt-status">
             <Select id="projekt-status" value={status} onChange={(e) => setStatus(e.target.value)}>
+              <option value="planerat">Planerat</option>
               <option value="aktivt">Aktivt</option>
               <option value="pausat">Pausat</option>
               <option value="avslutat">Avslutat</option>
