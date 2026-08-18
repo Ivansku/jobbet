@@ -68,6 +68,7 @@ export async function skapaUppgift(input: {
   tidsatgangTimmar: number | null
   klockslag: string | null
   deltagareIds: string[]
+  mailinnehall: string
 }) {
   const foretagId = await currentForetagId()
   if (!foretagId) return
@@ -90,6 +91,7 @@ export async function skapaUppgift(input: {
       status: input.status,
       tidsatgang_timmar: input.tidsatgangTimmar,
       klockslag: input.klockslag,
+      mailinnehall: input.mailinnehall || null,
       ...(sortordning !== undefined ? { sortordning } : {}),
     })
     .select('id')
@@ -314,6 +316,7 @@ export async function uppdateraUppgift(
     tidsatgangTimmar: number | null
     klockslag: string | null
     deltagareIds: string[]
+    mailinnehall: string
   }
 ) {
   const foretagId = await currentForetagId()
@@ -336,6 +339,7 @@ export async function uppdateraUppgift(
       status: input.status,
       tidsatgang_timmar: input.tidsatgangTimmar,
       klockslag: input.klockslag,
+      mailinnehall: input.mailinnehall || null,
       ...(sortordning !== undefined ? { sortordning } : {}),
     })
     .eq('id', id)

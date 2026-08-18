@@ -33,6 +33,7 @@ export type UppgiftDetaljerad = Uppgift & {
   tidsatgang_timmar: number | null
   typ_id: string | null
   skapa_uppgifter_vid_klar: boolean | null
+  mailinnehall: string | null
   uppgift_deltagare: { kontaktperson_id: string }[]
   uppgift_anteckning: {
     block_id: string
@@ -42,7 +43,13 @@ export type UppgiftDetaljerad = Uppgift & {
   }[]
 }
 export type Kund = { id: string; namn: string }
-export type Typ = { id: string; namn: string; visar_motesanteckningar: boolean; skapa_uppgifter_vid_klar: boolean }
+export type Typ = {
+  id: string
+  namn: string
+  visar_motesanteckningar: boolean
+  skapa_uppgifter_vid_klar: boolean
+  visar_mailinnehall: boolean
+}
 export type Block = { id: string; namn: string; genererar_uppgift: boolean }
 export type Tanke = { id: string; text: string; uppgift_id_skapad: string | null }
 export type Dagsavslut = { id: string }

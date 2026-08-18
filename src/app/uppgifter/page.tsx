@@ -111,7 +111,7 @@ export default async function UppgifterPage({
     supabase
       .from('uppgift')
       .select(
-        'id, titel, beskrivning, status, prioritet, deadline, person_id, kund_id, typ_id, kategori_id, projekt_id, serie_id, sortordning, tidsatgang_timmar, klockslag, skapa_uppgifter_vid_klar, uppgift_deltagare(kontaktperson_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(block_id, innehall, uppgift_id_genererad, genererad:uppgift!uppgift_anteckning_uppgift_id_genererad_fkey(titel, deadline))'
+        'id, titel, beskrivning, status, prioritet, deadline, person_id, kund_id, typ_id, kategori_id, projekt_id, serie_id, sortordning, tidsatgang_timmar, klockslag, skapa_uppgifter_vid_klar, mailinnehall, uppgift_deltagare(kontaktperson_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(block_id, innehall, uppgift_id_genererad, genererad:uppgift!uppgift_anteckning_uppgift_id_genererad_fkey(titel, deadline))'
       )
       .or(`deadline.is.null,and(deadline.gte.${weekDates[0]},deadline.lte.${sundayISO})`)
       .order('sortordning'),
@@ -119,7 +119,7 @@ export default async function UppgifterPage({
     supabase.from('kund').select('id, namn').order('namn'),
     supabase
       .from('uppgiftstyp')
-      .select('id, namn, visar_motesanteckningar, skapa_uppgifter_vid_klar')
+      .select('id, namn, visar_motesanteckningar, skapa_uppgifter_vid_klar, visar_mailinnehall')
       .order('namn'),
     supabase.from('kategori').select('id, namn').order('namn'),
     supabase.from('projekt').select('id, namn, kund_id').order('namn'),

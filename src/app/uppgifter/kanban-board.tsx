@@ -51,6 +51,7 @@ type Typ = {
   namn: string
   visar_motesanteckningar: boolean
   skapa_uppgifter_vid_klar: boolean
+  visar_mailinnehall: boolean
 }
 type Kategori = { id: string; namn: string }
 type Projekt = { id: string; namn: string; kund_id: string | null }
@@ -78,6 +79,7 @@ type Uppgift = {
   tidsatgang_timmar: number | null
   klockslag: string | null
   skapa_uppgifter_vid_klar: boolean | null
+  mailinnehall: string | null
   uppgift_deltagare: { kontaktperson_id: string }[]
   uppgift_anteckning: UppgiftAnteckning[]
 }
@@ -278,6 +280,7 @@ export function KanbanBoard({
               tidsatgang_timmar: (rad.tidsatgang_timmar as number | null) ?? null,
               klockslag: (rad.klockslag as string | null) ?? null,
               skapa_uppgifter_vid_klar: (rad.skapa_uppgifter_vid_klar as boolean | null) ?? null,
+              mailinnehall: (rad.mailinnehall as string | null) ?? null,
               uppgift_deltagare: befintlig?.uppgift_deltagare ?? [],
               uppgift_anteckning: befintlig?.uppgift_anteckning ?? [],
             }
@@ -965,6 +968,7 @@ function UppgiftFormular({
   const [status, setStatus] = useState(existing?.status ?? 'oppen')
   const [tidsatgang, setTidsatgang] = useState(existing?.tidsatgang_timmar?.toString() ?? '')
   const [klockslag, setKlockslag] = useState(existing?.klockslag?.slice(0, 5) ?? '')
+  const [mailinnehall, setMailinnehall] = useState(existing?.mailinnehall ?? '')
   const [aterkommande, setAterkommande] = useState(false)
   const [veckodagar, setVeckodagar] = useState<number[]>([])
   const [intervallVeckor, setIntervallVeckor] = useState(1)
@@ -1013,6 +1017,7 @@ function UppgiftFormular({
         tidsatgangTimmar,
         klockslag: klockslagVarde,
         deltagareIds,
+        mailinnehall,
       })
     } else if (aterkommande) {
       await skapaUppgiftSerie({
@@ -1045,6 +1050,7 @@ function UppgiftFormular({
         tidsatgangTimmar,
         klockslag: klockslagVarde,
         deltagareIds,
+        mailinnehall,
       })
     }
 
@@ -1305,6 +1311,12 @@ function UppgiftFormular({
                 kundNamn={kunder.find((k) => k.id === kundId)?.namn ?? ''}
               />
             )}
+          </FormularSektion>
+        )}
+
+        {typer.find((t) => t.id === typId)?.visar_mailinnehall && (
+          <FormularSektion label="Mailinnehåll">
+            <MarkdownEditor id="uppgift-mailinnehall" value={mailinnehall} onChange={setMailinnehall} />
           </FormularSektion>
         )}
 

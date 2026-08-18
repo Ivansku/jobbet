@@ -10,7 +10,7 @@ const UPPGIFT_FALT = 'id, titel, status, deadline, klockslag, kund_id, outlook_e
 // öppna i redigeringsformuläret direkt från raden, så alla hämtas med hela
 // fältuppsättningen uppdateraUppgift (delad med Kanban-vyn) kräver för att kunna
 // skriva tillbaka oförändrade värden på allt utom det som faktiskt redigeras här.
-const UPPGIFT_DETALJERAD_FALT = `${UPPGIFT_FALT}, beskrivning, person_id, kategori_id, projekt_id, prioritet, tidsatgang_timmar, typ_id, skapa_uppgifter_vid_klar, uppgift_deltagare(kontaktperson_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(block_id, innehall, uppgift_id_genererad, genererad:uppgift!uppgift_anteckning_uppgift_id_genererad_fkey(titel, deadline))`
+const UPPGIFT_DETALJERAD_FALT = `${UPPGIFT_FALT}, beskrivning, person_id, kategori_id, projekt_id, prioritet, tidsatgang_timmar, typ_id, skapa_uppgifter_vid_klar, mailinnehall, uppgift_deltagare(kontaktperson_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(block_id, innehall, uppgift_id_genererad, genererad:uppgift!uppgift_anteckning_uppgift_id_genererad_fkey(titel, deadline))`
 
 export default async function Home() {
   const supabase = await createClient()
@@ -76,7 +76,7 @@ export default async function Home() {
     supabase.from('kund').select('id, namn').order('namn'),
     supabase
       .from('uppgiftstyp')
-      .select('id, namn, visar_motesanteckningar, skapa_uppgifter_vid_klar')
+      .select('id, namn, visar_motesanteckningar, skapa_uppgifter_vid_klar, visar_mailinnehall')
       .order('namn'),
     supabase.from('anteckningsblock').select('id, namn, genererar_uppgift').eq('aktiv', true).order('sortordning'),
   ])
