@@ -6,13 +6,27 @@ import { currentForetagId } from '@/lib/foretag'
 import { enTillRelation } from '@/lib/postgrest'
 import { PROJEKT_UPPGIFT_FALT } from './uppgift-falt'
 
-// Ren datumaritmetik i UTC — samma mönster som motsvarande hjälpfunktion i
-// uppgifter/actions.ts, för att räkna ut varje genererad uppgifts deadline
-// utifrån projektets startdatum + mallens "dagar efter start".
+function erVardag(date: Date): boolean {
+  const veckodag = date.getUTCDay()
+  return veckodag !== 0 && veckodag !== 6
+}
+
+// Ren datumaritmetik i UTC, för att räkna ut varje genererad uppgifts deadline
+// utifrån projektets startdatum + mallens "dagar efter start". Helger finns
+// inte i appen (visas ingenstans i kalender/kanban), så "dagar" räknas i
+// vardagar — lördag/söndag hoppas över både under räkningen och som
+// slutresultat, så en genererad deadline aldrig kan hamna på en helgdag.
 function leggTillDagar(iso: string, dagar: number): string {
   const [y, m, d] = iso.split('-').map(Number)
   const date = new Date(Date.UTC(y, m - 1, d))
-  date.setUTCDate(date.getUTCDate() + dagar)
+  let kvar = dagar
+  while (kvar > 0) {
+    date.setUTCDate(date.getUTCDate() + 1)
+    if (erVardag(date)) kvar--
+  }
+  while (!erVardag(date)) {
+    date.setUTCDate(date.getUTCDate() + 1)
+  }
   const yy = date.getUTCFullYear()
   const mm = String(date.getUTCMonth() + 1).padStart(2, '0')
   const dd = String(date.getUTCDate()).padStart(2, '0')
