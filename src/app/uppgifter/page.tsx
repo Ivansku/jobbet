@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { AppNav } from '../nav'
 import { KanbanBoard } from './kanban-board'
 import { hamtaSvenskaDagar, slaIhopDagar, arHalvdag } from '@/lib/svenska-dagar'
+import { enTillRelation } from '@/lib/postgrest'
 
 // All datumräkning görs i UTC för att undvika att lokal tidszon (t.ex. svensk sommartid)
 // får datum att hoppa fram/tillbaka en dag vid konvertering mellan Date och ISO-sträng.
@@ -128,7 +129,7 @@ export default async function UppgifterPage({
       .select('id, namn, anteckningsmall_id, skapa_uppgifter_vid_klar, visar_mailinnehall')
       .order('namn'),
     supabase.from('kategori').select('id, namn').order('namn'),
-    supabase.from('projekt').select('id, namn, kund_id, farg').order('namn'),
+    supabase.from('projekt').select('id, namn, kund_id, farg, mall_projekt:mall_projekt_id(namn)').order('namn'),
     supabase
       .from('uppgift_serie')
       .select(
@@ -163,7 +164,13 @@ export default async function UppgifterPage({
           kunder={kunder ?? []}
           typer={typer ?? []}
           kategori={kategori ?? []}
-          projekt={projekt ?? []}
+          projekt={(projekt ?? []).map((p) => ({
+            id: p.id,
+            namn: p.namn,
+            kund_id: p.kund_id,
+            farg: p.farg,
+            mallProjektNamn: enTillRelation(p.mall_projekt)?.namn ?? null,
+          }))}
           serier={serier ?? []}
           kontaktpersoner={kontaktpersoner ?? []}
           block={block ?? []}
