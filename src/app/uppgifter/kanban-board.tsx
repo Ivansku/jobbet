@@ -53,7 +53,6 @@ type Typ = {
   namn: string
   anteckningsmall_id: string | null
   skapa_uppgifter_vid_klar: boolean
-  visar_mailinnehall: boolean
 }
 type Kategori = { id: string; namn: string }
 type Projekt = {
@@ -94,7 +93,6 @@ type Uppgift = {
   tidsatgang_timmar: number | null
   klockslag: string | null
   skapa_uppgifter_vid_klar: boolean | null
-  mailinnehall: string | null
   ar_placeholder: boolean
   anteckningsmall_id: string | null
   uppgift_deltagare: { kontaktperson_id: string }[]
@@ -300,7 +298,6 @@ export function KanbanBoard({
               tidsatgang_timmar: (rad.tidsatgang_timmar as number | null) ?? null,
               klockslag: (rad.klockslag as string | null) ?? null,
               skapa_uppgifter_vid_klar: (rad.skapa_uppgifter_vid_klar as boolean | null) ?? null,
-              mailinnehall: (rad.mailinnehall as string | null) ?? null,
               ar_placeholder: (rad.ar_placeholder as boolean | undefined) ?? false,
               anteckningsmall_id: (rad.anteckningsmall_id as string | null) ?? null,
               uppgift_deltagare: befintlig?.uppgift_deltagare ?? [],
@@ -994,7 +991,6 @@ function UppgiftFormular({
   const [status, setStatus] = useState(existing?.status ?? 'oppen')
   const [tidsatgang, setTidsatgang] = useState(existing?.tidsatgang_timmar?.toString() ?? '')
   const [klockslag, setKlockslag] = useState(existing?.klockslag?.slice(0, 5) ?? '')
-  const [mailinnehall, setMailinnehall] = useState(existing?.mailinnehall ?? '')
   // Sätts aldrig manuellt här — placeholders skapas via Uppgiftsmallar och ärvs vid
   // projektgenerering. Behålls oförändrat vid spara; styr bara om
   // "Koppla till placeholder" ska visas nedan.
@@ -1047,7 +1043,6 @@ function UppgiftFormular({
         tidsatgangTimmar,
         klockslag: klockslagVarde,
         deltagareIds,
-        mailinnehall,
         arPlaceholder,
       })
     } else if (aterkommande) {
@@ -1081,7 +1076,6 @@ function UppgiftFormular({
         tidsatgangTimmar,
         klockslag: klockslagVarde,
         deltagareIds,
-        mailinnehall,
         arPlaceholder,
       })
     }
@@ -1359,12 +1353,6 @@ function UppgiftFormular({
                 kundNamn={kunder.find((k) => k.id === kundId)?.namn ?? ''}
               />
             )}
-          </FormularSektion>
-        )}
-
-        {typer.find((t) => t.id === typId)?.visar_mailinnehall && (
-          <FormularSektion label="Mailinnehåll">
-            <MarkdownEditor id="uppgift-mailinnehall" value={mailinnehall} onChange={setMailinnehall} />
           </FormularSektion>
         )}
 

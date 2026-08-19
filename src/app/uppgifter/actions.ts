@@ -68,7 +68,6 @@ export async function skapaUppgift(input: {
   tidsatgangTimmar: number | null
   klockslag: string | null
   deltagareIds: string[]
-  mailinnehall: string
   arPlaceholder: boolean
 }) {
   const foretagId = await currentForetagId()
@@ -92,7 +91,6 @@ export async function skapaUppgift(input: {
       status: input.status,
       tidsatgang_timmar: input.tidsatgangTimmar,
       klockslag: input.klockslag,
-      mailinnehall: input.mailinnehall || null,
       ar_placeholder: input.arPlaceholder,
       ...(sortordning !== undefined ? { sortordning } : {}),
     })
@@ -318,7 +316,6 @@ export async function uppdateraUppgift(
     tidsatgangTimmar: number | null
     klockslag: string | null
     deltagareIds: string[]
-    mailinnehall: string
     arPlaceholder: boolean
   }
 ) {
@@ -342,7 +339,6 @@ export async function uppdateraUppgift(
       status: input.status,
       tidsatgang_timmar: input.tidsatgangTimmar,
       klockslag: input.klockslag,
-      mailinnehall: input.mailinnehall || null,
       ar_placeholder: input.arPlaceholder,
       ...(sortordning !== undefined ? { sortordning } : {}),
     })

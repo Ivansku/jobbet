@@ -33,7 +33,7 @@ export default async function SystemadministrationPage() {
   ] = await Promise.all([
     supabase
       .from('uppgiftstyp')
-      .select('id, namn, anteckningsmall_id, skapa_uppgifter_vid_klar, visar_mailinnehall')
+      .select('id, namn, anteckningsmall_id, skapa_uppgifter_vid_klar')
       .order('namn'),
     supabase.from('kategori').select('id, namn').order('namn'),
     supabase

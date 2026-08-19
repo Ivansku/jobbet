@@ -7,8 +7,7 @@ import { currentForetagId } from '@/lib/foretag'
 export async function skapaUppgiftstyp(
   namn: string,
   anteckningsmallId: string | null,
-  skapaUppgifterVidKlar: boolean,
-  visarMailinnehall: boolean
+  skapaUppgifterVidKlar: boolean
 ) {
   const namnTrimmat = namn.trim()
   if (!namnTrimmat) return
@@ -32,7 +31,6 @@ export async function skapaUppgiftstyp(
     namn: namnTrimmat,
     anteckningsmall_id: anteckningsmallId,
     skapa_uppgifter_vid_klar: skapaUppgifterVidKlar,
-    visar_mailinnehall: visarMailinnehall,
   })
   revalidatePath('/systemadministration')
 }
@@ -41,8 +39,7 @@ export async function uppdateraUppgiftstyp(
   id: string,
   namn: string,
   anteckningsmallId: string | null,
-  skapaUppgifterVidKlar: boolean,
-  visarMailinnehall: boolean
+  skapaUppgifterVidKlar: boolean
 ) {
   const namnTrimmat = namn.trim()
   if (!namnTrimmat) return
@@ -54,7 +51,6 @@ export async function uppdateraUppgiftstyp(
       namn: namnTrimmat,
       anteckningsmall_id: anteckningsmallId,
       skapa_uppgifter_vid_klar: skapaUppgifterVidKlar,
-      visar_mailinnehall: visarMailinnehall,
     })
     .eq('id', id)
   revalidatePath('/systemadministration')

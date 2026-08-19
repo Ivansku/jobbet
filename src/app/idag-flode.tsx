@@ -33,7 +33,6 @@ export type UppgiftDetaljerad = Uppgift & {
   tidsatgang_timmar: number | null
   typ_id: string | null
   skapa_uppgifter_vid_klar: boolean | null
-  mailinnehall: string | null
   ar_placeholder: boolean
   anteckningsmall_id: string | null
   uppgift_deltagare: { kontaktperson_id: string }[]
@@ -50,7 +49,6 @@ export type Typ = {
   namn: string
   anteckningsmall_id: string | null
   skapa_uppgifter_vid_klar: boolean
-  visar_mailinnehall: boolean
 }
 export type Block = {
   id: string

@@ -40,7 +40,7 @@ Use this skill when:
 | `projekt` | Project. May belong to a `kund`. | `status` CHECK-constrained: `planerat`, `aktivt`, `pausat`, `avslutat`. Can originate from a `mall_projekt` template via `mall_projekt_id`. |
 | `projekt_medlem` | Junction: person ↔ projekt membership. | PK `(projekt_id, person_id)`. `roll`: `agare` \| `redigerare` \| `lasare`. |
 | `uppgift` | Task. Core work item. | `status`: `oppen`/`pagar`/`vantar`/`klar`. `prioritet`: `lag`/`medel`/`hog`. Optional `projekt_id`, `person_id` (assignee), `kund_id`, `typ_id`, `serie_id`, `kategori_id`, `anteckningsmall_id`. `ar_placeholder` marks template-derived rows not yet scheduled. Outlook sync fields (`outlook_event_id`, `obligatoriska_deltagare`, `valfria_deltagare`). Self-referencing `genererad_fran_uppgift_id`. |
-| `uppgiftstyp` | Task type, scoped to `foretag`. | Drives `skapa_uppgifter_vid_klar` (auto-generate follow-up tasks) and `visar_mailinnehall`. May carry a default `anteckningsmall_id`. |
+| `uppgiftstyp` | Task type, scoped to `foretag`. | Drives `skapa_uppgifter_vid_klar` (auto-generate follow-up tasks). May carry a default `anteckningsmall_id`. |
 | `uppgift_serie` | Recurring task series/template. | `veckodagar` (int2[] restricted to 1-5), `intervall_veckor`, generates `uppgift` rows over time; `senast_genererad_datum` tracks generation cursor. |
 | `kategori` | Free-form tag, scoped to `foretag`. | |
 | `uppgift_deltagare` | Junction: uppgift ↔ kontaktperson. | PK `(uppgift_id, kontaktperson_id)`. `typ`: `obligatorisk` \| `valfri`. |

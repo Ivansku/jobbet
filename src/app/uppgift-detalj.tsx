@@ -26,7 +26,6 @@ export function UppgiftDetalj({
   const [titel, setTitel] = useState(uppgift.titel)
   const [beskrivning, setBeskrivning] = useState(uppgift.beskrivning ?? '')
   const [tidsatgang, setTidsatgang] = useState(uppgift.tidsatgang_timmar?.toString() ?? '')
-  const [mailinnehall, setMailinnehall] = useState(uppgift.mailinnehall ?? '')
   const [sparar, setSparar] = useState(false)
 
   const typ = typer.find((t) => t.id === uppgift.typ_id)
@@ -55,7 +54,6 @@ export function UppgiftDetalj({
       tidsatgangTimmar: tidsatgang.trim() ? Number(tidsatgang) : null,
       klockslag: uppgift.klockslag,
       deltagareIds: uppgift.uppgift_deltagare.map((d) => d.kontaktperson_id),
-      mailinnehall,
       arPlaceholder: uppgift.ar_placeholder,
     })
 
@@ -98,12 +96,6 @@ export function UppgiftDetalj({
             initialAnteckningar={uppgift.uppgift_anteckning}
             initialAutoSkapaUppgifterVidKlar={uppgift.skapa_uppgifter_vid_klar ?? typ?.skapa_uppgifter_vid_klar ?? false}
           />
-        )}
-
-        {typ?.visar_mailinnehall && (
-          <Field label="Mailinnehåll" htmlFor="uppgift-detalj-mailinnehall">
-            <MarkdownEditor id="uppgift-detalj-mailinnehall" value={mailinnehall} onChange={setMailinnehall} />
-          </Field>
         )}
 
         <div className="mt-1 flex justify-end gap-2">

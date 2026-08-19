@@ -3,7 +3,6 @@ import { AppNav } from '../nav'
 import { KundVy } from './kund-vy'
 import { hamtaMotesanteckningarForKunder } from './actions'
 import { hamtaManuellaAnteckningarForKunder } from './manuell-anteckning-actions'
-import { hamtaMailanteckningarForKunder } from './mail-actions'
 
 export default async function KunderPage() {
   const supabase = await createClient()
@@ -16,10 +15,9 @@ export default async function KunderPage() {
   ])
 
   const kundIds = (kunder ?? []).map((k) => k.id)
-  const [motesanteckningar, manuellaAnteckningar, mailanteckningar] = await Promise.all([
+  const [motesanteckningar, manuellaAnteckningar] = await Promise.all([
     hamtaMotesanteckningarForKunder(kundIds),
     hamtaManuellaAnteckningarForKunder(kundIds),
-    hamtaMailanteckningarForKunder(kundIds),
   ])
 
   return (
@@ -31,7 +29,6 @@ export default async function KunderPage() {
           kontaktpersoner={kontaktpersoner ?? []}
           motesanteckningar={motesanteckningar}
           manuellaAnteckningar={manuellaAnteckningar}
-          mailanteckningar={mailanteckningar}
         />
       </main>
     </>

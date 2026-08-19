@@ -15,7 +15,6 @@ type Uppgiftstyp = {
   namn: string
   anteckningsmall_id: string | null
   skapa_uppgifter_vid_klar: boolean
-  visar_mailinnehall: boolean
 }
 type Anteckningsmall = { id: string; namn: string }
 
@@ -83,7 +82,6 @@ function TypFormular({
   const [skapaUppgifterVidKlar, setSkapaUppgifterVidKlar] = useState(
     existing?.skapa_uppgifter_vid_klar ?? false
   )
-  const [visarMailinnehall, setVisarMailinnehall] = useState(existing?.visar_mailinnehall ?? false)
   const [sparar, setSparar] = useState(false)
   const [visaBekraftelse, setVisaBekraftelse] = useState(false)
   const [tarBort, setTarBort] = useState(false)
@@ -95,9 +93,9 @@ function TypFormular({
 
     const mallId = anteckningsmallId || null
     if (existing) {
-      await uppdateraUppgiftstyp(existing.id, namn, mallId, skapaUppgifterVidKlar, visarMailinnehall)
+      await uppdateraUppgiftstyp(existing.id, namn, mallId, skapaUppgifterVidKlar)
     } else {
-      await skapaUppgiftstyp(namn, mallId, skapaUppgifterVidKlar, visarMailinnehall)
+      await skapaUppgiftstyp(namn, mallId, skapaUppgifterVidKlar)
     }
 
     setSparar(false)
@@ -177,15 +175,6 @@ function TypFormular({
             Skapa uppföljningsuppgifter automatiskt vid klar
           </label>
         )}
-        <label className="flex items-center gap-2 text-sm font-medium">
-          <input
-            type="checkbox"
-            checked={visarMailinnehall}
-            onChange={(e) => setVisarMailinnehall(e.target.checked)}
-            className="h-4 w-4 accent-accent-600"
-          />
-          Visa mailinnehåll på uppgifter
-        </label>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>
             Avbryt

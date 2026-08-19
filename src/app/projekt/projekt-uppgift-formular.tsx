@@ -36,7 +36,6 @@ export type ProjektUppgiftDetaljerad = {
   typ_id: string | null
   kategori_id: string | null
   prioritet: string
-  mailinnehall: string | null
   ar_placeholder: boolean
   anteckningsmall_id: string | null
   skapa_uppgifter_vid_klar: boolean | null
@@ -99,7 +98,6 @@ export function ProjektUppgiftFormular({
       tidsatgangTimmar: tidsatgang.trim() ? Number(tidsatgang) : null,
       klockslag: klockslag || null,
       deltagareIds: uppgift.uppgift_deltagare.map((d) => d.kontaktperson_id),
-      mailinnehall: uppgift.mailinnehall ?? '',
       arPlaceholder: uppgift.ar_placeholder,
     })
 

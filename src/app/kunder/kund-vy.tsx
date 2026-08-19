@@ -14,8 +14,6 @@ import { MailtoIconLink } from '@/components/ui/mailto-icon-link'
 import { KundMotesanteckningarSektion, type Mote } from './kund-motesanteckningar-sektion'
 import { KundManuellaAnteckningarSektion } from './kund-manuella-anteckningar-sektion'
 import type { ManuellAnteckning } from './manuell-anteckning-actions'
-import { KundMailanteckningarSektion } from './kund-mailanteckningar-sektion'
-import type { MailMote } from './mail-actions'
 
 type Kund = { id: string; namn: string }
 type Kontaktperson = {
@@ -50,13 +48,11 @@ export function KundVy({
   kontaktpersoner,
   motesanteckningar,
   manuellaAnteckningar,
-  mailanteckningar,
 }: {
   kunder: Kund[]
   kontaktpersoner: Kontaktperson[]
   motesanteckningar: Record<string, Mote[]>
   manuellaAnteckningar: Record<string, ManuellAnteckning[]>
-  mailanteckningar: Record<string, MailMote[]>
 }) {
   const [redigerar, setRedigerar] = useState<Kund | 'ny' | null>(null)
   const [oppnaKontaktId, setOppnaKontaktId] = useState<string | null>(null)
@@ -166,7 +162,6 @@ export function KundVy({
           }
           moten={redigerar === 'ny' ? [] : (motesanteckningar[redigerar.id] ?? [])}
           manuellaAnteckningar={redigerar === 'ny' ? [] : (manuellaAnteckningar[redigerar.id] ?? [])}
-          mailmoten={redigerar === 'ny' ? [] : (mailanteckningar[redigerar.id] ?? [])}
           initialKontaktId={oppnaKontaktId}
           onClose={() => setRedigerar(null)}
         />
@@ -180,7 +175,6 @@ function KundFormular({
   kontaktpersoner,
   moten,
   manuellaAnteckningar,
-  mailmoten,
   initialKontaktId,
   onClose,
 }: {
@@ -188,7 +182,6 @@ function KundFormular({
   kontaktpersoner: Kontaktperson[]
   moten: Mote[]
   manuellaAnteckningar: ManuellAnteckning[]
-  mailmoten: MailMote[]
   initialKontaktId: string | null
   onClose: () => void
 }) {
@@ -263,8 +256,6 @@ function KundFormular({
         )}
 
         {existing && <KundMotesanteckningarSektion moten={moten} />}
-
-        {existing && <KundMailanteckningarSektion moten={mailmoten} />}
 
         {existing && (
           <KundManuellaAnteckningarSektion
