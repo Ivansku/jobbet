@@ -705,7 +705,9 @@ export async function kopplaTillPlaceholder(riktigUppgiftId: string, projektId: 
     .single()
   if (!placeholder || placeholder.projekt_id !== projektId) return { success: false as const }
 
-  await supabase
+  // Felet loggas men avbryter inte längre tyst — tidigare kunde en misslyckad update
+  // (t.ex. en constraint) ändå resultera i success:true och en borttagen placeholder.
+  const { error: updateError } = await supabase
     .from('uppgift')
     .update({
       projekt_id: projektId,
@@ -718,8 +720,15 @@ export async function kopplaTillPlaceholder(riktigUppgiftId: string, projektId: 
         : {}),
     })
     .eq('id', riktigUppgiftId)
+  if (updateError) {
+    console.error('[kopplaTillPlaceholder] update misslyckades', updateError)
+    return { success: false as const }
+  }
 
-  await supabase.from('uppgift').delete().eq('id', placeholderId)
+  const { error: deleteError } = await supabase.from('uppgift').delete().eq('id', placeholderId)
+  if (deleteError) {
+    console.error('[kopplaTillPlaceholder] delete av placeholder misslyckades', deleteError)
+  }
 
   revalidatePath('/uppgifter')
   return { success: true as const }
