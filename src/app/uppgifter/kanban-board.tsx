@@ -338,6 +338,7 @@ export function KanbanBoard({
   const personMap = new Map(personer.map((p) => [p.id, p.namn]))
   const kundMap = new Map(kunder.map((k) => [k.id, k.namn]))
   const typMap = new Map(typer.map((t) => [t.id, t.namn]))
+  const kategoriMap = new Map(kategori.map((k) => [k.id, k.namn]))
   const projektTypMap = new Map(projekt.map((p) => [p.id, p.mallProjektNamn]))
   const projektFargMap = new Map(projekt.map((p) => [p.id, p.farg]))
   const weekDateSet = new Set(weekDates)
@@ -489,6 +490,7 @@ export function KanbanBoard({
               personMap={personMap}
               kundMap={kundMap}
               typMap={typMap}
+              kategoriMap={kategoriMap}
               projektTypMap={projektTypMap}
               projektFargMap={projektFargMap}
               currentPersonId={currentPersonId}
@@ -516,6 +518,7 @@ export function KanbanBoard({
               personMap={personMap}
               kundMap={kundMap}
               typMap={typMap}
+              kategoriMap={kategoriMap}
               projektTypMap={projektTypMap}
             />
           </div>
@@ -563,6 +566,7 @@ function KanbanColumn({
   personMap,
   kundMap,
   typMap,
+  kategoriMap,
   projektTypMap,
   projektFargMap,
   currentPersonId,
@@ -578,6 +582,7 @@ function KanbanColumn({
   personMap: Map<string, string>
   kundMap: Map<string, string>
   typMap: Map<string, string>
+  kategoriMap: Map<string, string>
   projektTypMap: Map<string, string | null>
   projektFargMap: Map<string, string | null>
   currentPersonId: string | null
@@ -660,6 +665,7 @@ function KanbanColumn({
                 personMap={personMap}
                 kundMap={kundMap}
                 typMap={typMap}
+                kategoriMap={kategoriMap}
                 projektTypMap={projektTypMap}
                 projektFargMap={projektFargMap}
                 onSelect={onSelect}
@@ -687,6 +693,7 @@ function KanbanCard({
   personMap,
   kundMap,
   typMap,
+  kategoriMap,
   projektTypMap,
   projektFargMap,
   onSelect,
@@ -697,6 +704,7 @@ function KanbanCard({
   personMap: Map<string, string>
   kundMap: Map<string, string>
   typMap: Map<string, string>
+  kategoriMap: Map<string, string>
   projektTypMap: Map<string, string | null>
   projektFargMap: Map<string, string | null>
   onSelect: (u: Uppgift) => void
@@ -735,6 +743,7 @@ function KanbanCard({
         personMap={personMap}
         kundMap={kundMap}
         typMap={typMap}
+        kategoriMap={kategoriMap}
         projektTypMap={projektTypMap}
         onToggleStatus={onToggleStatus}
       />
@@ -748,6 +757,7 @@ function KortInnehall({
   personMap,
   kundMap,
   typMap,
+  kategoriMap,
   projektTypMap,
   onToggleStatus,
 }: {
@@ -756,6 +766,7 @@ function KortInnehall({
   personMap: Map<string, string>
   kundMap: Map<string, string>
   typMap: Map<string, string>
+  kategoriMap: Map<string, string>
   projektTypMap: Map<string, string | null>
   onToggleStatus?: (u: Uppgift) => void
 }) {
@@ -769,10 +780,11 @@ function KortInnehall({
   // men som kontext ovanför titeln snarare än utspritt i badges. Visar projektets
   // mall-namn (t.ex. "Uppgradering") istället för projektets eget namn — mallen är
   // den återkommande "typen" av projekt, medan varje enskilt projekt ofta redan
-  // syns via kundnamnet.
+  // syns via kundnamnet. Saknas projekt visas kategorin istället, så kortet ändå
+  // får en mittdel i breadcrumben.
   const kontext = [
     u.kund_id && kundMap.get(u.kund_id),
-    u.projekt_id && projektTypMap.get(u.projekt_id),
+    u.projekt_id ? projektTypMap.get(u.projekt_id) : u.kategori_id && kategoriMap.get(u.kategori_id),
     u.typ_id && typMap.get(u.typ_id),
   ].filter((v): v is string => Boolean(v))
 
