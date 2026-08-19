@@ -11,7 +11,8 @@ import {
 } from './actions'
 import { ProjektUppgiftFormular, type ProjektUppgiftDetaljerad, type Typ, type Anteckningsblock } from './projekt-uppgift-formular'
 import { Button } from '@/components/ui/button'
-import { Input, Select, Textarea } from '@/components/ui/input'
+import { Input, Select } from '@/components/ui/input'
+import { MarkdownEditor } from '@/components/ui/markdown-editor'
 import { Field } from '@/components/ui/field'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -407,12 +408,7 @@ function ProjektFormular({
         </div>
 
         <Field label="Beskrivning" htmlFor="projekt-beskrivning">
-          <Textarea
-            id="projekt-beskrivning"
-            value={beskrivning ?? ''}
-            onChange={(e) => setBeskrivning(e.target.value)}
-            rows={3}
-          />
+          <MarkdownEditor id="projekt-beskrivning" value={beskrivning} onChange={setBeskrivning} />
         </Field>
 
         <Field label="Färg" htmlFor="projekt-farg">
