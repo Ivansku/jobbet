@@ -54,6 +54,15 @@ const STATUS_TONE: Record<string, 'success' | 'warning' | 'neutral'> = {
   avslutat: 'neutral',
 }
 
+// Kortens ordning inom varje kolumn: Aktiva → Pausat → Planerat → Avslutat, och
+// inom samma status högst klar-procent överst. Avviker medvetet från STATUS_LABEL/
+// STATUS_TONE-ordningen ovan, som bara styr etikett/färg och inte sorteringen.
+const STATUS_SORTORDNING: Record<string, number> = { aktivt: 0, pausat: 1, planerat: 2, avslutat: 3 }
+
+function projektFramsteg(p: Projekt) {
+  return p.antalUppgifter > 0 ? p.antalKlara / p.antalUppgifter : 0
+}
+
 export function ProjektVy({
   projekt,
   kunder,
@@ -75,8 +84,13 @@ export function ProjektVy({
     setRedigerar('ny')
   }
 
+  const sorteradeProjekt = [...projekt].sort((a, b) => {
+    const statusDiff = (STATUS_SORTORDNING[a.status] ?? 99) - (STATUS_SORTORDNING[b.status] ?? 99)
+    return statusDiff !== 0 ? statusDiff : projektFramsteg(b) - projektFramsteg(a)
+  })
+
   const mallIdSet = new Set(mallar.map((m) => m.id))
-  const utanMall = projekt.filter((p) => !p.mallProjektId || !mallIdSet.has(p.mallProjektId))
+  const utanMall = sorteradeProjekt.filter((p) => !p.mallProjektId || !mallIdSet.has(p.mallProjektId))
 
   return (
     <>
@@ -98,7 +112,7 @@ export function ProjektVy({
             <ProjektKolumn
               key={mall.id}
               namn={mall.namn}
-              projekt={projekt.filter((p) => p.mallProjektId === mall.id)}
+              projekt={sorteradeProjekt.filter((p) => p.mallProjektId === mall.id)}
               onSelect={setRedigerar}
               onAddNew={() => oppnaNy(mall.id)}
             />
