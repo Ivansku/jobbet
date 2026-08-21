@@ -46,6 +46,36 @@ function parsaAmne(subject: string): { kundNamn: string | null; titel: string } 
   return { kundNamn: null, titel: trimmad }
 }
 
+// outlook_event_id är Graphs interna ItemId och kan bytas av Exchange för samma
+// möte (t.ex. vid vissa redigeringar/statusuppdateringar), trots att V3-triggern
+// korrekt klassar händelsen som "updated". iCalUId är däremot stabilt över hela
+// mötets livstid och används som fallback när den snabba eventId-matchningen
+// missar — så en redigering aldrig av misstag blir en ny uppgift-rad.
+async function hittaUppgiftViaOutlookId(
+  supabase: ReturnType<typeof createServiceClient>,
+  foretagId: string,
+  eventId: string,
+  iCalUId?: string
+) {
+  const { data: viaEventId } = await supabase
+    .from('uppgift')
+    .select('id')
+    .eq('foretag_id', foretagId)
+    .eq('outlook_event_id', eventId)
+    .maybeSingle()
+  if (viaEventId) return viaEventId
+
+  if (!iCalUId) return null
+
+  const { data: viaIcalUid } = await supabase
+    .from('uppgift')
+    .select('id')
+    .eq('foretag_id', foretagId)
+    .eq('outlook_ical_uid', iCalUId)
+    .maybeSingle()
+  return viaIcalUid
+}
+
 const RADERINGS_VARDEN = new Set(['deleted', 'delete', 'cancelled', 'canceled', 'removed'])
 function arRadering(actionType?: string): boolean {
   return !!actionType && RADERINGS_VARDEN.has(actionType.trim().toLowerCase())
@@ -168,6 +198,7 @@ export async function POST(request: NextRequest) {
 
   let body: {
     eventId?: string
+    iCalUId?: string
     subject?: string
     start?: string
     end?: string
@@ -183,8 +214,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Ogiltig JSON' }, { status: 400 })
   }
 
-  const { eventId, subject, start, end, bodyPreview, ownerEmail, requiredAttendees, optionalAttendees, actionType } =
-    body
+  const {
+    eventId,
+    iCalUId,
+    subject,
+    start,
+    end,
+    bodyPreview,
+    ownerEmail,
+    requiredAttendees,
+    optionalAttendees,
+    actionType,
+  } = body
   if (!eventId || !ownerEmail) {
     return NextResponse.json({ error: 'Saknar obligatoriska fält' }, { status: 400 })
   }
@@ -216,12 +257,7 @@ export async function POST(request: NextRequest) {
   // En avbokning i Outlook tar bort motsvarande uppgift helt — kräver bara
   // eventId, inte mötesdetaljerna (som ofta saknas i en delete-trigger).
   if (arRadering(actionType)) {
-    const { data: befintligUppgift } = await supabase
-      .from('uppgift')
-      .select('id')
-      .eq('foretag_id', foretagId)
-      .eq('outlook_event_id', eventId)
-      .maybeSingle()
+    const befintligUppgift = await hittaUppgiftViaOutlookId(supabase, foretagId, eventId, iCalUId)
 
     if (!befintligUppgift) {
       return NextResponse.json({ ok: true, action: 'ingen_matchning' })
@@ -315,6 +351,8 @@ export async function POST(request: NextRequest) {
   const sortordning = beraknaSortordning(datum, klockslag)
 
   const falt = {
+    outlook_event_id: eventId,
+    outlook_ical_uid: iCalUId?.trim() || null,
     titel,
     beskrivning: bodyPreview?.trim() ? htmlTillText(bodyPreview) || null : null,
     person_id: person.id,
@@ -330,12 +368,7 @@ export async function POST(request: NextRequest) {
     ...(sortordning !== undefined ? { sortordning } : {}),
   }
 
-  const { data: befintligUppgift } = await supabase
-    .from('uppgift')
-    .select('id')
-    .eq('foretag_id', foretagId)
-    .eq('outlook_event_id', eventId)
-    .maybeSingle()
+  const befintligUppgift = await hittaUppgiftViaOutlookId(supabase, foretagId, eventId, iCalUId)
 
   if (befintligUppgift) {
     await supabase.from('uppgift').update(falt).eq('id', befintligUppgift.id)
@@ -357,7 +390,6 @@ export async function POST(request: NextRequest) {
       foretag_id: foretagId,
       status: 'oppen',
       prioritet: 'lag',
-      outlook_event_id: eventId,
       ...falt,
     })
     .select('id')
