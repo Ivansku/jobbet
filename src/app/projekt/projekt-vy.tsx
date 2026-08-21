@@ -47,11 +47,11 @@ const STATUS_LABEL: Record<string, string> = {
   pausat: 'Pausat',
   avslutat: 'Avslutat',
 }
-const STATUS_TONE: Record<string, 'success' | 'warning' | 'neutral'> = {
+const STATUS_TONE: Record<string, 'success' | 'warning' | 'neutral' | 'accent'> = {
   planerat: 'neutral',
   aktivt: 'success',
   pausat: 'warning',
-  avslutat: 'neutral',
+  avslutat: 'accent',
 }
 
 // Kortens ordning inom varje kolumn: Aktiva → Pausat → Planerat → Avslutat, och
