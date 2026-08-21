@@ -1,6 +1,6 @@
 # Jobbet — Projektöversikt
 
-*Senast uppdaterad: 2026-08-18 (projektfärg + omarbetad kontextrad på Kanban-kort)*
+*Senast uppdaterad: 2026-08-21 (fix: `generera_serie_forekomster` refererade en omdöpt kolumn)*
 
 Detta dokument är en levande sammanfattning av vad appen gör och hur den är uppbyggd, på VAD/VARFÖR-nivå — för planeringssamtal, inte som teknisk referens. Uppdatera det när större funktioner läggs till eller avgränsningar ändras, inte vid varje commit.
 
@@ -100,6 +100,7 @@ Detta dokument är en levande sammanfattning av vad appen gör och hur den är u
 - Ingen mobilanpassning testad
 - Kundsammanfattningen skickas inte på riktigt från servern — bara ett mailto-utkast som öppnas i användarens egen e-postklient
 - Ingen AI-transkribering av fritext/ljud till anteckningsblock
+- Anrop till Postgres-funktioner via `supabase.rpc(...)` kollar inte returnerat fel i koden — en trasig DB-funktion (t.ex. `generera_serie_forekomster`) misslyckas då helt tyst i UI:t. Hände 2026-08-17–21: kolumnen `uppgiftsprojekt_id` döptes om till `kategori_id` (migration `rename_uppgiftsprojekt_till_kategori`) men funktionen uppdaterades inte, så nya serieförekomster slutade genereras utan felmeddelande. Rättat i funktionen; själva felkontrollen i klientkoden är fortfarande inte byggd.
 
 ## Öppna frågor att diskutera
 
