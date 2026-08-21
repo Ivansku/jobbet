@@ -55,13 +55,10 @@ export function KundVy({
   manuellaAnteckningar: Record<string, ManuellAnteckning[]>
 }) {
   const [redigerar, setRedigerar] = useState<Kund | 'ny' | null>(null)
-  const [oppnaKontaktId, setOppnaKontaktId] = useState<string | null>(null)
+  // Klick på en kontaktperson direkt i listan (utan att först öppna kunden)
+  // ska bara stänga tillbaka till listan — inte avslöja kundmodalen bakom.
+  const [redigerarFristaendeKontakt, setRedigerarFristaendeKontakt] = useState<Kontaktperson | null>(null)
   const [sok, setSok] = useState('')
-
-  function oppnaKund(kund: Kund, kontaktId: string | null = null) {
-    setOppnaKontaktId(kontaktId)
-    setRedigerar(kund)
-  }
 
   const sokterm = sok.trim().toLowerCase()
   const kunderMedKontakter = kunder.map((k) => ({
@@ -103,7 +100,7 @@ export function KundVy({
               {filtrerade.map(({ kund, kontakter }) => (
                 <li key={kund.id}>
                   <button
-                    onClick={() => oppnaKund(kund)}
+                    onClick={() => setRedigerar(kund)}
                     className="flex w-full items-center justify-between px-4 py-3 text-left text-sm transition-colors hover:bg-stone-50 dark:hover:bg-stone-800"
                   >
                     <span className="truncate font-medium">{kund.namn}</span>
@@ -120,11 +117,11 @@ export function KundVy({
                             <div
                               role="button"
                               tabIndex={0}
-                              onClick={() => oppnaKund(kund, kp.id)}
+                              onClick={() => setRedigerarFristaendeKontakt(kp)}
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter' || e.key === ' ') {
                                   e.preventDefault()
-                                  oppnaKund(kund, kp.id)
+                                  setRedigerarFristaendeKontakt(kp)
                                 }
                               }}
                               className="flex w-full cursor-pointer items-center justify-between px-4 py-2 pl-6 text-left text-xs transition-colors hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-inset dark:hover:bg-stone-800"
@@ -162,8 +159,15 @@ export function KundVy({
           }
           moten={redigerar === 'ny' ? [] : (motesanteckningar[redigerar.id] ?? [])}
           manuellaAnteckningar={redigerar === 'ny' ? [] : (manuellaAnteckningar[redigerar.id] ?? [])}
-          initialKontaktId={oppnaKontaktId}
           onClose={() => setRedigerar(null)}
+        />
+      )}
+
+      {redigerarFristaendeKontakt && (
+        <KontaktpersonFormular
+          kundId={redigerarFristaendeKontakt.kund_id}
+          existing={redigerarFristaendeKontakt}
+          onClose={() => setRedigerarFristaendeKontakt(null)}
         />
       )}
     </>
@@ -175,23 +179,19 @@ function KundFormular({
   kontaktpersoner,
   moten,
   manuellaAnteckningar,
-  initialKontaktId,
   onClose,
 }: {
   existing: Kund | null
   kontaktpersoner: Kontaktperson[]
   moten: Mote[]
   manuellaAnteckningar: ManuellAnteckning[]
-  initialKontaktId: string | null
   onClose: () => void
 }) {
   const [namn, setNamn] = useState(existing?.namn ?? '')
   const [sparar, setSparar] = useState(false)
   const [visaBekraftelse, setVisaBekraftelse] = useState(false)
   const [tarBort, setTarBort] = useState(false)
-  const [redigerarKontakt, setRedigerarKontakt] = useState<Kontaktperson | 'ny' | null>(
-    () => kontaktpersoner.find((k) => k.id === initialKontaktId) ?? null
-  )
+  const [redigerarKontakt, setRedigerarKontakt] = useState<Kontaktperson | 'ny' | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
