@@ -189,6 +189,9 @@ function KundFormular({
   const [sparar, setSparar] = useState(false)
   const [visaBekraftelse, setVisaBekraftelse] = useState(false)
   const [tarBort, setTarBort] = useState(false)
+  const [redigerarKontakt, setRedigerarKontakt] = useState<Kontaktperson | 'ny' | null>(
+    () => kontaktpersoner.find((k) => k.id === initialKontaktId) ?? null
+  )
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -225,6 +228,16 @@ function KundFormular({
     )
   }
 
+  if (redigerarKontakt && existing) {
+    return (
+      <KontaktpersonFormular
+        kundId={existing.id}
+        existing={redigerarKontakt === 'ny' ? null : redigerarKontakt}
+        onClose={() => setRedigerarKontakt(null)}
+      />
+    )
+  }
+
   return (
     <Modal onClose={onClose} labelledBy="kund-formular-title">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -249,9 +262,9 @@ function KundFormular({
 
         {existing && (
           <KontaktpersonSektion
-            kundId={existing.id}
             kontaktpersoner={kontaktpersoner}
-            initialKontaktId={initialKontaktId}
+            onSelect={setRedigerarKontakt}
+            onAddNew={() => setRedigerarKontakt('ny')}
           />
         )}
 
@@ -279,23 +292,19 @@ function KundFormular({
 }
 
 function KontaktpersonSektion({
-  kundId,
   kontaktpersoner,
-  initialKontaktId,
+  onSelect,
+  onAddNew,
 }: {
-  kundId: string
   kontaktpersoner: Kontaktperson[]
-  initialKontaktId: string | null
+  onSelect: (k: Kontaktperson) => void
+  onAddNew: () => void
 }) {
-  const [redigerarKontakt, setRedigerarKontakt] = useState<Kontaktperson | 'ny' | null>(
-    () => kontaktpersoner.find((k) => k.id === initialKontaktId) ?? null
-  )
-
   return (
     <div className="border-t border-border-subtle pt-4">
       <div className="mb-2 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-stone-500">Kontaktpersoner</h3>
-        <Button type="button" variant="secondary" size="sm" onClick={() => setRedigerarKontakt('ny')}>
+        <Button type="button" variant="secondary" size="sm" onClick={onAddNew}>
           Lägg till
         </Button>
       </div>
@@ -310,7 +319,7 @@ function KontaktpersonSektion({
               <li key={k.id}>
                 <button
                   type="button"
-                  onClick={() => setRedigerarKontakt(k)}
+                  onClick={() => onSelect(k)}
                   className="flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-stone-50 dark:hover:bg-stone-800"
                 >
                   <span className="truncate">{kontaktNamn(k)}</span>
@@ -323,14 +332,6 @@ function KontaktpersonSektion({
             )
           })}
         </ul>
-      )}
-
-      {redigerarKontakt && (
-        <KontaktpersonFormular
-          kundId={kundId}
-          existing={redigerarKontakt === 'ny' ? null : redigerarKontakt}
-          onClose={() => setRedigerarKontakt(null)}
-        />
       )}
     </div>
   )
@@ -377,42 +378,46 @@ function KontaktpersonFormular({
   }
 
   return (
-    <div className="mt-3 flex flex-col gap-3 rounded-lg border border-border-subtle p-3">
-      {existing && (
+    <Modal onClose={onClose} labelledBy="kontakt-formular-title">
+      <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-2">
-          <h4 className="text-xs font-semibold text-stone-500">Redigera kontakt</h4>
-          <DeleteIconButton label={`Ta bort ${kontaktNamn(existing)}`} onClick={handleTaBort} loading={tarBort} />
+          <h2 id="kontakt-formular-title" className="text-lg font-semibold">
+            {existing ? 'Redigera kontakt' : 'Ny kontakt'}
+          </h2>
+          {existing && (
+            <DeleteIconButton label={`Ta bort ${kontaktNamn(existing)}`} onClick={handleTaBort} loading={tarBort} />
+          )}
         </div>
-      )}
-      <div className="grid grid-cols-2 gap-2">
-        <Field label="Förnamn" htmlFor="kontakt-fornamn">
-          <Input id="kontakt-fornamn" value={fornamn ?? ''} onChange={(e) => setFornamn(e.target.value)} autoFocus />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Förnamn" htmlFor="kontakt-fornamn">
+            <Input id="kontakt-fornamn" value={fornamn ?? ''} onChange={(e) => setFornamn(e.target.value)} autoFocus />
+          </Field>
+          <Field label="Efternamn" htmlFor="kontakt-efternamn">
+            <Input id="kontakt-efternamn" value={efternamn ?? ''} onChange={(e) => setEfternamn(e.target.value)} />
+          </Field>
+        </div>
+        <Field label="E-post" htmlFor="kontakt-epost">
+          <Input type="email" id="kontakt-epost" value={epost ?? ''} onChange={(e) => setEpost(e.target.value)} />
         </Field>
-        <Field label="Efternamn" htmlFor="kontakt-efternamn">
-          <Input id="kontakt-efternamn" value={efternamn ?? ''} onChange={(e) => setEfternamn(e.target.value)} />
-        </Field>
+        {existing && (
+          <Field label="Senast kontaktad" htmlFor="kontakt-senast">
+            <Input
+              type="date"
+              id="kontakt-senast"
+              value={senastKontaktad ?? ''}
+              onChange={(e) => setSenastKontaktad(e.target.value)}
+            />
+          </Field>
+        )}
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Avbryt
+          </Button>
+          <Button type="button" variant="primary" loading={sparar} onClick={handleSpara}>
+            Spara
+          </Button>
+        </div>
       </div>
-      <Field label="E-post" htmlFor="kontakt-epost">
-        <Input type="email" id="kontakt-epost" value={epost ?? ''} onChange={(e) => setEpost(e.target.value)} />
-      </Field>
-      {existing && (
-        <Field label="Senast kontaktad" htmlFor="kontakt-senast">
-          <Input
-            type="date"
-            id="kontakt-senast"
-            value={senastKontaktad ?? ''}
-            onChange={(e) => setSenastKontaktad(e.target.value)}
-          />
-        </Field>
-      )}
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="secondary" size="sm" onClick={onClose}>
-          Avbryt
-        </Button>
-        <Button type="button" variant="primary" size="sm" loading={sparar} onClick={handleSpara}>
-          Spara
-        </Button>
-      </div>
-    </div>
+    </Modal>
   )
 }
