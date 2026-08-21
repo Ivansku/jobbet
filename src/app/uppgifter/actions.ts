@@ -300,6 +300,23 @@ export async function taBortSerie(id: string) {
   revalidatePath('/uppgifter')
 }
 
+// Explicit, separat åtgärd: raderar även alla uppgifter som skapats av serien.
+export async function taBortSerieMedUppgifter(id: string) {
+  const supabase = await createClient()
+  await supabase.from('uppgift').delete().eq('serie_id', id)
+  await supabase.from('uppgift_serie').delete().eq('id', id)
+  revalidatePath('/uppgifter')
+}
+
+export async function raknaSerieUppgifter(id: string) {
+  const supabase = await createClient()
+  const { count } = await supabase
+    .from('uppgift')
+    .select('id', { count: 'exact', head: true })
+    .eq('serie_id', id)
+  return count ?? 0
+}
+
 export async function uppdateraUppgift(
   id: string,
   input: {

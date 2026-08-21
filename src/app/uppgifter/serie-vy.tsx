@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { uppdateraSerie, avslutaSerie, taBortSerie } from './actions'
+import { uppdateraSerie, avslutaSerie, taBortSerie, taBortSerieMedUppgifter, raknaSerieUppgifter } from './actions'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -146,7 +146,8 @@ export function SerieFormular({
   const [klockslag, setKlockslag] = useState(serie.klockslag?.slice(0, 5) ?? '')
   const [sparar, setSparar] = useState(false)
   const [visaAvsluta, setVisaAvsluta] = useState(false)
-  const [visaTaBort, setVisaTaBort] = useState(false)
+  const [visaTaBort, setVisaTaBort] = useState<'kopplaLoss' | 'medUppgifter' | null>(null)
+  const [antalUppgifter, setAntalUppgifter] = useState<number | null>(null)
   const [arbetar, setArbetar] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
@@ -180,10 +181,21 @@ export function SerieFormular({
   }
 
   async function handleTaBort() {
+    if (!visaTaBort) return
     setArbetar(true)
-    await taBortSerie(serie.id)
+    if (visaTaBort === 'medUppgifter') {
+      await taBortSerieMedUppgifter(serie.id)
+    } else {
+      await taBortSerie(serie.id)
+    }
     setArbetar(false)
     onClose()
+  }
+
+  async function handleVisaTaBortMedUppgifter() {
+    const antal = await raknaSerieUppgifter(serie.id)
+    setAntalUppgifter(antal)
+    setVisaTaBort('medUppgifter')
   }
 
   if (visaAvsluta) {
@@ -200,13 +212,23 @@ export function SerieFormular({
   }
 
   if (visaTaBort) {
+    const medUppgifter = visaTaBort === 'medUppgifter'
     return (
       <ConfirmDialog
-        title={`Ta bort serien "${serie.titel}"?`}
-        description="Själva serien tas bort, men uppgifter som redan skapats av den finns kvar som vanliga uppgifter."
+        title={
+          medUppgifter
+            ? `Ta bort serien "${serie.titel}" och alla dess uppgifter?`
+            : `Ta bort serien "${serie.titel}"?`
+        }
+        description={
+          medUppgifter
+            ? `Detta raderar även alla ${antalUppgifter ?? 0} uppgifter som skapats av serien. Går inte att ångra.`
+            : 'Själva serien tas bort, men uppgifter som redan skapats av den finns kvar som vanliga uppgifter.'
+        }
+        confirmLabel="Ta bort"
         loading={arbetar}
         onConfirm={handleTaBort}
-        onCancel={() => setVisaTaBort(false)}
+        onCancel={() => setVisaTaBort(null)}
       />
     )
   }
@@ -218,7 +240,7 @@ export function SerieFormular({
           <h2 id="serie-formular-title" className="text-lg font-semibold">
             Redigera serie
           </h2>
-          <DeleteIconButton label={`Ta bort serien "${serie.titel}"`} onClick={() => setVisaTaBort(true)} />
+          <DeleteIconButton label={`Ta bort serien "${serie.titel}"`} onClick={() => setVisaTaBort('kopplaLoss')} />
         </div>
 
         <Field label="Titel" htmlFor="serie-titel">
@@ -340,6 +362,14 @@ export function SerieFormular({
             />
           </Field>
         </div>
+
+        <button
+          type="button"
+          onClick={handleVisaTaBortMedUppgifter}
+          className="mt-2 self-start text-xs font-medium text-red-600 hover:underline dark:text-red-400"
+        >
+          Ta bort serien och alla uppgifter
+        </button>
 
         <div className="mt-1 flex items-center justify-between gap-2">
           <Button type="button" variant="secondary" size="sm" onClick={() => setVisaAvsluta(true)}>
