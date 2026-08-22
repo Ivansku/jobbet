@@ -23,7 +23,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { createClient } from '@/lib/supabase/client'
 import { ROD_DAG_STREGMONSTER_KLASS, HALVDAG_MASK_KLASS } from '@/lib/svenska-dagar'
-import { SerieVy, SerieFormular } from './serie-vy'
+import { SerieVy } from './serie-vy'
 import { UppgiftFormular } from './uppgift-formular'
 import type {
   Person,
@@ -148,6 +148,7 @@ export function KanbanBoard({
   const [nyDatum, setNyDatum] = useState<string | null>(null)
   const [aktivId, setAktivId] = useState<string | null>(null)
   const [redigerarSerie, setRedigerarSerie] = useState<Serie | null>(null)
+  const [skaparSerie, setSkaparSerie] = useState(false)
 
   function oppnaSerieRedigering(serieId: string) {
     const serie = serier.find((s) => s.id === serieId)
@@ -394,7 +395,14 @@ export function KanbanBoard({
             </Link>
           </div>
           <div className="flex gap-2">
-            <SerieVy serier={serier} personer={personer} kunder={kunder} typer={typer} kategori={kategori} />
+            <SerieVy
+              serier={serier}
+              onNewSerie={() => setSkaparSerie(true)}
+              onSelectSerie={(serie) => {
+                setRedigerar(null)
+                setRedigerarSerie(serie)
+              }}
+            />
             <Button variant="primary" onClick={() => oppnaNy(null)}>
               Ny uppgift
             </Button>
@@ -467,13 +475,42 @@ export function KanbanBoard({
       )}
 
       {redigerarSerie && (
-        <SerieFormular
-          serie={redigerarSerie}
+        <UppgiftFormular
+          existing={null}
+          existingSerie={redigerarSerie}
+          placeholders={placeholders}
           personer={personer}
           kunder={kunder}
           typer={typer}
           kategori={kategori}
+          projekt={projekt}
+          serier={serier}
+          kontaktpersoner={kontaktpersoner}
+          block={block}
+          currentPersonId={currentPersonId}
+          initialDeadline={null}
+          onEditSerie={oppnaSerieRedigering}
           onClose={() => setRedigerarSerie(null)}
+        />
+      )}
+
+      {skaparSerie && (
+        <UppgiftFormular
+          existing={null}
+          placeholders={placeholders}
+          personer={personer}
+          kunder={kunder}
+          typer={typer}
+          kategori={kategori}
+          projekt={projekt}
+          serier={serier}
+          kontaktpersoner={kontaktpersoner}
+          block={block}
+          currentPersonId={currentPersonId}
+          initialDeadline={null}
+          serieLage
+          onEditSerie={oppnaSerieRedigering}
+          onClose={() => setSkaparSerie(false)}
         />
       )}
     </DndContext>

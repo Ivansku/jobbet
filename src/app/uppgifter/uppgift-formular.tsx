@@ -5,9 +5,13 @@ import type { ReactNode } from 'react'
 import {
   skapaUppgift,
   skapaUppgiftSerie,
-  gorUppgiftAterkommande,
   uppdateraUppgift,
   taBortUppgift,
+  uppdateraSerie,
+  avslutaSerie,
+  taBortSerie,
+  taBortSerieMedUppgifter,
+  raknaSerieUppgifter,
 } from './actions'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
@@ -240,6 +244,7 @@ export function AnsvarigAvatar({
 
 export function UppgiftFormular({
   existing,
+  existingSerie = null,
   placeholders,
   personer,
   kunder,
@@ -251,11 +256,13 @@ export function UppgiftFormular({
   block,
   currentPersonId,
   initialDeadline,
+  serieLage = false,
   onEditSerie,
   onClose,
   onChanged,
 }: {
   existing: Uppgift | null
+  existingSerie?: Serie | null
   placeholders: OppenPlaceholder[]
   personer: Person[]
   kunder: Kund[]
@@ -267,48 +274,78 @@ export function UppgiftFormular({
   block: Anteckningsblock[]
   currentPersonId: string | null
   initialDeadline: string | null
+  serieLage?: boolean
   onEditSerie: (serieId: string) => void
   onClose: () => void
   onChanged?: () => void
 }) {
-  const [titel, setTitel] = useState(existing?.titel ?? '')
-  const [beskrivning, setBeskrivning] = useState(existing?.beskrivning ?? '')
-  const [personId, setPersonId] = useState(existing?.person_id ?? currentPersonId ?? '')
-  const [kundId, setKundId] = useState(existing?.kund_id ?? '')
-  const [typId, setTypId] = useState(existing?.typ_id ?? '')
+  const serieModus = serieLage || !!existingSerie
+
+  const [titel, setTitel] = useState(existingSerie?.titel ?? existing?.titel ?? '')
+  const [beskrivning, setBeskrivning] = useState(existingSerie?.beskrivning ?? existing?.beskrivning ?? '')
+  const [personId, setPersonId] = useState(
+    existingSerie?.person_id ?? existing?.person_id ?? currentPersonId ?? ''
+  )
+  const [kundId, setKundId] = useState(existingSerie?.kund_id ?? existing?.kund_id ?? '')
+  const [typId, setTypId] = useState(existingSerie?.typ_id ?? existing?.typ_id ?? '')
   const [deltagareIds, setDeltagareIds] = useState<string[]>(
     existing?.uppgift_deltagare.map((d) => d.kontaktperson_id) ?? []
   )
-  const [kategoriId, setKategoriId] = useState(existing?.kategori_id ?? '')
+  const [kategoriId, setKategoriId] = useState(existingSerie?.kategori_id ?? existing?.kategori_id ?? '')
   const [projektId, setProjektId] = useState(existing?.projekt_id ?? '')
-  const [prioritet, setPrioritet] = useState(existing?.prioritet ?? 'lag')
-  const [deadline, setDeadline] = useState(existing?.deadline ?? initialDeadline ?? '')
+  const [prioritet, setPrioritet] = useState(existingSerie?.prioritet ?? existing?.prioritet ?? 'lag')
+  const [deadline, setDeadline] = useState(
+    existingSerie?.start_datum ?? existing?.deadline ?? initialDeadline ?? ''
+  )
   const [status, setStatus] = useState(existing?.status ?? 'oppen')
-  const [tidsatgang, setTidsatgang] = useState(existing?.tidsatgang_timmar?.toString() ?? '')
-  const [klockslag, setKlockslag] = useState(existing?.klockslag?.slice(0, 5) ?? '')
+  const [tidsatgang, setTidsatgang] = useState(
+    (existingSerie?.tidsatgang_timmar ?? existing?.tidsatgang_timmar)?.toString() ?? ''
+  )
+  const [klockslag, setKlockslag] = useState(
+    (existingSerie?.klockslag ?? existing?.klockslag)?.slice(0, 5) ?? ''
+  )
   // Sätts aldrig manuellt här — placeholders skapas via Uppgiftsmallar och ärvs vid
   // projektgenerering. Behålls oförändrat vid spara; styr bara om
   // "Koppla till placeholder" ska visas nedan.
   const arPlaceholder = existing?.ar_placeholder ?? false
-  const [aterkommande, setAterkommande] = useState(false)
-  const [veckodagar, setVeckodagar] = useState<number[]>([])
-  const [intervallVeckor, setIntervallVeckor] = useState(1)
-  const [slutDatum, setSlutDatum] = useState('')
+  const [veckodagar, setVeckodagar] = useState<number[]>(existingSerie?.veckodagar ?? [])
+  const [intervallVeckor, setIntervallVeckor] = useState(existingSerie?.intervall_veckor ?? 1)
+  const [slutDatum, setSlutDatum] = useState(existingSerie?.slut_datum ?? '')
   const [sparar, setSparar] = useState(false)
   const [visaBekraftelse, setVisaBekraftelse] = useState(false)
   const [tarBort, setTarBort] = useState(false)
+  const [visaAvslutaSerie, setVisaAvslutaSerie] = useState(false)
+  const [visaTaBortSerie, setVisaTaBortSerie] = useState<'kopplaLoss' | 'medUppgifter' | null>(null)
+  const [antalSerieUppgifter, setAntalSerieUppgifter] = useState<number | null>(null)
+  const [serieArbetar, setSerieArbetar] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!titel.trim()) return
-    if (aterkommande && (!deadline || veckodagar.length === 0)) return
+    if (serieModus && (!deadline || veckodagar.length === 0)) return
     setSparar(true)
 
     const tidsatgangTimmar = tidsatgang.trim() ? Number(tidsatgang) : null
     const klockslagVarde = klockslag || null
 
-    if (existing && aterkommande) {
-      await gorUppgiftAterkommande(existing.id, {
+    if (existingSerie) {
+      await uppdateraSerie(existingSerie.id, {
+        titel: titel.trim(),
+        beskrivning,
+        personId,
+        kundId,
+        typId,
+        kategoriId,
+        prioritet,
+        startDatum: deadline,
+        veckodagar,
+        intervallVeckor,
+        slutDatum: slutDatum || null,
+        tidsatgangTimmar,
+        klockslag: klockslagVarde,
+      })
+    } else if (serieLage) {
+      await skapaUppgiftSerie({
         titel: titel.trim(),
         beskrivning,
         personId,
@@ -339,22 +376,6 @@ export function UppgiftFormular({
         klockslag: klockslagVarde,
         deltagareIds,
         arPlaceholder,
-      })
-    } else if (aterkommande) {
-      await skapaUppgiftSerie({
-        titel: titel.trim(),
-        beskrivning,
-        personId,
-        kundId,
-        typId,
-        kategoriId,
-        prioritet,
-        startDatum: deadline,
-        veckodagar,
-        intervallVeckor,
-        slutDatum: slutDatum || null,
-        tidsatgangTimmar,
-        klockslag: klockslagVarde,
       })
     } else {
       await skapaUppgift({
@@ -389,6 +410,33 @@ export function UppgiftFormular({
     onClose()
   }
 
+  async function handleAvslutaSerie() {
+    if (!existingSerie) return
+    setSerieArbetar(true)
+    await avslutaSerie(existingSerie.id)
+    setSerieArbetar(false)
+    onClose()
+  }
+
+  async function handleTaBortSerie() {
+    if (!existingSerie || !visaTaBortSerie) return
+    setSerieArbetar(true)
+    if (visaTaBortSerie === 'medUppgifter') {
+      await taBortSerieMedUppgifter(existingSerie.id)
+    } else {
+      await taBortSerie(existingSerie.id)
+    }
+    setSerieArbetar(false)
+    onClose()
+  }
+
+  async function handleVisaTaBortSerieMedUppgifter() {
+    if (!existingSerie) return
+    const antal = await raknaSerieUppgifter(existingSerie.id)
+    setAntalSerieUppgifter(antal)
+    setVisaTaBortSerie('medUppgifter')
+  }
+
   if (visaBekraftelse && existing) {
     return (
       <ConfirmDialog
@@ -396,6 +444,41 @@ export function UppgiftFormular({
         loading={tarBort}
         onConfirm={handleTaBort}
         onCancel={() => setVisaBekraftelse(false)}
+      />
+    )
+  }
+
+  if (visaAvslutaSerie && existingSerie) {
+    return (
+      <ConfirmDialog
+        title={`Avsluta serien "${existingSerie.titel}"?`}
+        description="Inga fler förekomster genereras efter idag. Redan skapade uppgifter påverkas inte."
+        confirmLabel="Avsluta serien"
+        loading={serieArbetar}
+        onConfirm={handleAvslutaSerie}
+        onCancel={() => setVisaAvslutaSerie(false)}
+      />
+    )
+  }
+
+  if (visaTaBortSerie && existingSerie) {
+    const medUppgifter = visaTaBortSerie === 'medUppgifter'
+    return (
+      <ConfirmDialog
+        title={
+          medUppgifter
+            ? `Ta bort serien "${existingSerie.titel}" och alla dess uppgifter?`
+            : `Ta bort serien "${existingSerie.titel}"?`
+        }
+        description={
+          medUppgifter
+            ? `Detta raderar även alla ${antalSerieUppgifter ?? 0} uppgifter som skapats av serien. Går inte att ångra.`
+            : 'Själva serien tas bort, men uppgifter som redan skapats av den finns kvar som vanliga uppgifter.'
+        }
+        confirmLabel="Ta bort"
+        loading={serieArbetar}
+        onConfirm={handleTaBortSerie}
+        onCancel={() => setVisaTaBortSerie(null)}
       />
     )
   }
@@ -416,7 +499,7 @@ export function UppgiftFormular({
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-2">
           <h2 id="uppgift-formular-title" className="text-lg font-semibold">
-            {existing ? 'Redigera uppgift' : 'Ny uppgift'}
+            {existing ? 'Redigera uppgift' : existingSerie ? 'Redigera serie' : serieLage ? 'Ny serie' : 'Ny uppgift'}
           </h2>
           <div className="flex shrink-0 items-center gap-1.5">
             <AnsvarigAvatar personer={personer} value={personId ?? ''} onChange={setPersonId} />
@@ -424,6 +507,12 @@ export function UppgiftFormular({
               <DeleteIconButton
                 label={`Ta bort uppgiften "${existing.titel}"`}
                 onClick={() => setVisaBekraftelse(true)}
+              />
+            )}
+            {existingSerie && (
+              <DeleteIconButton
+                label={`Ta bort serien "${existingSerie.titel}"`}
+                onClick={() => setVisaTaBortSerie('kopplaLoss')}
               />
             )}
           </div>
@@ -468,7 +557,7 @@ export function UppgiftFormular({
             <KundValjare id="uppgift-kund" kunder={kunder} value={kundId ?? ''} onChange={setKundId} />
           </Field>
 
-          {!aterkommande && (
+          {!serieModus && (
             <Field label="Projekt" htmlFor="uppgift-projekt">
               <Select
                 id="uppgift-projekt"
@@ -496,7 +585,7 @@ export function UppgiftFormular({
             </Field>
           )}
 
-          {!aterkommande &&
+          {!serieModus &&
             kundId &&
             ['Möte', 'Maildialog'].includes(typer.find((t) => t.id === typId)?.namn ?? '') && (
               <Field label="Deltagare" htmlFor="uppgift-deltagare">
@@ -540,7 +629,7 @@ export function UppgiftFormular({
           </div>
 
           <PillGrupp label="Prioritet" value={prioritet} onChange={setPrioritet} options={PRIORITET_PILLS} />
-          {!aterkommande && (
+          {!serieModus && (
             <PillGrupp label="Status" value={status} onChange={setStatus} options={STATUS_PILLS} />
           )}
         </FormularSektion>
@@ -557,18 +646,18 @@ export function UppgiftFormular({
 
         <FormularSektion label="Tid">
           <div className="grid grid-cols-2 gap-3">
-            <Field label={aterkommande ? 'Startdatum' : 'Dag'} htmlFor="uppgift-deadline">
+            <Field label={serieModus ? 'Startdatum' : 'Dag'} htmlFor="uppgift-deadline">
               <Input
                 type="date"
                 id="uppgift-deadline"
                 value={deadline ?? ''}
                 onChange={(e) => setDeadline(e.target.value)}
-                required={aterkommande}
+                required={serieModus}
               />
             </Field>
 
             <Field
-              label={aterkommande ? 'Klockslag (för alla förekomster)' : 'Klockslag'}
+              label={serieModus ? 'Klockslag (för alla förekomster)' : 'Klockslag'}
               htmlFor="uppgift-klockslag"
             >
               <Input
@@ -581,7 +670,7 @@ export function UppgiftFormular({
           </div>
 
           <Field
-            label={aterkommande ? 'Tidsåtgång (standard för serien)' : 'Tidsåtgång (timmar)'}
+            label={serieModus ? 'Tidsåtgång (standard för serien)' : 'Tidsåtgång (timmar)'}
             htmlFor="uppgift-tidsatgang"
           >
             <Input
@@ -594,58 +683,49 @@ export function UppgiftFormular({
               placeholder="T.ex. 0.5"
             />
           </Field>
-
-          {!existing?.serie_id && (
-            <div className="rounded-lg border border-border-subtle p-3">
-              <label className="flex items-center gap-2 text-sm font-medium">
-                <input
-                  type="checkbox"
-                  checked={aterkommande}
-                  onChange={(e) => setAterkommande(e.target.checked)}
-                  className="h-4 w-4 accent-accent-600"
-                />
-                Återkommande uppgift
-              </label>
-              {existing && aterkommande && (
-                <p className="mt-1 text-xs text-stone-400">
-                  Den här uppgiften blir den första förekomsten i en ny serie.
-                </p>
-              )}
-
-              {aterkommande && (
-                <div className="mt-3 flex flex-col gap-3">
-                  <Field label="Upprepa på" htmlFor="serie-veckodagar">
-                    <VeckodagValjare value={veckodagar} onChange={setVeckodagar} />
-                  </Field>
-
-                  <Field label="Upprepa var" htmlFor="serie-intervall">
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        id="serie-intervall"
-                        min={1}
-                        value={intervallVeckor}
-                        onChange={(e) => setIntervallVeckor(Math.max(1, Number(e.target.value)))}
-                        className="w-16"
-                      />
-                      <span className="text-sm text-stone-500">vecka</span>
-                    </div>
-                  </Field>
-
-                  <Field label="Pågår till" htmlFor="serie-slutdatum">
-                    <Input
-                      type="date"
-                      id="serie-slutdatum"
-                      value={slutDatum}
-                      min={deadline || undefined}
-                      onChange={(e) => setSlutDatum(e.target.value)}
-                    />
-                  </Field>
-                </div>
-              )}
-            </div>
-          )}
         </FormularSektion>
+
+        {serieModus && (
+          <FormularSektion label="Upprepning">
+            <Field label="Upprepa på" htmlFor="serie-veckodagar">
+              <VeckodagValjare value={veckodagar} onChange={setVeckodagar} />
+            </Field>
+
+            <Field label="Upprepa var" htmlFor="serie-intervall">
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  id="serie-intervall"
+                  min={1}
+                  value={intervallVeckor}
+                  onChange={(e) => setIntervallVeckor(Math.max(1, Number(e.target.value)))}
+                  className="w-16"
+                />
+                <span className="text-sm text-stone-500">vecka</span>
+              </div>
+            </Field>
+
+            <Field label="Pågår till" htmlFor="serie-slutdatum">
+              <Input
+                type="date"
+                id="serie-slutdatum"
+                value={slutDatum}
+                min={deadline || undefined}
+                onChange={(e) => setSlutDatum(e.target.value)}
+              />
+            </Field>
+          </FormularSektion>
+        )}
+
+        {existingSerie && (
+          <button
+            type="button"
+            onClick={handleVisaTaBortSerieMedUppgifter}
+            className="self-start text-xs font-medium text-red-600 hover:underline dark:text-red-400"
+          >
+            Ta bort serien och alla uppgifter
+          </button>
+        )}
 
         {existing?.id && effektivMallId && (
           <FormularSektion label="Mötesanteckningar">
@@ -677,19 +757,40 @@ export function UppgiftFormular({
           </FormularSektion>
         )}
 
-        <div className="mt-1 flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Avbryt
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            loading={sparar}
-            disabled={!titel.trim() || (aterkommande && (!deadline || veckodagar.length === 0))}
-          >
-            {existing ? 'Spara' : 'Skapa'}
-          </Button>
-        </div>
+        {existingSerie ? (
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <Button type="button" variant="secondary" size="sm" onClick={() => setVisaAvslutaSerie(true)}>
+              Avsluta serien
+            </Button>
+            <div className="flex gap-2">
+              <Button type="button" variant="secondary" onClick={onClose}>
+                Avbryt
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                loading={sparar}
+                disabled={!titel.trim() || !deadline || veckodagar.length === 0}
+              >
+                Spara
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-1 flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={onClose}>
+              Avbryt
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              loading={sparar}
+              disabled={!titel.trim() || (serieLage && (!deadline || veckodagar.length === 0))}
+            >
+              {existing ? 'Spara' : serieLage ? 'Skapa serie' : 'Skapa'}
+            </Button>
+          </div>
+        )}
       </form>
     </Modal>
   )

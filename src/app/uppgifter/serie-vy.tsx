@@ -1,38 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { uppdateraSerie, avslutaSerie, taBortSerie, taBortSerieMedUppgifter, raknaSerieUppgifter } from './actions'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { DeleteIconButton } from '@/components/ui/delete-icon-button'
-import { Field } from '@/components/ui/field'
-import { Input, Select } from '@/components/ui/input'
-import { MarkdownEditor } from '@/components/ui/markdown-editor'
 import { EmptyState } from '@/components/ui/empty-state'
-import { VeckodagValjare } from './veckodag-valjare'
-import { KundValjare } from './kund-valjare'
-
-type Person = { id: string; namn: string }
-type Kund = { id: string; namn: string }
-type Typ = { id: string; namn: string }
-type Kategori = { id: string; namn: string }
-type Serie = {
-  id: string
-  titel: string
-  beskrivning: string | null
-  person_id: string | null
-  kund_id: string | null
-  typ_id: string | null
-  kategori_id: string | null
-  prioritet: string
-  start_datum: string
-  veckodagar: number[]
-  intervall_veckor: number
-  slut_datum: string | null
-  tidsatgang_timmar: number | null
-  klockslag: string | null
-}
+import type { Serie } from './uppgift-formular'
 
 const VECKODAGAR_KORT = ['Mån', 'Tis', 'Ons', 'Tors', 'Fre']
 
@@ -45,19 +17,14 @@ function veckodagarText(dagar: number[]) {
 
 export function SerieVy({
   serier,
-  personer,
-  kunder,
-  typer,
-  kategori,
+  onNewSerie,
+  onSelectSerie,
 }: {
   serier: Serie[]
-  personer: Person[]
-  kunder: Kund[]
-  typer: Typ[]
-  kategori: Kategori[]
+  onNewSerie: () => void
+  onSelectSerie: (serie: Serie) => void
 }) {
   const [visaLista, setVisaLista] = useState(false)
-  const [redigerar, setRedigerar] = useState<Serie | null>(null)
 
   return (
     <>
@@ -65,7 +32,7 @@ export function SerieVy({
         Serier
       </Button>
 
-      {visaLista && !redigerar && (
+      {visaLista && (
         <Modal onClose={() => setVisaLista(false)} labelledBy="serier-title">
           <h2 id="serier-title" className="mb-4 text-lg font-semibold">
             Återkommande serier
@@ -73,14 +40,17 @@ export function SerieVy({
           {serier.length === 0 ? (
             <EmptyState
               title="Inga serier ännu"
-              description="Skapa en återkommande uppgift för att se den här."
+              description="Skapa en ny serie för att se den här."
             />
           ) : (
             <ul className="max-h-[60vh] divide-y divide-border-subtle overflow-y-auto rounded-xl border border-border-subtle">
               {serier.map((s) => (
                 <li key={s.id}>
                   <button
-                    onClick={() => setRedigerar(s)}
+                    onClick={() => {
+                      setVisaLista(false)
+                      onSelectSerie(s)
+                    }}
                     className="flex w-full flex-col items-start gap-0.5 px-4 py-3 text-left text-sm transition-colors hover:bg-stone-50 dark:hover:bg-stone-800"
                   >
                     <span className="font-medium">{s.titel}</span>
@@ -94,302 +64,22 @@ export function SerieVy({
               ))}
             </ul>
           )}
-          <div className="mt-4 flex justify-end">
+          <div className="mt-4 flex items-center justify-between">
+            <Button
+              variant="primary"
+              onClick={() => {
+                setVisaLista(false)
+                onNewSerie()
+              }}
+            >
+              Ny serie
+            </Button>
             <Button variant="secondary" onClick={() => setVisaLista(false)}>
               Stäng
             </Button>
           </div>
         </Modal>
       )}
-
-      {redigerar && (
-        <SerieFormular
-          serie={redigerar}
-          personer={personer}
-          kunder={kunder}
-          typer={typer}
-          kategori={kategori}
-          onClose={() => setRedigerar(null)}
-        />
-      )}
     </>
-  )
-}
-
-export function SerieFormular({
-  serie,
-  personer,
-  kunder,
-  typer,
-  kategori,
-  onClose,
-}: {
-  serie: Serie
-  personer: Person[]
-  kunder: Kund[]
-  typer: Typ[]
-  kategori: Kategori[]
-  onClose: () => void
-}) {
-  const [titel, setTitel] = useState(serie.titel)
-  const [beskrivning, setBeskrivning] = useState(serie.beskrivning ?? '')
-  const [personId, setPersonId] = useState(serie.person_id ?? '')
-  const [kundId, setKundId] = useState(serie.kund_id ?? '')
-  const [typId, setTypId] = useState(serie.typ_id ?? '')
-  const [kategoriId, setKategoriId] = useState(serie.kategori_id ?? '')
-  const [prioritet, setPrioritet] = useState(serie.prioritet)
-  const [startDatum, setStartDatum] = useState(serie.start_datum)
-  const [veckodagar, setVeckodagar] = useState<number[]>(serie.veckodagar)
-  const [intervallVeckor, setIntervallVeckor] = useState(serie.intervall_veckor)
-  const [slutDatum, setSlutDatum] = useState(serie.slut_datum ?? '')
-  const [tidsatgang, setTidsatgang] = useState(serie.tidsatgang_timmar?.toString() ?? '')
-  const [klockslag, setKlockslag] = useState(serie.klockslag?.slice(0, 5) ?? '')
-  const [sparar, setSparar] = useState(false)
-  const [visaAvsluta, setVisaAvsluta] = useState(false)
-  const [visaTaBort, setVisaTaBort] = useState<'kopplaLoss' | 'medUppgifter' | null>(null)
-  const [antalUppgifter, setAntalUppgifter] = useState<number | null>(null)
-  const [arbetar, setArbetar] = useState(false)
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!titel.trim() || !startDatum || veckodagar.length === 0) return
-    setSparar(true)
-    await uppdateraSerie(serie.id, {
-      titel: titel.trim(),
-      beskrivning,
-      personId,
-      kundId,
-      typId,
-      kategoriId,
-      prioritet,
-      startDatum,
-      veckodagar,
-      intervallVeckor,
-      slutDatum: slutDatum || null,
-      tidsatgangTimmar: tidsatgang.trim() ? Number(tidsatgang) : null,
-      klockslag: klockslag || null,
-    })
-    setSparar(false)
-    onClose()
-  }
-
-  async function handleAvsluta() {
-    setArbetar(true)
-    await avslutaSerie(serie.id)
-    setArbetar(false)
-    onClose()
-  }
-
-  async function handleTaBort() {
-    if (!visaTaBort) return
-    setArbetar(true)
-    if (visaTaBort === 'medUppgifter') {
-      await taBortSerieMedUppgifter(serie.id)
-    } else {
-      await taBortSerie(serie.id)
-    }
-    setArbetar(false)
-    onClose()
-  }
-
-  async function handleVisaTaBortMedUppgifter() {
-    const antal = await raknaSerieUppgifter(serie.id)
-    setAntalUppgifter(antal)
-    setVisaTaBort('medUppgifter')
-  }
-
-  if (visaAvsluta) {
-    return (
-      <ConfirmDialog
-        title={`Avsluta serien "${serie.titel}"?`}
-        description="Inga fler förekomster genereras efter idag. Redan skapade uppgifter påverkas inte."
-        confirmLabel="Avsluta serien"
-        loading={arbetar}
-        onConfirm={handleAvsluta}
-        onCancel={() => setVisaAvsluta(false)}
-      />
-    )
-  }
-
-  if (visaTaBort) {
-    const medUppgifter = visaTaBort === 'medUppgifter'
-    return (
-      <ConfirmDialog
-        title={
-          medUppgifter
-            ? `Ta bort serien "${serie.titel}" och alla dess uppgifter?`
-            : `Ta bort serien "${serie.titel}"?`
-        }
-        description={
-          medUppgifter
-            ? `Detta raderar även alla ${antalUppgifter ?? 0} uppgifter som skapats av serien. Går inte att ångra.`
-            : 'Själva serien tas bort, men uppgifter som redan skapats av den finns kvar som vanliga uppgifter.'
-        }
-        confirmLabel="Ta bort"
-        loading={arbetar}
-        onConfirm={handleTaBort}
-        onCancel={() => setVisaTaBort(null)}
-      />
-    )
-  }
-
-  return (
-    <Modal onClose={onClose} labelledBy="serie-formular-title">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-2">
-          <h2 id="serie-formular-title" className="text-lg font-semibold">
-            Redigera serie
-          </h2>
-          <DeleteIconButton label={`Ta bort serien "${serie.titel}"`} onClick={() => setVisaTaBort('kopplaLoss')} />
-        </div>
-
-        <Field label="Titel" htmlFor="serie-titel">
-          <Input id="serie-titel" value={titel} onChange={(e) => setTitel(e.target.value)} required autoFocus />
-        </Field>
-
-        <Field label="Beskrivning" htmlFor="serie-beskrivning">
-          <MarkdownEditor id="serie-beskrivning" value={beskrivning} onChange={setBeskrivning} />
-        </Field>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Ansvarig" htmlFor="serie-person">
-            <Select id="serie-person" value={personId} onChange={(e) => setPersonId(e.target.value)}>
-              <option value="">Ingen</option>
-              {personer.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.namn}
-                </option>
-              ))}
-            </Select>
-          </Field>
-
-          <Field label="Kund" htmlFor="serie-kund">
-            <KundValjare id="serie-kund" kunder={kunder} value={kundId} onChange={setKundId} />
-          </Field>
-
-          <Field label="Typ" htmlFor="serie-typ">
-            <Select id="serie-typ" value={typId} onChange={(e) => setTypId(e.target.value)}>
-              <option value="">Ingen</option>
-              {typer.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.namn}
-                </option>
-              ))}
-            </Select>
-          </Field>
-
-          <Field label="Kategori" htmlFor="serie-kategori">
-            <Select
-              id="serie-kategori"
-              value={kategoriId}
-              onChange={(e) => setKategoriId(e.target.value)}
-            >
-              <option value="">Ingen</option>
-              {kategori.map((k) => (
-                <option key={k.id} value={k.id}>
-                  {k.namn}
-                </option>
-              ))}
-            </Select>
-          </Field>
-
-          <Field label="Prioritet" htmlFor="serie-prioritet">
-            <Select id="serie-prioritet" value={prioritet} onChange={(e) => setPrioritet(e.target.value)}>
-              <option value="lag">Låg</option>
-              <option value="medel">Medel</option>
-              <option value="hog">Hög</option>
-            </Select>
-          </Field>
-
-          <Field label="Tidsåtgång (timmar)" htmlFor="serie-tidsatgang">
-            <Input
-              type="number"
-              id="serie-tidsatgang"
-              min={0}
-              step={0.5}
-              value={tidsatgang}
-              onChange={(e) => setTidsatgang(e.target.value)}
-              placeholder="T.ex. 1.5"
-            />
-          </Field>
-
-          <Field label="Klockslag" htmlFor="serie-klockslag">
-            <Input
-              type="time"
-              id="serie-klockslag"
-              value={klockslag}
-              onChange={(e) => setKlockslag(e.target.value)}
-            />
-          </Field>
-        </div>
-
-        <Field label="Upprepa på" htmlFor="serie-veckodagar-edit">
-          <VeckodagValjare value={veckodagar} onChange={setVeckodagar} />
-        </Field>
-
-        <Field label="Upprepa var" htmlFor="serie-intervall-edit">
-          <div className="flex items-center gap-2">
-            <Input
-              type="number"
-              id="serie-intervall-edit"
-              min={1}
-              value={intervallVeckor}
-              onChange={(e) => setIntervallVeckor(Math.max(1, Number(e.target.value)))}
-              className="w-16"
-            />
-            <span className="text-sm text-stone-500">vecka</span>
-          </div>
-        </Field>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Startdatum" htmlFor="serie-startdatum-edit">
-            <Input
-              type="date"
-              id="serie-startdatum-edit"
-              value={startDatum}
-              onChange={(e) => setStartDatum(e.target.value)}
-              required
-            />
-          </Field>
-
-          <Field label="Pågår till" htmlFor="serie-slutdatum-edit">
-            <Input
-              type="date"
-              id="serie-slutdatum-edit"
-              value={slutDatum}
-              min={startDatum || undefined}
-              onChange={(e) => setSlutDatum(e.target.value)}
-            />
-          </Field>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleVisaTaBortMedUppgifter}
-          className="mt-2 self-start text-xs font-medium text-red-600 hover:underline dark:text-red-400"
-        >
-          Ta bort serien och alla uppgifter
-        </button>
-
-        <div className="mt-1 flex items-center justify-between gap-2">
-          <Button type="button" variant="secondary" size="sm" onClick={() => setVisaAvsluta(true)}>
-            Avsluta serien
-          </Button>
-          <div className="flex gap-2">
-            <Button type="button" variant="secondary" onClick={onClose}>
-              Avbryt
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              loading={sparar}
-              disabled={!titel.trim() || !startDatum || veckodagar.length === 0}
-            >
-              Spara
-            </Button>
-          </div>
-        </div>
-      </form>
-    </Modal>
   )
 }
