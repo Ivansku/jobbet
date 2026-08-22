@@ -52,7 +52,7 @@ export default async function SystemadministrationPage() {
     supabase
       .from('mall_projekt')
       .select(
-        'id, namn, mall_uppgift(id, titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, sortordning, ar_placeholder, anteckningsmall_id, mall_uppgift_anteckningskalla(block_id, sortordning))'
+        'id, namn, kategori_id, mall_uppgift(id, titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, sortordning, ar_placeholder, anteckningsmall_id, mall_uppgift_anteckningskalla(block_id, sortordning))'
       )
       .order('namn'),
   ])
@@ -64,6 +64,7 @@ export default async function SystemadministrationPage() {
   const mallar = (mallProjekt ?? []).map((m) => ({
     id: m.id,
     namn: m.namn,
+    kategori_id: m.kategori_id,
     antalUppgifter: m.mall_uppgift.length,
     uppgifter: [...m.mall_uppgift]
       .sort((a, b) => a.sortordning - b.sortordning)

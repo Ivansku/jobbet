@@ -61,6 +61,7 @@ type Projekt = {
   kund_id: string | null
   farg: string | null
   mallProjektNamn: string | null
+  mallProjektKategoriId: string | null
 }
 type Anteckningsblock = {
   id: string
@@ -1235,7 +1236,20 @@ function UppgiftFormular({
 
           {!aterkommande && (
             <Field label="Projekt" htmlFor="uppgift-projekt">
-              <Select id="uppgift-projekt" value={projektId ?? ''} onChange={(e) => setProjektId(e.target.value)}>
+              <Select
+                id="uppgift-projekt"
+                value={projektId ?? ''}
+                onChange={(e) => {
+                  const valtProjektId = e.target.value
+                  setProjektId(valtProjektId)
+                  // Förvälj kategori från projektets mall — men bara om fältet fortfarande
+                  // är tomt, så ett redan gjort kategorival aldrig skrivs över.
+                  if (!kategoriId) {
+                    const valtProjekt = projekt.find((p) => p.id === valtProjektId)
+                    if (valtProjekt?.mallProjektKategoriId) setKategoriId(valtProjekt.mallProjektKategoriId)
+                  }
+                }}
+              >
                 <option value="">Inget</option>
                 {projekt
                   .filter((p) => !kundId || !p.kund_id || p.kund_id === kundId)

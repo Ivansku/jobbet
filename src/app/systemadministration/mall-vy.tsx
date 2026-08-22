@@ -55,7 +55,13 @@ type MallUppgift = {
   anteckningsmall_id: string | null
   anteckningskallor: string[]
 }
-type MallProjekt = { id: string; namn: string; antalUppgifter: number; uppgifter: MallUppgift[] }
+type MallProjekt = {
+  id: string
+  namn: string
+  kategori_id: string | null
+  antalUppgifter: number
+  uppgifter: MallUppgift[]
+}
 
 export function MallVy({
   mallar,
@@ -143,6 +149,7 @@ function MallFormular({
   // man kan börja lägga till uppgifter i samma flöde utan att öppna mallen igen.
   const [mall, setMall] = useState(existing)
   const [namn, setNamn] = useState(existing?.namn ?? '')
+  const [kategoriId, setKategoriId] = useState(existing?.kategori_id ?? '')
   const [uppgifter, setUppgifter] = useState<MallUppgift[]>(existing?.uppgifter ?? [])
   const [redigerarUppgift, setRedigerarUppgift] = useState<MallUppgift | 'ny' | null>(null)
   const [sparar, setSparar] = useState(false)
@@ -160,14 +167,17 @@ function MallFormular({
     if (!namn.trim()) return
     setSparar(true)
 
+    const kategoriIdVarde = kategoriId || null
+
     if (mall) {
-      await uppdateraMallProjekt(mall.id, namn)
+      await uppdateraMallProjekt(mall.id, namn, kategoriIdVarde)
       setSparar(false)
       onClose()
     } else {
-      const ny = await skapaMallProjekt(namn)
+      const ny = await skapaMallProjekt(namn, kategoriIdVarde)
       setSparar(false)
-      if (ny) setMall({ id: ny.id, namn: ny.namn, antalUppgifter: 0, uppgifter: [] })
+      if (ny)
+        setMall({ id: ny.id, namn: ny.namn, kategori_id: ny.kategori_id, antalUppgifter: 0, uppgifter: [] })
     }
   }
 
@@ -243,6 +253,7 @@ function MallFormular({
       <MallUppgiftFormular
         mallProjektId={mall.id}
         existing={redigerarUppgift === 'ny' ? null : redigerarUppgift}
+        mallKategoriId={mall.kategori_id}
         allaUppgifter={uppgifter}
         arForsta={arForsta}
         typer={typer}
@@ -288,6 +299,17 @@ function MallFormular({
             required
             autoFocus
           />
+        </Field>
+
+        <Field label="Kategori" htmlFor="mall-kategori">
+          <Select id="mall-kategori" value={kategoriId} onChange={(e) => setKategoriId(e.target.value)}>
+            <option value="">Ingen</option>
+            {kategori.map((k) => (
+              <option key={k.id} value={k.id}>
+                {k.namn}
+              </option>
+            ))}
+          </Select>
         </Field>
 
         {mall && (
@@ -389,6 +411,7 @@ function MallUppgiftRad({
 function MallUppgiftFormular({
   mallProjektId,
   existing,
+  mallKategoriId,
   allaUppgifter,
   arForsta,
   typer,
@@ -401,6 +424,7 @@ function MallUppgiftFormular({
 }: {
   mallProjektId: string
   existing: MallUppgift | null
+  mallKategoriId: string | null
   allaUppgifter: MallUppgift[]
   arForsta: boolean
   typer: Typ[]
@@ -414,7 +438,9 @@ function MallUppgiftFormular({
   const [titel, setTitel] = useState(existing?.titel ?? '')
   const [beskrivning, setBeskrivning] = useState(existing?.beskrivning ?? '')
   const [typId, setTypId] = useState(existing?.typ_id ?? '')
-  const [kategoriId, setKategoriId] = useState(existing?.kategori_id ?? '')
+  // Nya uppgiftsmallar förifylls med mallens kategori (satt en gång på mall_projekt)
+  // istället för att behöva taggas för hand här varje gång.
+  const [kategoriId, setKategoriId] = useState(existing?.kategori_id ?? mallKategoriId ?? '')
   const [prioritet, setPrioritet] = useState(existing?.prioritet ?? 'lag')
   const [status, setStatus] = useState(existing?.status ?? 'oppen')
   const [personId, setPersonId] = useState(existing?.person_id ?? currentPersonId ?? '')

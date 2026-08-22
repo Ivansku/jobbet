@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { currentForetagId } from '@/lib/foretag'
 
-export async function skapaMallProjekt(namn: string) {
+export async function skapaMallProjekt(namn: string, kategoriId: string | null) {
   const namnTrimmat = namn.trim()
   if (!namnTrimmat) return null
 
@@ -14,20 +14,20 @@ export async function skapaMallProjekt(namn: string) {
   const supabase = await createClient()
   const { data } = await supabase
     .from('mall_projekt')
-    .insert({ foretag_id: foretagId, namn: namnTrimmat })
-    .select('id, namn')
+    .insert({ foretag_id: foretagId, namn: namnTrimmat, kategori_id: kategoriId })
+    .select('id, namn, kategori_id')
     .single()
 
   revalidatePath('/systemadministration')
   return data
 }
 
-export async function uppdateraMallProjekt(id: string, namn: string) {
+export async function uppdateraMallProjekt(id: string, namn: string, kategoriId: string | null) {
   const namnTrimmat = namn.trim()
   if (!namnTrimmat) return
 
   const supabase = await createClient()
-  await supabase.from('mall_projekt').update({ namn: namnTrimmat }).eq('id', id)
+  await supabase.from('mall_projekt').update({ namn: namnTrimmat, kategori_id: kategoriId }).eq('id', id)
   revalidatePath('/systemadministration')
 }
 
