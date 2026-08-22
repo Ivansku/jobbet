@@ -60,7 +60,6 @@ type Projekt = {
   namn: string
   kund_id: string | null
   farg: string | null
-  mallProjektNamn: string | null
   mallProjektKategoriId: string | null
   mallProjektAnteckningsmallId: string | null
   projektAnteckningar: { block_id: string; innehall: string }[]
@@ -361,7 +360,6 @@ export function KanbanBoard({
   const kundMap = new Map(kunder.map((k) => [k.id, k.namn]))
   const typMap = new Map(typer.map((t) => [t.id, t.namn]))
   const kategoriMap = new Map(kategori.map((k) => [k.id, k.namn]))
-  const projektTypMap = new Map(projekt.map((p) => [p.id, p.mallProjektNamn]))
   const projektFargMap = new Map(projekt.map((p) => [p.id, p.farg]))
   const weekDateSet = new Set(weekDates)
 
@@ -513,7 +511,6 @@ export function KanbanBoard({
               kundMap={kundMap}
               typMap={typMap}
               kategoriMap={kategoriMap}
-              projektTypMap={projektTypMap}
               projektFargMap={projektFargMap}
               currentPersonId={currentPersonId}
               kapacitetPerDag={arbetstimmarPerVecka / ARBETSDAGAR_PER_VECKA}
@@ -541,7 +538,6 @@ export function KanbanBoard({
               kundMap={kundMap}
               typMap={typMap}
               kategoriMap={kategoriMap}
-              projektTypMap={projektTypMap}
             />
           </div>
         ) : null}
@@ -589,7 +585,6 @@ function KanbanColumn({
   kundMap,
   typMap,
   kategoriMap,
-  projektTypMap,
   projektFargMap,
   currentPersonId,
   kapacitetPerDag,
@@ -605,7 +600,6 @@ function KanbanColumn({
   kundMap: Map<string, string>
   typMap: Map<string, string>
   kategoriMap: Map<string, string>
-  projektTypMap: Map<string, string | null>
   projektFargMap: Map<string, string | null>
   currentPersonId: string | null
   kapacitetPerDag: number
@@ -688,7 +682,6 @@ function KanbanColumn({
                 kundMap={kundMap}
                 typMap={typMap}
                 kategoriMap={kategoriMap}
-                projektTypMap={projektTypMap}
                 projektFargMap={projektFargMap}
                 onSelect={onSelect}
                 onToggleStatus={onToggleStatus}
@@ -716,7 +709,6 @@ function KanbanCard({
   kundMap,
   typMap,
   kategoriMap,
-  projektTypMap,
   projektFargMap,
   onSelect,
   onToggleStatus,
@@ -727,7 +719,6 @@ function KanbanCard({
   kundMap: Map<string, string>
   typMap: Map<string, string>
   kategoriMap: Map<string, string>
-  projektTypMap: Map<string, string | null>
   projektFargMap: Map<string, string | null>
   onSelect: (u: Uppgift) => void
   onToggleStatus: (u: Uppgift) => void
@@ -766,7 +757,6 @@ function KanbanCard({
         kundMap={kundMap}
         typMap={typMap}
         kategoriMap={kategoriMap}
-        projektTypMap={projektTypMap}
         onToggleStatus={onToggleStatus}
       />
     </div>
@@ -780,7 +770,6 @@ function KortInnehall({
   kundMap,
   typMap,
   kategoriMap,
-  projektTypMap,
   onToggleStatus,
 }: {
   uppgift: Uppgift
@@ -789,7 +778,6 @@ function KortInnehall({
   kundMap: Map<string, string>
   typMap: Map<string, string>
   kategoriMap: Map<string, string>
-  projektTypMap: Map<string, string | null>
   onToggleStatus?: (u: Uppgift) => void
 }) {
   const klar = u.status === 'klar'
@@ -799,16 +787,14 @@ function KortInnehall({
   const harBeskrivning =
     !!u.beskrivning?.trim() || u.uppgift_anteckning.some((a) => !!a.innehall?.trim())
 
-  // Kompakt "brödsmula" (Kund · Projekttyp · Typ) istället för en badge per fält —
+  // Kompakt "brödsmula" (Kund · Kategori · Typ) istället för en badge per fält —
   // ger samma överblick som den gamla "Kunden: Projekt: Typ - text"-konventionen,
-  // men som kontext ovanför titeln snarare än utspritt i badges. Visar projektets
-  // mall-namn (t.ex. "Uppgradering") istället för projektets eget namn — mallen är
-  // den återkommande "typen" av projekt, medan varje enskilt projekt ofta redan
-  // syns via kundnamnet. Saknas projekt visas kategorin istället, så kortet ändå
-  // får en mittdel i breadcrumben.
+  // men som kontext ovanför titeln snarare än utspritt i badges. Visar kategorin
+  // oavsett om uppgiften hör till ett projekt — projektets eget namn är redundant
+  // här eftersom det redan syns via kundnamnet.
   const kontext = [
     u.kund_id && kundMap.get(u.kund_id),
-    u.projekt_id ? projektTypMap.get(u.projekt_id) : u.kategori_id && kategoriMap.get(u.kategori_id),
+    u.kategori_id && kategoriMap.get(u.kategori_id),
     u.typ_id && typMap.get(u.typ_id),
   ].filter((v): v is string => Boolean(v))
 

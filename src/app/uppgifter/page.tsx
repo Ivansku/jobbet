@@ -129,7 +129,7 @@ export default async function UppgifterPage({
     supabase
       .from('projekt')
       .select(
-        'id, namn, kund_id, farg, mall_projekt:mall_projekt_id(namn, kategori_id, anteckningsmall_id), projekt_anteckning(block_id, innehall)'
+        'id, namn, kund_id, farg, mall_projekt:mall_projekt_id(kategori_id, anteckningsmall_id), projekt_anteckning(block_id, innehall)'
       )
       .order('namn'),
     supabase
@@ -171,7 +171,6 @@ export default async function UppgifterPage({
             namn: p.namn,
             kund_id: p.kund_id,
             farg: p.farg,
-            mallProjektNamn: enTillRelation(p.mall_projekt)?.namn ?? null,
             mallProjektKategoriId: enTillRelation(p.mall_projekt)?.kategori_id ?? null,
             mallProjektAnteckningsmallId: enTillRelation(p.mall_projekt)?.anteckningsmall_id ?? null,
             projektAnteckningar: p.projekt_anteckning,
