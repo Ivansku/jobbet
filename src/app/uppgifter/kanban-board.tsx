@@ -53,7 +53,6 @@ type Typ = {
   id: string
   namn: string
   anteckningsmall_id: string | null
-  skapa_uppgifter_vid_klar: boolean
 }
 type Kategori = { id: string; namn: string }
 type Projekt = {
@@ -70,7 +69,6 @@ type Anteckningsblock = {
   id: string
   namn: string
   beskrivning: string | null
-  genererar_uppgift: boolean
   anteckningsmall_id: string
 }
 type UppgiftAnteckning = {
@@ -96,7 +94,6 @@ type Uppgift = {
   sortordning: number
   tidsatgang_timmar: number | null
   klockslag: string | null
-  skapa_uppgifter_vid_klar: boolean | null
   ar_placeholder: boolean
   anteckningsmall_id: string | null
   utan_anteckningsmall: boolean
@@ -322,7 +319,6 @@ export function KanbanBoard({
               sortordning: rad.sortordning as number,
               tidsatgang_timmar: (rad.tidsatgang_timmar as number | null) ?? null,
               klockslag: (rad.klockslag as string | null) ?? null,
-              skapa_uppgifter_vid_klar: (rad.skapa_uppgifter_vid_klar as boolean | null) ?? null,
               ar_placeholder: (rad.ar_placeholder as boolean | undefined) ?? false,
               anteckningsmall_id: (rad.anteckningsmall_id as string | null) ?? null,
               utan_anteckningsmall: (rad.utan_anteckningsmall as boolean | undefined) ?? false,
@@ -1395,36 +1391,32 @@ function UppgiftFormular({
           )}
         </FormularSektion>
 
-        {existing?.id && effektivMallId && (
-          <FormularSektion label="Mötesanteckningar">
-            <MotesanteckningarSektion
-              uppgiftId={existing.id}
-              blocks={mallBlock}
-              status={status}
-              initialAnteckningar={existing.uppgift_anteckning}
-              initialAutoSkapaUppgifterVidKlar={
-                existing.skapa_uppgifter_vid_klar ??
-                valdTyp?.skapa_uppgifter_vid_klar ??
-                false
-              }
-            />
-
-            {kundId && (
-              <TidigareMotenSektion
-                kundId={kundId}
-                excludeUppgiftId={existing.id}
-                kundNamn={kunder.find((k) => k.id === kundId)?.namn ?? ''}
-              />
-            )}
-          </FormularSektion>
-        )}
-
         {existing?.id && projektId && projektAnteckningsmallId && (
           <FormularSektion label="Projektanteckningar">
             <ProjektAnteckningarSektion
               projektId={projektId}
               blocks={projektMallBlock}
               initialAnteckningar={valtProjekt?.projektAnteckningar ?? []}
+            />
+          </FormularSektion>
+        )}
+
+        {existing?.id && effektivMallId && (
+          <FormularSektion label="Mötesanteckningar">
+            <MotesanteckningarSektion
+              uppgiftId={existing.id}
+              blocks={mallBlock}
+              initialAnteckningar={existing.uppgift_anteckning}
+            />
+          </FormularSektion>
+        )}
+
+        {existing?.id && effektivMallId && kundId && (
+          <FormularSektion label="Tidigare möten">
+            <TidigareMotenSektion
+              kundId={kundId}
+              excludeUppgiftId={existing.id}
+              kundNamn={kunder.find((k) => k.id === kundId)?.namn ?? ''}
             />
           </FormularSektion>
         )}

@@ -25,7 +25,7 @@ import {
   omordnaAnteckningsblock,
 } from './anteckningsmall-actions'
 import { Button } from '@/components/ui/button'
-import { Input, Select, Textarea } from '@/components/ui/input'
+import { Input, Textarea } from '@/components/ui/input'
 import { Field } from '@/components/ui/field'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -39,16 +39,11 @@ type Anteckningsblock = {
   beskrivning: string | null
   sortordning: number
   aktiv: boolean
-  genererar_uppgift: boolean
-  uppgift_titel_mall: string | null
-  uppgift_typ_id: string | null
-  deadline_dagar_efter_motet: number | null
   kundvisning_standard: boolean
 }
 type Anteckningsmall = { id: string; namn: string; block: Anteckningsblock[] }
-type Uppgiftstyp = { id: string; namn: string }
 
-export function AnteckningsmallVy({ mallar, typer }: { mallar: Anteckningsmall[]; typer: Uppgiftstyp[] }) {
+export function AnteckningsmallVy({ mallar }: { mallar: Anteckningsmall[] }) {
   const [redigerar, setRedigerar] = useState<Anteckningsmall | 'ny' | null>(null)
 
   return (
@@ -84,7 +79,6 @@ export function AnteckningsmallVy({ mallar, typer }: { mallar: Anteckningsmall[]
       {redigerar && (
         <AnteckningsmallFormular
           existing={redigerar === 'ny' ? null : redigerar}
-          typer={typer}
           onClose={() => setRedigerar(null)}
         />
       )}
@@ -94,11 +88,9 @@ export function AnteckningsmallVy({ mallar, typer }: { mallar: Anteckningsmall[]
 
 function AnteckningsmallFormular({
   existing,
-  typer,
   onClose,
 }: {
   existing: Anteckningsmall | null
-  typer: Uppgiftstyp[]
   onClose: () => void
 }) {
   const [mall, setMall] = useState(existing)
@@ -161,7 +153,6 @@ function AnteckningsmallFormular({
       <AnteckningsblockFormular
         anteckningsmallId={mall.id}
         existing={redigerarBlock === 'ny' ? null : redigerarBlock}
-        typer={typer}
         onClose={() => setRedigerarBlock(null)}
         onChanged={laddaOmBlock}
       />
@@ -322,24 +313,16 @@ function AnteckningsblockRad({ block: b, onSelect }: { block: Anteckningsblock; 
 function AnteckningsblockFormular({
   anteckningsmallId,
   existing,
-  typer,
   onClose,
   onChanged,
 }: {
   anteckningsmallId: string
   existing: Anteckningsblock | null
-  typer: Uppgiftstyp[]
   onClose: () => void
   onChanged: () => void
 }) {
   const [namn, setNamn] = useState(existing?.namn ?? '')
   const [beskrivning, setBeskrivning] = useState(existing?.beskrivning ?? '')
-  const [genererarUppgift, setGenererarUppgift] = useState(existing?.genererar_uppgift ?? false)
-  const [uppgiftTitelMall, setUppgiftTitelMall] = useState(existing?.uppgift_titel_mall ?? '')
-  const [uppgiftTypId, setUppgiftTypId] = useState(existing?.uppgift_typ_id ?? '')
-  const [deadlineDagarEfterMotet, setDeadlineDagarEfterMotet] = useState(
-    existing?.deadline_dagar_efter_motet != null ? String(existing.deadline_dagar_efter_motet) : ''
-  )
   const [kundvisningStandard, setKundvisningStandard] = useState(existing?.kundvisning_standard ?? false)
   const [aktiv, setAktiv] = useState(existing?.aktiv ?? true)
   const [sparar, setSparar] = useState(false)
@@ -353,10 +336,6 @@ function AnteckningsblockFormular({
     const input = {
       namn,
       beskrivning,
-      genererarUppgift,
-      uppgiftTitelMall,
-      uppgiftTypId,
-      deadlineDagarEfterMotet: deadlineDagarEfterMotet.trim() === '' ? null : Number(deadlineDagarEfterMotet),
       kundvisningStandard,
     }
 
@@ -406,54 +385,6 @@ function AnteckningsblockFormular({
             rows={2}
           />
         </Field>
-
-        <label className="flex items-center gap-2 text-sm font-medium">
-          <input
-            type="checkbox"
-            checked={genererarUppgift}
-            onChange={(e) => setGenererarUppgift(e.target.checked)}
-            className="h-4 w-4 accent-accent-600"
-          />
-          Genererar uppföljningsuppgift
-        </label>
-
-        {genererarUppgift && (
-          <>
-            <Field label="Titel på genererad uppgift" htmlFor="block-titel-mall">
-              <Input
-                id="block-titel-mall"
-                value={uppgiftTitelMall}
-                onChange={(e) => setUppgiftTitelMall(e.target.value)}
-                placeholder="T.ex. Följ upp – {kund}"
-                required={genererarUppgift}
-              />
-            </Field>
-            <Field label="Uppgiftstyp på genererad uppgift" htmlFor="block-typ">
-              <Select
-                id="block-typ"
-                value={uppgiftTypId}
-                onChange={(e) => setUppgiftTypId(e.target.value)}
-                required={genererarUppgift}
-              >
-                <option value="">Välj typ...</option>
-                {typer.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.namn}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Deadline (dagar efter mötet, tomt = ingen deadline)" htmlFor="block-deadline">
-              <Input
-                id="block-deadline"
-                type="number"
-                value={deadlineDagarEfterMotet}
-                onChange={(e) => setDeadlineDagarEfterMotet(e.target.value)}
-                placeholder="T.ex. 0"
-              />
-            </Field>
-          </>
-        )}
 
         <label className="flex items-center gap-2 text-sm font-medium">
           <input

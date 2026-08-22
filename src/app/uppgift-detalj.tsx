@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { uppdateraUppgift } from './uppgifter/actions'
 import { MotesanteckningarSektion } from './uppgifter/motesanteckningar-sektion'
+import { ProjektAnteckningarSektion } from './projekt/projekt-anteckningar-sektion'
 import { Modal } from '@/components/ui/modal'
 import { Field } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -36,6 +37,7 @@ export function UppgiftDetalj({
     ? null
     : (uppgift.anteckningsmall_id ?? typ?.anteckningsmall_id ?? null)
   const mallBlock = block.filter((b) => b.anteckningsmall_id === effektivMallId)
+  const projektMallBlock = block.filter((b) => b.anteckningsmall_id === uppgift.projektAnteckningsmallId)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -90,13 +92,19 @@ export function UppgiftDetalj({
           />
         </Field>
 
+        {uppgift.projekt_id && uppgift.projektAnteckningsmallId && (
+          <ProjektAnteckningarSektion
+            projektId={uppgift.projekt_id}
+            blocks={projektMallBlock}
+            initialAnteckningar={uppgift.projektAnteckningar}
+          />
+        )}
+
         {effektivMallId && (
           <MotesanteckningarSektion
             uppgiftId={uppgift.id}
             blocks={mallBlock}
-            status={uppgift.status}
             initialAnteckningar={uppgift.uppgift_anteckning}
-            initialAutoSkapaUppgifterVidKlar={uppgift.skapa_uppgifter_vid_klar ?? typ?.skapa_uppgifter_vid_klar ?? false}
           />
         )}
 

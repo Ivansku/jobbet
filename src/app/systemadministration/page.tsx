@@ -31,16 +31,11 @@ export default async function SystemadministrationPage() {
     { data: flexelInstallningar },
     { data: mallProjekt },
   ] = await Promise.all([
-    supabase
-      .from('uppgiftstyp')
-      .select('id, namn, anteckningsmall_id, skapa_uppgifter_vid_klar')
-      .order('namn'),
+    supabase.from('uppgiftstyp').select('id, namn, anteckningsmall_id').order('namn'),
     supabase.from('kategori').select('id, namn').order('namn'),
     supabase
       .from('anteckningsmall')
-      .select(
-        'id, namn, anteckningsblock(id, namn, beskrivning, sortordning, aktiv, genererar_uppgift, uppgift_titel_mall, uppgift_typ_id, deadline_dagar_efter_motet, kundvisning_standard)'
-      )
+      .select('id, namn, anteckningsblock(id, namn, beskrivning, sortordning, aktiv, kundvisning_standard)')
       .order('namn'),
     supabase
       .from('person')
@@ -100,7 +95,7 @@ export default async function SystemadministrationPage() {
             currentPersonId={person?.id ?? null}
             anteckningsmallar={anteckningsmallar}
           />
-          <AnteckningsmallVy mallar={anteckningsmallar} typer={typer ?? []} />
+          <AnteckningsmallVy mallar={anteckningsmallar} />
         </div>
       </main>
     </>

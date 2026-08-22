@@ -661,8 +661,8 @@ function MallUppgiftFormular({
                 setAnteckningsmallId(varde === '__ingen__' ? '' : varde)
               }}
             >
-              <option value="">Använd typens standard</option>
               <option value="__ingen__">Ingen mall</option>
+              <option value="">Använd typens standard</option>
               {anteckningsmallar.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.namn}

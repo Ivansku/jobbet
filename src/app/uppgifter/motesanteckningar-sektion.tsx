@@ -2,13 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  sparaAnteckning,
-  hamtaAnteckningarForUppgift,
-  genereraUppgifterFranAnteckningar,
-  byggKundsammanfattning,
-  uppdateraAutoSkapaUppgifter,
-} from './actions'
+import { sparaAnteckning, byggKundsammanfattning } from './actions'
 import { Field } from '@/components/ui/field'
 import { MarkdownEditor } from '@/components/ui/markdown-editor'
 import { Button } from '@/components/ui/button'
@@ -34,7 +28,7 @@ function CloseIcon({ className = '' }: { className?: string }) {
   )
 }
 
-type Block = { id: string; namn: string; beskrivning: string | null; genererar_uppgift: boolean }
+type Block = { id: string; namn: string; beskrivning: string | null }
 type Anteckning = {
   block_id: string
   innehall: string
@@ -65,26 +59,19 @@ function tillAnteckning(a: InitialAnteckning): Anteckning {
 export function MotesanteckningarSektion({
   uppgiftId,
   blocks,
-  status,
   initialAnteckningar,
-  initialAutoSkapaUppgifterVidKlar,
 }: {
   uppgiftId: string
   blocks: Block[]
-  status: string
   initialAnteckningar: InitialAnteckning[]
-  initialAutoSkapaUppgifterVidKlar: boolean
 }) {
   const [anteckningar, setAnteckningar] = useState<Anteckning[]>(() =>
     initialAnteckningar.map(tillAnteckning)
   )
-  const [genererar, setGenererar] = useState(false)
-  const [genereringsMeddelande, setGenereringsMeddelande] = useState<string | null>(null)
   const [skickar, setSkickar] = useState(false)
   const [sparar, setSparar] = useState(false)
   const router = useRouter()
   const [expanderad, setExpanderad] = useState(false)
-  const [autoSkapa, setAutoSkapa] = useState(initialAutoSkapaUppgifterVidKlar)
   const pendingRef = useRef<Map<string, string>>(new Map())
 
   // Fyller webbläsarens innehållsyta (inte hela skärmen som F11/Fullscreen API) —
@@ -192,30 +179,12 @@ export function MotesanteckningarSektion({
     setSparar(false)
   }
 
-  async function handleGenerera() {
-    setGenererar(true)
-    setGenereringsMeddelande(null)
-    const resultat = await genereraUppgifterFranAnteckningar(uppgiftId)
-    setGenererar(false)
-    if (resultat.antalGenererade === 0) {
-      setGenereringsMeddelande('Inget nytt att generera.')
-    } else {
-      const rader = await hamtaAnteckningarForUppgift(uppgiftId)
-      setAnteckningar(rader)
-    }
-  }
-
   async function handleSkicka() {
     setSkickar(true)
     const sammanfattning = await byggKundsammanfattning(uppgiftId)
     setSkickar(false)
     if (!sammanfattning) return
     window.location.href = buildMailto(sammanfattning)
-  }
-
-  function handleAutoSkapaChange(varde: boolean) {
-    setAutoSkapa(varde)
-    uppdateraAutoSkapaUppgifter(uppgiftId, varde)
   }
 
   return (
@@ -241,54 +210,29 @@ export function MotesanteckningarSektion({
         {expanderad ? (
           <h3 className="text-sm font-semibold">Mötesanteckningar</h3>
         ) : (
-          <>
-            <label className="flex items-center gap-2 text-sm font-medium">
-              <input
-                type="checkbox"
-                checked={autoSkapa}
-                onChange={(e) => handleAutoSkapaChange(e.target.checked)}
-                className="h-4 w-4 accent-accent-600"
-              />
-              Skapa uppgifter automatiskt
-            </label>
-            <div className="flex flex-col gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="w-full"
-                onClick={() => setExpanderad((v) => !v)}
-              >
-                Anteckningsläge
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="w-full"
-                loading={skickar}
-                onClick={handleSkicka}
-              >
-                Skicka sammanfattning
-              </Button>
-              {status === 'klar' && !autoSkapa && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  className="w-full"
-                  loading={genererar}
-                  onClick={handleGenerera}
-                >
-                  Skapa uppgifter
-                </Button>
-              )}
-            </div>
-          </>
+          <div className="flex flex-col gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="w-full"
+              onClick={() => setExpanderad((v) => !v)}
+            >
+              Anteckningsläge
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="w-full"
+              loading={skickar}
+              onClick={handleSkicka}
+            >
+              Skicka sammanfattning
+            </Button>
+          </div>
         )}
       </div>
-
-      {genereringsMeddelande && <p className="shrink-0 text-xs text-stone-400">{genereringsMeddelande}</p>}
 
       {blocks.map((block) => {
         const koppling = koppladGenereradForBlock(block.id)

@@ -14,7 +14,6 @@ type Uppgiftstyp = {
   id: string
   namn: string
   anteckningsmall_id: string | null
-  skapa_uppgifter_vid_klar: boolean
 }
 type Anteckningsmall = { id: string; namn: string }
 
@@ -79,9 +78,6 @@ function TypFormular({
 }) {
   const [namn, setNamn] = useState(existing?.namn ?? '')
   const [anteckningsmallId, setAnteckningsmallId] = useState(existing?.anteckningsmall_id ?? '')
-  const [skapaUppgifterVidKlar, setSkapaUppgifterVidKlar] = useState(
-    existing?.skapa_uppgifter_vid_klar ?? false
-  )
   const [sparar, setSparar] = useState(false)
   const [visaBekraftelse, setVisaBekraftelse] = useState(false)
   const [tarBort, setTarBort] = useState(false)
@@ -93,9 +89,9 @@ function TypFormular({
 
     const mallId = anteckningsmallId || null
     if (existing) {
-      await uppdateraUppgiftstyp(existing.id, namn, mallId, skapaUppgifterVidKlar)
+      await uppdateraUppgiftstyp(existing.id, namn, mallId)
     } else {
-      await skapaUppgiftstyp(namn, mallId, skapaUppgifterVidKlar)
+      await skapaUppgiftstyp(namn, mallId)
     }
 
     setSparar(false)
@@ -150,11 +146,7 @@ function TypFormular({
           <Select
             id="typ-anteckningsmall"
             value={anteckningsmallId}
-            onChange={(e) => {
-              const varde = e.target.value
-              setAnteckningsmallId(varde)
-              if (!varde) setSkapaUppgifterVidKlar(false)
-            }}
+            onChange={(e) => setAnteckningsmallId(e.target.value)}
           >
             <option value="">Visa inte anteckningar</option>
             {anteckningsmallar.map((m) => (
@@ -164,17 +156,6 @@ function TypFormular({
             ))}
           </Select>
         </Field>
-        {anteckningsmallId && (
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <input
-              type="checkbox"
-              checked={skapaUppgifterVidKlar}
-              onChange={(e) => setSkapaUppgifterVidKlar(e.target.checked)}
-              className="h-4 w-4 accent-accent-600"
-            />
-            Skapa uppföljningsuppgifter automatiskt vid klar
-          </label>
-        )}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>
             Avbryt

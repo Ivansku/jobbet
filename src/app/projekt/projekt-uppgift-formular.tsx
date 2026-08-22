@@ -10,12 +10,11 @@ import { Input, Select } from '@/components/ui/input'
 import { MarkdownEditor } from '@/components/ui/markdown-editor'
 import { Button } from '@/components/ui/button'
 
-export type Typ = { id: string; namn: string; anteckningsmall_id: string | null; skapa_uppgifter_vid_klar: boolean }
+export type Typ = { id: string; namn: string; anteckningsmall_id: string | null }
 export type Anteckningsblock = {
   id: string
   namn: string
   beskrivning: string | null
-  genererar_uppgift: boolean
   anteckningsmall_id: string
 }
 type UppgiftAnteckning = {
@@ -40,7 +39,6 @@ export type ProjektUppgiftDetaljerad = {
   ar_placeholder: boolean
   anteckningsmall_id: string | null
   utan_anteckningsmall: boolean
-  skapa_uppgifter_vid_klar: boolean | null
   uppgift_deltagare: { kontaktperson_id: string }[]
   uppgift_anteckning: UppgiftAnteckning[]
 }
@@ -182,11 +180,7 @@ export function ProjektUppgiftFormular({
           <MotesanteckningarSektion
             uppgiftId={uppgift.id}
             blocks={mallBlock}
-            status={status}
             initialAnteckningar={uppgift.uppgift_anteckning}
-            initialAutoSkapaUppgifterVidKlar={
-              uppgift.skapa_uppgifter_vid_klar ?? typ?.skapa_uppgifter_vid_klar ?? false
-            }
           />
         )}
 

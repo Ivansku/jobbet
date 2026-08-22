@@ -41,9 +41,7 @@ export async function hamtaAnteckningsblockForMall(anteckningsmallId: string) {
   const supabase = await createClient()
   const { data } = await supabase
     .from('anteckningsblock')
-    .select(
-      'id, namn, beskrivning, sortordning, aktiv, genererar_uppgift, uppgift_titel_mall, uppgift_typ_id, deadline_dagar_efter_motet, kundvisning_standard'
-    )
+    .select('id, namn, beskrivning, sortordning, aktiv, kundvisning_standard')
     .eq('anteckningsmall_id', anteckningsmallId)
     .order('sortordning')
   return data ?? []
@@ -52,21 +50,11 @@ export async function hamtaAnteckningsblockForMall(anteckningsmallId: string) {
 type AnteckningsblockInput = {
   namn: string
   beskrivning: string
-  genererarUppgift: boolean
-  uppgiftTitelMall: string
-  uppgiftTypId: string
-  deadlineDagarEfterMotet: number | null
   kundvisningStandard: boolean
 }
 
 function validateraAnteckningsblock(input: AnteckningsblockInput): string | null {
   if (!input.namn.trim()) return 'Namn krävs.'
-  if (input.genererarUppgift && !input.uppgiftTitelMall.trim()) {
-    return 'Titel på genererad uppgift krävs när blocket ska generera en uppgift.'
-  }
-  if (input.genererarUppgift && !input.uppgiftTypId) {
-    return 'Uppgiftstyp krävs när blocket ska generera en uppgift.'
-  }
   return null
 }
 
@@ -91,10 +79,6 @@ export async function skapaAnteckningsblock(input: AnteckningsblockInput & { ant
     anteckningsmall_id: input.anteckningsmallId,
     namn: input.namn.trim(),
     beskrivning: input.beskrivning.trim() || null,
-    genererar_uppgift: input.genererarUppgift,
-    uppgift_titel_mall: input.uppgiftTitelMall.trim() || null,
-    uppgift_typ_id: input.uppgiftTypId || null,
-    deadline_dagar_efter_motet: input.deadlineDagarEfterMotet,
     kundvisning_standard: input.kundvisningStandard,
     sortordning: (sistaBlock?.sortordning ?? 0) + 1,
   })
@@ -112,10 +96,6 @@ export async function uppdateraAnteckningsblock(id: string, input: Anteckningsbl
     .update({
       namn: input.namn.trim(),
       beskrivning: input.beskrivning.trim() || null,
-      genererar_uppgift: input.genererarUppgift,
-      uppgift_titel_mall: input.uppgiftTitelMall.trim() || null,
-      uppgift_typ_id: input.uppgiftTypId || null,
-      deadline_dagar_efter_motet: input.deadlineDagarEfterMotet,
       kundvisning_standard: input.kundvisningStandard,
       uppdaterad_at: new Date().toISOString(),
     })

@@ -32,10 +32,11 @@ export type UppgiftDetaljerad = Uppgift & {
   prioritet: string
   tidsatgang_timmar: number | null
   typ_id: string | null
-  skapa_uppgifter_vid_klar: boolean | null
   ar_placeholder: boolean
   anteckningsmall_id: string | null
   utan_anteckningsmall: boolean
+  projektAnteckningsmallId: string | null
+  projektAnteckningar: { block_id: string; innehall: string }[]
   uppgift_deltagare: { kontaktperson_id: string }[]
   uppgift_anteckning: {
     block_id: string
@@ -49,13 +50,11 @@ export type Typ = {
   id: string
   namn: string
   anteckningsmall_id: string | null
-  skapa_uppgifter_vid_klar: boolean
 }
 export type Block = {
   id: string
   namn: string
   beskrivning: string | null
-  genererar_uppgift: boolean
   anteckningsmall_id: string
 }
 export type Tanke = { id: string; text: string; uppgift_id_skapad: string | null }

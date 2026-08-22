@@ -16,13 +16,10 @@ export default async function ProjektPage() {
         .order('namn'),
       supabase.from('kund').select('id, namn').order('namn'),
       supabase.from('mall_projekt').select('id, namn, anteckningsmall_id').order('namn'),
-      supabase
-        .from('uppgiftstyp')
-        .select('id, namn, anteckningsmall_id, skapa_uppgifter_vid_klar')
-        .order('namn'),
+      supabase.from('uppgiftstyp').select('id, namn, anteckningsmall_id').order('namn'),
       supabase
         .from('anteckningsblock')
-        .select('id, namn, beskrivning, genererar_uppgift, anteckningsmall_id')
+        .select('id, namn, beskrivning, anteckningsmall_id')
         .eq('aktiv', true)
         .order('sortordning'),
     ])

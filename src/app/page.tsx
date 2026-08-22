@@ -3,6 +3,7 @@ import { AppNav } from './nav'
 import { IdagFlode } from './idag-flode'
 import { nuIStockholm, plusDagar, aktivtFlode } from '@/lib/dagsflode'
 import { hamtaSvenskaDagar } from '@/lib/svenska-dagar'
+import { enTillRelation } from '@/lib/postgrest'
 
 const UPPGIFT_FALT = 'id, titel, status, deadline, klockslag, kund_id, outlook_event_id'
 
@@ -10,7 +11,25 @@ const UPPGIFT_FALT = 'id, titel, status, deadline, klockslag, kund_id, outlook_e
 // öppna i redigeringsformuläret direkt från raden, så alla hämtas med hela
 // fältuppsättningen uppdateraUppgift (delad med Kanban-vyn) kräver för att kunna
 // skriva tillbaka oförändrade värden på allt utom det som faktiskt redigeras här.
-const UPPGIFT_DETALJERAD_FALT = `${UPPGIFT_FALT}, beskrivning, person_id, kategori_id, projekt_id, prioritet, tidsatgang_timmar, typ_id, skapa_uppgifter_vid_klar, ar_placeholder, anteckningsmall_id, utan_anteckningsmall, uppgift_deltagare(kontaktperson_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(block_id, innehall, uppgift_id_genererad, genererad:uppgift!uppgift_anteckning_uppgift_id_genererad_fkey(titel, deadline))`
+// projekt-relationen hämtas bara för att härleda projektets anteckningsmall/
+// anteckningar (se mapUppgiftDetaljerad nedan) — plockas isär innan datan
+// skickas till klienten, samma mönster som uppgifter/page.tsx använder för sin
+// projekt-lista.
+const UPPGIFT_DETALJERAD_FALT = `${UPPGIFT_FALT}, beskrivning, person_id, kategori_id, projekt_id, prioritet, tidsatgang_timmar, typ_id, ar_placeholder, anteckningsmall_id, utan_anteckningsmall, uppgift_deltagare(kontaktperson_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(block_id, innehall, uppgift_id_genererad, genererad:uppgift!uppgift_anteckning_uppgift_id_genererad_fkey(titel, deadline)), projekt:projekt_id(mall_projekt:mall_projekt_id(anteckningsmall_id), projekt_anteckning(block_id, innehall))`
+
+function mapUppgiftDetaljerad<T extends { projekt: unknown }>(u: T) {
+  const { projekt, ...rest } = u
+  const projektRad = enTillRelation(projekt) as {
+    mall_projekt: unknown
+    projekt_anteckning: { block_id: string; innehall: string }[]
+  } | null
+  const mallProjekt = enTillRelation(projektRad?.mall_projekt) as { anteckningsmall_id: string | null } | null
+  return {
+    ...rest,
+    projektAnteckningsmallId: mallProjekt?.anteckningsmall_id ?? null,
+    projektAnteckningar: projektRad?.projekt_anteckning ?? [],
+  }
+}
 
 export default async function Home() {
   const supabase = await createClient()
@@ -77,13 +96,10 @@ export default async function Home() {
     supabase.from('dagsfokus').select('uppgift_id').eq('person_id', person.id).eq('datum', idag),
     supabase.from('flexel_installning').select('modul').eq('person_id', person.id).eq('aktiv', true),
     supabase.from('kund').select('id, namn').order('namn'),
-    supabase
-      .from('uppgiftstyp')
-      .select('id, namn, anteckningsmall_id, skapa_uppgifter_vid_klar')
-      .order('namn'),
+    supabase.from('uppgiftstyp').select('id, namn, anteckningsmall_id').order('namn'),
     supabase
       .from('anteckningsblock')
-      .select('id, namn, beskrivning, genererar_uppgift, anteckningsmall_id')
+      .select('id, namn, beskrivning, anteckningsmall_id')
       .eq('aktiv', true)
       .order('sortordning'),
   ])
@@ -142,9 +158,9 @@ export default async function Home() {
           idag={idag}
           imorgon={imorgon}
           namnsdagIdag={svenskaDagar.get(idag)?.namnsdag ?? []}
-          dagensUppgifter={dagensUppgifter ?? []}
-          eftersläpning={eftersläpning ?? []}
-          imorgonUppgifter={imorgonUppgifter ?? []}
+          dagensUppgifter={(dagensUppgifter ?? []).map(mapUppgiftDetaljerad)}
+          eftersläpning={(eftersläpning ?? []).map(mapUppgiftDetaljerad)}
+          imorgonUppgifter={(imorgonUppgifter ?? []).map(mapUppgiftDetaljerad)}
           fokusUppgiftIds={fokusUppgiftIds}
           aktivaFlexelModuler={(flexelInstallningar ?? []).map((f) => f.modul)}
           dagsavslut={dagsavslut}

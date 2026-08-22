@@ -113,7 +113,7 @@ export default async function UppgifterPage({
     supabase
       .from('uppgift')
       .select(
-        'id, titel, beskrivning, status, prioritet, deadline, person_id, kund_id, typ_id, kategori_id, projekt_id, serie_id, sortordning, tidsatgang_timmar, klockslag, skapa_uppgifter_vid_klar, ar_placeholder, anteckningsmall_id, utan_anteckningsmall, uppgift_deltagare(kontaktperson_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(block_id, innehall, uppgift_id_genererad, genererad:uppgift!uppgift_anteckning_uppgift_id_genererad_fkey(titel, deadline))'
+        'id, titel, beskrivning, status, prioritet, deadline, person_id, kund_id, typ_id, kategori_id, projekt_id, serie_id, sortordning, tidsatgang_timmar, klockslag, ar_placeholder, anteckningsmall_id, utan_anteckningsmall, uppgift_deltagare(kontaktperson_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(block_id, innehall, uppgift_id_genererad, genererad:uppgift!uppgift_anteckning_uppgift_id_genererad_fkey(titel, deadline))'
       )
       .eq('ar_placeholder', false)
       .or(`deadline.is.null,and(deadline.gte.${weekDates[0]},deadline.lte.${sundayISO})`)
@@ -124,10 +124,7 @@ export default async function UppgifterPage({
     supabase.from('uppgift').select('id, titel, deadline, projekt_id, typ_id').eq('ar_placeholder', true),
     supabase.from('person').select('id, namn').order('namn'),
     supabase.from('kund').select('id, namn').order('namn'),
-    supabase
-      .from('uppgiftstyp')
-      .select('id, namn, anteckningsmall_id, skapa_uppgifter_vid_klar')
-      .order('namn'),
+    supabase.from('uppgiftstyp').select('id, namn, anteckningsmall_id').order('namn'),
     supabase.from('kategori').select('id, namn').order('namn'),
     supabase
       .from('projekt')
@@ -144,7 +141,7 @@ export default async function UppgifterPage({
     supabase.from('kontaktperson').select('id, kund_id, fornamn, efternamn, epost').order('fornamn'),
     supabase
       .from('anteckningsblock')
-      .select('id, namn, beskrivning, genererar_uppgift, anteckningsmall_id')
+      .select('id, namn, beskrivning, anteckningsmall_id')
       .eq('aktiv', true)
       .order('sortordning'),
   ])
