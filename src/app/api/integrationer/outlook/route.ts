@@ -199,6 +199,7 @@ export async function POST(request: NextRequest) {
   let body: {
     eventId?: string
     iCalUId?: string
+    seriesMasterId?: string
     subject?: string
     start?: string
     end?: string
@@ -217,6 +218,7 @@ export async function POST(request: NextRequest) {
   const {
     eventId,
     iCalUId,
+    seriesMasterId,
     subject,
     start,
     end,
@@ -353,6 +355,7 @@ export async function POST(request: NextRequest) {
   const falt = {
     outlook_event_id: eventId,
     outlook_ical_uid: iCalUId?.trim() || null,
+    outlook_series_id: seriesMasterId?.trim() || null,
     titel,
     beskrivning: bodyPreview?.trim() ? htmlTillText(bodyPreview) || null : null,
     person_id: person.id,
