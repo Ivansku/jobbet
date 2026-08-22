@@ -657,7 +657,7 @@ export function UppgiftFormular({
             </Field>
 
             <Field
-              label={serieModus ? 'Klockslag (för alla förekomster)' : 'Klockslag'}
+              label="Klockslag"
               htmlFor="uppgift-klockslag"
             >
               <Input
