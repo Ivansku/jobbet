@@ -200,6 +200,32 @@ export async function taBortProjektMedUppgifter(id: string) {
 // systemadministration/mall-actions.ts (lokal state, inte automatiskt synkad
 // från nya server-props när modalen redan är öppen). Samma fältlista som
 // page.tsx använder vid första sidladdningen, så formen på datan matchar.
+// Projektanteckningar — separat modul från uppgift_anteckning (se
+// projekt-anteckningar-sektion.tsx). Blocken kommer från projektets mall
+// (mall_projekt.anteckningsmall_id), innehållet lagras per projekt så att
+// alla uppgifter i projektet delar samma anteckningar. Initialt innehåll
+// hämtas server-side av respektive sidas page.tsx, inte här — se
+// nedan bara sparningen (autosave, ingen initial hämtning behövs client-side).
+//
+// Ingen revalidatePath här — autosparas medan användaren skriver, se
+// sparaAnteckning i uppgifter/actions.ts för samma resonemang.
+export async function sparaProjektAnteckning(projektId: string, blockId: string, innehall: string) {
+  const foretagId = await currentForetagId()
+  if (!foretagId) return
+
+  const supabase = await createClient()
+  await supabase.from('projekt_anteckning').upsert(
+    {
+      projekt_id: projektId,
+      block_id: blockId,
+      foretag_id: foretagId,
+      innehall,
+      uppdaterad_at: new Date().toISOString(),
+    },
+    { onConflict: 'projekt_id,block_id' }
+  )
+}
+
 export async function hamtaProjektUppgifter(projektId: string) {
   const supabase = await createClient()
   const { data } = await supabase

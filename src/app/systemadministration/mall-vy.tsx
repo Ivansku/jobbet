@@ -59,6 +59,7 @@ type MallProjekt = {
   id: string
   namn: string
   kategori_id: string | null
+  anteckningsmall_id: string | null
   antalUppgifter: number
   uppgifter: MallUppgift[]
 }
@@ -150,6 +151,7 @@ function MallFormular({
   const [mall, setMall] = useState(existing)
   const [namn, setNamn] = useState(existing?.namn ?? '')
   const [kategoriId, setKategoriId] = useState(existing?.kategori_id ?? '')
+  const [anteckningsmallId, setAnteckningsmallId] = useState(existing?.anteckningsmall_id ?? '')
   const [uppgifter, setUppgifter] = useState<MallUppgift[]>(existing?.uppgifter ?? [])
   const [redigerarUppgift, setRedigerarUppgift] = useState<MallUppgift | 'ny' | null>(null)
   const [sparar, setSparar] = useState(false)
@@ -168,16 +170,24 @@ function MallFormular({
     setSparar(true)
 
     const kategoriIdVarde = kategoriId || null
+    const anteckningsmallIdVarde = anteckningsmallId || null
 
     if (mall) {
-      await uppdateraMallProjekt(mall.id, namn, kategoriIdVarde)
+      await uppdateraMallProjekt(mall.id, namn, kategoriIdVarde, anteckningsmallIdVarde)
       setSparar(false)
       onClose()
     } else {
-      const ny = await skapaMallProjekt(namn, kategoriIdVarde)
+      const ny = await skapaMallProjekt(namn, kategoriIdVarde, anteckningsmallIdVarde)
       setSparar(false)
       if (ny)
-        setMall({ id: ny.id, namn: ny.namn, kategori_id: ny.kategori_id, antalUppgifter: 0, uppgifter: [] })
+        setMall({
+          id: ny.id,
+          namn: ny.namn,
+          kategori_id: ny.kategori_id,
+          anteckningsmall_id: ny.anteckningsmall_id,
+          antalUppgifter: 0,
+          uppgifter: [],
+        })
     }
   }
 
@@ -307,6 +317,21 @@ function MallFormular({
             {kategori.map((k) => (
               <option key={k.id} value={k.id}>
                 {k.namn}
+              </option>
+            ))}
+          </Select>
+        </Field>
+
+        <Field label="Anteckningsmall" htmlFor="mall-anteckningsmall">
+          <Select
+            id="mall-anteckningsmall"
+            value={anteckningsmallId}
+            onChange={(e) => setAnteckningsmallId(e.target.value)}
+          >
+            <option value="">Ingen</option>
+            {anteckningsmallar.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.namn}
               </option>
             ))}
           </Select>

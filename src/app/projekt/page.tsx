@@ -11,11 +11,11 @@ export default async function ProjektPage() {
       supabase
         .from('projekt')
         .select(
-          `id, namn, status, beskrivning, startdatum, kund_id, kund:kund_id(namn), mall_projekt_id, farg, uppgift(${PROJEKT_UPPGIFT_FALT})`
+          `id, namn, status, beskrivning, startdatum, kund_id, kund:kund_id(namn), mall_projekt_id, farg, uppgift(${PROJEKT_UPPGIFT_FALT}), projekt_anteckning(block_id, innehall)`
         )
         .order('namn'),
       supabase.from('kund').select('id, namn').order('namn'),
-      supabase.from('mall_projekt').select('id, namn').order('namn'),
+      supabase.from('mall_projekt').select('id, namn, anteckningsmall_id').order('namn'),
       supabase
         .from('uppgiftstyp')
         .select('id, namn, anteckningsmall_id, skapa_uppgifter_vid_klar')
@@ -56,6 +56,7 @@ export default async function ProjektPage() {
       antalUppgifter: uppgifter.length,
       antalKlara: uppgifter.filter((u) => u.status === 'klar').length,
       uppgifter,
+      projektAnteckningar: p.projekt_anteckning,
     }
   })
 

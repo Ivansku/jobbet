@@ -10,6 +10,7 @@ import {
   skapaUppgifterFranMall,
 } from './actions'
 import { ProjektUppgiftFormular, type ProjektUppgiftDetaljerad, type Typ, type Anteckningsblock } from './projekt-uppgift-formular'
+import { ProjektAnteckningarSektion } from './projekt-anteckningar-sektion'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { MarkdownEditor } from '@/components/ui/markdown-editor'
@@ -23,7 +24,7 @@ import { KundValjare } from '../uppgifter/kund-valjare'
 import { PROJEKT_FARGER } from '@/lib/projekt-farg'
 
 type Kund = { id: string; namn: string }
-type Mall = { id: string; namn: string }
+type Mall = { id: string; namn: string; anteckningsmall_id: string | null }
 type Projekt = {
   id: string
   namn: string
@@ -37,6 +38,7 @@ type Projekt = {
   antalUppgifter: number
   antalKlara: number
   uppgifter: ProjektUppgift[]
+  projektAnteckningar: { block_id: string; innehall: string }[]
 }
 
 type ProjektUppgift = ProjektUppgiftDetaljerad & { ansvarigNamn: string | null }
@@ -282,6 +284,10 @@ function ProjektFormular({
   const [tarBort, setTarBort] = useState(false)
   const [skapaUppgifterLaddar, setSkapaUppgifterLaddar] = useState(false)
 
+  const projektAnteckningsmallId =
+    mallar.find((m) => m.id === existing?.mallProjektId)?.anteckningsmall_id ?? null
+  const projektMallBlock = block.filter((b) => b.anteckningsmall_id === projektAnteckningsmallId)
+
   async function laddaOmUppgifter() {
     if (!existing) return
     setUppgifter(await hamtaProjektUppgifter(existing.id))
@@ -328,6 +334,8 @@ function ProjektFormular({
       <ProjektUppgiftFormular
         uppgift={redigerarUppgift}
         projektId={existing.id}
+        projektAnteckningsmallId={projektAnteckningsmallId}
+        projektAnteckningar={existing.projektAnteckningar}
         typer={typer}
         block={block}
         onClose={() => setRedigerarUppgift(null)}
@@ -428,6 +436,14 @@ function ProjektFormular({
         <Field label="Färg" htmlFor="projekt-farg">
           <FargValjare value={farg} onChange={setFarg} />
         </Field>
+
+        {existing && projektAnteckningsmallId && (
+          <ProjektAnteckningarSektion
+            projektId={existing.id}
+            blocks={projektMallBlock}
+            initialAnteckningar={existing.projektAnteckningar}
+          />
+        )}
 
         {existing && (
           <div className="border-t border-border-subtle pt-4">

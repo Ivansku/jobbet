@@ -42,6 +42,7 @@ import { KundValjare } from './kund-valjare'
 import { DeltagareValjare } from './deltagare-valjare'
 import { SerieVy, SerieFormular } from './serie-vy'
 import { MotesanteckningarSektion } from './motesanteckningar-sektion'
+import { ProjektAnteckningarSektion } from '../projekt/projekt-anteckningar-sektion'
 import { TidigareMotenSektion } from './tidigare-moten-sektion'
 import { KopplaPlaceholderSektion } from './koppla-placeholder-sektion'
 import { projektKortBakgrund } from '@/lib/projekt-farg'
@@ -62,6 +63,8 @@ type Projekt = {
   farg: string | null
   mallProjektNamn: string | null
   mallProjektKategoriId: string | null
+  mallProjektAnteckningsmallId: string | null
+  projektAnteckningar: { block_id: string; innehall: string }[]
 }
 type Anteckningsblock = {
   id: string
@@ -1148,6 +1151,9 @@ function UppgiftFormular({
   const valdTyp = typer.find((t) => t.id === typId)
   const effektivMallId = existing?.anteckningsmall_id ?? valdTyp?.anteckningsmall_id ?? null
   const mallBlock = block.filter((b) => b.anteckningsmall_id === effektivMallId)
+  const valtProjekt = projekt.find((p) => p.id === projektId)
+  const projektAnteckningsmallId = valtProjekt?.mallProjektAnteckningsmallId ?? null
+  const projektMallBlock = block.filter((b) => b.anteckningsmall_id === projektAnteckningsmallId)
 
   return (
     <Modal onClose={onClose} labelledBy="uppgift-formular-title">
@@ -1406,6 +1412,16 @@ function UppgiftFormular({
                 kundNamn={kunder.find((k) => k.id === kundId)?.namn ?? ''}
               />
             )}
+          </FormularSektion>
+        )}
+
+        {existing?.id && projektId && projektAnteckningsmallId && (
+          <FormularSektion label="Projektanteckningar">
+            <ProjektAnteckningarSektion
+              projektId={projektId}
+              blocks={projektMallBlock}
+              initialAnteckningar={valtProjekt?.projektAnteckningar ?? []}
+            />
           </FormularSektion>
         )}
 
