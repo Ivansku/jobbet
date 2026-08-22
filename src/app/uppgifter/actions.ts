@@ -219,6 +219,9 @@ export async function gorUppgiftAterkommande(
   await supabase.rpc('generera_serie_forekomster', { p_foretag_id: foretagId })
 
   revalidatePath('/uppgifter')
+  revalidatePath('/')
+  revalidatePath('/projekt')
+  revalidatePath('/rapporter/tidsrapportering')
 }
 
 export async function uppdateraSerie(
@@ -368,6 +371,7 @@ export async function uppdateraUppgift(
   revalidatePath('/uppgifter')
   revalidatePath('/')
   revalidatePath('/projekt')
+  revalidatePath('/rapporter/tidsrapportering')
 }
 
 export async function flyttaUppgift(id: string, deadline: string | null, sortordning: number) {
@@ -389,6 +393,9 @@ export async function taBortUppgift(id: string) {
   const supabase = await createClient()
   await supabase.from('uppgift').delete().eq('id', id)
   revalidatePath('/uppgifter')
+  revalidatePath('/')
+  revalidatePath('/projekt')
+  revalidatePath('/rapporter/tidsrapportering')
 }
 
 // Ingen revalidatePath här — autosparas var 1,5:e sekund medan användaren skriver,

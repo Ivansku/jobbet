@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { uppdateraStatus } from './uppgifter/actions'
 import { sattDagensFokus } from './idag-actions'
@@ -7,7 +8,15 @@ import { IdagTimeline } from './idag-timeline'
 import { IdagRing } from './idag-ring'
 import { DagensFokusValjare } from './dagens-fokus-valjare'
 import { ImorgonVantarSteg, FlexelSteg, TankarSteg } from './avsluta-dagen'
-import { UppgiftDetalj } from './uppgift-detalj'
+import { UppgiftFormular } from './uppgifter/uppgift-formular'
+import type {
+  Kategori,
+  Projekt,
+  Serie,
+  Kontaktperson,
+  OppenPlaceholder,
+  Person,
+} from './uppgifter/uppgift-formular'
 import { Eyebrow } from '@/components/ui/eyebrow'
 import type { Dagsflode } from '@/lib/dagsflode'
 
@@ -29,6 +38,8 @@ export type UppgiftDetaljerad = Uppgift & {
   person_id: string | null
   kategori_id: string | null
   projekt_id: string | null
+  serie_id: string | null
+  sortordning: number
   prioritet: string
   tidsatgang_timmar: number | null
   typ_id: string | null
@@ -97,6 +108,13 @@ export function IdagFlode({
   kunder,
   typer,
   block,
+  kategori,
+  projekt,
+  serier,
+  kontaktpersoner,
+  placeholders,
+  personer,
+  currentPersonId,
 }: {
   flode: Dagsflode
   personNamn: string
@@ -114,7 +132,15 @@ export function IdagFlode({
   kunder: Kund[]
   typer: Typ[]
   block: Block[]
+  kategori: Kategori[]
+  projekt: Projekt[]
+  serier: Serie[]
+  kontaktpersoner: Kontaktperson[]
+  placeholders: OppenPlaceholder[]
+  personer: Person[]
+  currentPersonId: string
 }) {
+  const router = useRouter()
   const [fokusIds, setFokusIds] = useState<string[]>(initialaFokus)
   const [klaraIds, setKlaraIds] = useState<Set<string>>(
     new Set(dagensUppgifter.filter((u) => u.status === 'klar').map((u) => u.id))
@@ -337,11 +363,20 @@ export function IdagFlode({
       </div>
 
       {redigerar && (
-        <UppgiftDetalj
-          uppgift={redigerar}
+        <UppgiftFormular
+          existing={redigerar}
+          placeholders={placeholders}
+          personer={personer}
           kunder={kunder}
           typer={typer}
+          kategori={kategori}
+          projekt={projekt}
+          serier={serier}
+          kontaktpersoner={kontaktpersoner}
           block={block}
+          currentPersonId={currentPersonId}
+          initialDeadline={null}
+          onEditSerie={() => router.push('/uppgifter')}
           onClose={() => setRedigerar(null)}
         />
       )}

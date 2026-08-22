@@ -8,14 +8,13 @@ import { enTillRelation } from '@/lib/postgrest'
 const UPPGIFT_FALT = 'id, titel, status, deadline, klockslag, kund_id, outlook_event_id'
 
 // Alla tre uppgiftslistorna på Hem-sidan (dagens, eftersläpning, imorgon) går att
-// öppna i redigeringsformuläret direkt från raden, så alla hämtas med hela
-// fältuppsättningen uppdateraUppgift (delad med Kanban-vyn) kräver för att kunna
-// skriva tillbaka oförändrade värden på allt utom det som faktiskt redigeras här.
-// projekt-relationen hämtas bara för att härleda projektets anteckningsmall/
-// anteckningar (se mapUppgiftDetaljerad nedan) — plockas isär innan datan
-// skickas till klienten, samma mönster som uppgifter/page.tsx använder för sin
-// projekt-lista.
-const UPPGIFT_DETALJERAD_FALT = `${UPPGIFT_FALT}, beskrivning, person_id, kategori_id, projekt_id, prioritet, tidsatgang_timmar, typ_id, ar_placeholder, anteckningsmall_id, utan_anteckningsmall, uppgift_deltagare(kontaktperson_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(block_id, innehall, uppgift_id_genererad, genererad:uppgift!uppgift_anteckning_uppgift_id_genererad_fkey(titel, deadline)), projekt:projekt_id(mall_projekt:mall_projekt_id(anteckningsmall_id), projekt_anteckning(block_id, innehall))`
+// öppna i det delade uppgiftsformuläret (samma komponent som Uppgifter/Projekt/
+// Tidsrapportering) direkt från raden, så alla hämtas med hela fältuppsättningen
+// formuläret kräver. projekt-relationen hämtas bara för att härleda projektets
+// anteckningsmall/anteckningar (se mapUppgiftDetaljerad nedan) — plockas isär
+// innan datan skickas till klienten, samma mönster som uppgifter/page.tsx
+// använder för sin projekt-lista.
+const UPPGIFT_DETALJERAD_FALT = `${UPPGIFT_FALT}, beskrivning, person_id, kategori_id, projekt_id, serie_id, sortordning, prioritet, tidsatgang_timmar, typ_id, ar_placeholder, anteckningsmall_id, utan_anteckningsmall, uppgift_deltagare(kontaktperson_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(block_id, innehall, uppgift_id_genererad, genererad:uppgift!uppgift_anteckning_uppgift_id_genererad_fkey(titel, deadline)), projekt:projekt_id(mall_projekt:mall_projekt_id(anteckningsmall_id), projekt_anteckning(block_id, innehall))`
 
 function mapUppgiftDetaljerad<T extends { projekt: unknown }>(u: T) {
   const { projekt, ...rest } = u
@@ -69,6 +68,12 @@ export default async function Home() {
     { data: kunder },
     { data: typer },
     { data: block },
+    { data: kategori },
+    { data: projekt },
+    { data: serier },
+    { data: kontaktpersoner },
+    { data: placeholders },
+    { data: personer },
   ] = await Promise.all([
     hamtaSvenskaDagar(Number(idag.slice(0, 4))),
     supabase
@@ -102,6 +107,24 @@ export default async function Home() {
       .select('id, namn, beskrivning, anteckningsmall_id')
       .eq('aktiv', true)
       .order('sortordning'),
+    supabase.from('kategori').select('id, namn').order('namn'),
+    supabase
+      .from('projekt')
+      .select(
+        'id, namn, kund_id, farg, mall_projekt:mall_projekt_id(kategori_id, anteckningsmall_id), projekt_anteckning(block_id, innehall)'
+      )
+      .order('namn'),
+    supabase
+      .from('uppgift_serie')
+      .select(
+        'id, titel, beskrivning, person_id, kund_id, typ_id, kategori_id, prioritet, start_datum, veckodagar, intervall_veckor, slut_datum, tidsatgang_timmar, klockslag'
+      )
+      .order('titel'),
+    supabase.from('kontaktperson').select('id, kund_id, fornamn, efternamn, epost').order('fornamn'),
+    // Hämtas alltid färdigt här (litet antal rader) istället för att formuläret ska
+    // fråga vid öppning — samma resonemang som uppgifter/page.tsx.
+    supabase.from('uppgift').select('id, titel, deadline, projekt_id, typ_id').eq('ar_placeholder', true),
+    supabase.from('person').select('id, namn').order('namn'),
   ])
 
   // dagsavslut: en rad per person och dag, skapas första gången kvällsflödet
@@ -169,6 +192,21 @@ export default async function Home() {
           kunder={kunder ?? []}
           typer={typer ?? []}
           block={block ?? []}
+          kategori={kategori ?? []}
+          projekt={(projekt ?? []).map((p) => ({
+            id: p.id,
+            namn: p.namn,
+            kund_id: p.kund_id,
+            farg: p.farg,
+            mallProjektKategoriId: enTillRelation(p.mall_projekt)?.kategori_id ?? null,
+            mallProjektAnteckningsmallId: enTillRelation(p.mall_projekt)?.anteckningsmall_id ?? null,
+            projektAnteckningar: p.projekt_anteckning,
+          }))}
+          serier={serier ?? []}
+          kontaktpersoner={kontaktpersoner ?? []}
+          placeholders={placeholders ?? []}
+          personer={personer ?? []}
+          currentPersonId={person.id}
         />
       </main>
     </>

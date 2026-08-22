@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import {
   skapaProjekt,
@@ -9,7 +10,18 @@ import {
   hamtaProjektUppgifter,
   skapaUppgifterFranMall,
 } from './actions'
-import { ProjektUppgiftFormular, type ProjektUppgiftDetaljerad, type Typ, type Anteckningsblock } from './projekt-uppgift-formular'
+import { UppgiftFormular } from '../uppgifter/uppgift-formular'
+import type {
+  Uppgift,
+  Typ,
+  Anteckningsblock,
+  Kategori,
+  Projekt as FormularProjekt,
+  Serie,
+  Kontaktperson,
+  OppenPlaceholder,
+  Person,
+} from '../uppgifter/uppgift-formular'
 import { ProjektAnteckningarSektion } from './projekt-anteckningar-sektion'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
@@ -41,7 +53,7 @@ type Projekt = {
   projektAnteckningar: { block_id: string; innehall: string }[]
 }
 
-type ProjektUppgift = ProjektUppgiftDetaljerad & { ansvarigNamn: string | null }
+type ProjektUppgift = Uppgift & { ansvarigNamn: string | null }
 
 const STATUS_LABEL: Record<string, string> = {
   planerat: 'Planerat',
@@ -71,12 +83,24 @@ export function ProjektVy({
   mallar,
   typer,
   block,
+  kategori,
+  projektLista,
+  serier,
+  kontaktpersoner,
+  placeholders,
+  personer,
 }: {
   projekt: Projekt[]
   kunder: Kund[]
   mallar: Mall[]
   typer: Typ[]
   block: Anteckningsblock[]
+  kategori: Kategori[]
+  projektLista: FormularProjekt[]
+  serier: Serie[]
+  kontaktpersoner: Kontaktperson[]
+  placeholders: OppenPlaceholder[]
+  personer: Person[]
 }) {
   const [redigerar, setRedigerar] = useState<Projekt | 'ny' | null>(null)
   const [nyMallId, setNyMallId] = useState<string | null>(null)
@@ -131,6 +155,12 @@ export function ProjektVy({
           mallar={mallar}
           typer={typer}
           block={block}
+          kategori={kategori}
+          projektLista={projektLista}
+          serier={serier}
+          kontaktpersoner={kontaktpersoner}
+          placeholders={placeholders}
+          personer={personer}
           existing={redigerar === 'ny' ? null : redigerar}
           initialMallId={nyMallId}
           onClose={() => setRedigerar(null)}
@@ -258,6 +288,12 @@ function ProjektFormular({
   mallar,
   typer,
   block,
+  kategori,
+  projektLista,
+  serier,
+  kontaktpersoner,
+  placeholders,
+  personer,
   existing,
   initialMallId,
   onClose,
@@ -266,10 +302,17 @@ function ProjektFormular({
   mallar: Mall[]
   typer: Typ[]
   block: Anteckningsblock[]
+  kategori: Kategori[]
+  projektLista: FormularProjekt[]
+  serier: Serie[]
+  kontaktpersoner: Kontaktperson[]
+  placeholders: OppenPlaceholder[]
+  personer: Person[]
   existing: Projekt | null
   initialMallId: string | null
   onClose: () => void
 }) {
+  const router = useRouter()
   const [mallId, setMallId] = useState(initialMallId ?? '')
   const [namn, setNamn] = useState(existing?.namn ?? '')
   const [kundId, setKundId] = useState(existing?.kundId ?? '')
@@ -331,13 +374,20 @@ function ProjektFormular({
 
   if (redigerarUppgift && existing) {
     return (
-      <ProjektUppgiftFormular
-        uppgift={redigerarUppgift}
-        projektId={existing.id}
-        projektAnteckningsmallId={projektAnteckningsmallId}
-        projektAnteckningar={existing.projektAnteckningar}
+      <UppgiftFormular
+        existing={redigerarUppgift}
+        placeholders={placeholders}
+        personer={personer}
+        kunder={kunder}
         typer={typer}
+        kategori={kategori}
+        projekt={projektLista}
+        serier={serier}
+        kontaktpersoner={kontaktpersoner}
         block={block}
+        currentPersonId={null}
+        initialDeadline={null}
+        onEditSerie={() => router.push('/uppgifter')}
         onClose={() => setRedigerarUppgift(null)}
         onChanged={laddaOmUppgifter}
       />

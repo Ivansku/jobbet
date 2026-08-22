@@ -6,23 +6,53 @@ import { PROJEKT_UPPGIFT_FALT } from './uppgift-falt'
 
 export default async function ProjektPage() {
   const supabase = await createClient()
-  const [{ data: projekt }, { data: kunder }, { data: mallar }, { data: typer }, { data: block }] =
-    await Promise.all([
-      supabase
-        .from('projekt')
-        .select(
-          `id, namn, status, beskrivning, startdatum, kund_id, kund:kund_id(namn), mall_projekt_id, farg, uppgift(${PROJEKT_UPPGIFT_FALT}), projekt_anteckning(block_id, innehall)`
-        )
-        .order('namn'),
-      supabase.from('kund').select('id, namn').order('namn'),
-      supabase.from('mall_projekt').select('id, namn, anteckningsmall_id').order('namn'),
-      supabase.from('uppgiftstyp').select('id, namn, anteckningsmall_id').order('namn'),
-      supabase
-        .from('anteckningsblock')
-        .select('id, namn, beskrivning, anteckningsmall_id')
-        .eq('aktiv', true)
-        .order('sortordning'),
-    ])
+  const [
+    { data: projekt },
+    { data: kunder },
+    { data: mallar },
+    { data: typer },
+    { data: block },
+    { data: kategori },
+    { data: projektLista },
+    { data: serier },
+    { data: kontaktpersoner },
+    { data: placeholders },
+    { data: personer },
+  ] = await Promise.all([
+    supabase
+      .from('projekt')
+      .select(
+        `id, namn, status, beskrivning, startdatum, kund_id, kund:kund_id(namn), mall_projekt_id, farg, uppgift(${PROJEKT_UPPGIFT_FALT}), projekt_anteckning(block_id, innehall)`
+      )
+      .order('namn'),
+    supabase.from('kund').select('id, namn').order('namn'),
+    supabase.from('mall_projekt').select('id, namn, anteckningsmall_id').order('namn'),
+    supabase.from('uppgiftstyp').select('id, namn, anteckningsmall_id').order('namn'),
+    supabase
+      .from('anteckningsblock')
+      .select('id, namn, beskrivning, anteckningsmall_id')
+      .eq('aktiv', true)
+      .order('sortordning'),
+    supabase.from('kategori').select('id, namn').order('namn'),
+    // Lätt lista för uppgiftsformulärets Projekt-väljare (samma form på datan som
+    // uppgifter/page.tsx) — separat från projekt-frågan ovan, som bär en tyngre
+    // inbäddad uppgiftslista per projekt och inte är lämplig att återanvända här.
+    supabase
+      .from('projekt')
+      .select(
+        'id, namn, kund_id, farg, mall_projekt:mall_projekt_id(kategori_id, anteckningsmall_id), projekt_anteckning(block_id, innehall)'
+      )
+      .order('namn'),
+    supabase
+      .from('uppgift_serie')
+      .select(
+        'id, titel, beskrivning, person_id, kund_id, typ_id, kategori_id, prioritet, start_datum, veckodagar, intervall_veckor, slut_datum, tidsatgang_timmar, klockslag'
+      )
+      .order('titel'),
+    supabase.from('kontaktperson').select('id, kund_id, fornamn, efternamn, epost').order('fornamn'),
+    supabase.from('uppgift').select('id, titel, deadline, projekt_id, typ_id').eq('ar_placeholder', true),
+    supabase.from('person').select('id, namn').order('namn'),
+  ])
 
   // Uppgifterna hämtas färdigt här (server-side) istället för att ProjektVy
   // ska hämta dem själv vid öppning — annars syns en fördröjning varje gång
@@ -75,6 +105,20 @@ export default async function ProjektPage() {
           mallar={mallar ?? []}
           typer={typer ?? []}
           block={block ?? []}
+          kategori={kategori ?? []}
+          projektLista={(projektLista ?? []).map((p) => ({
+            id: p.id,
+            namn: p.namn,
+            kund_id: p.kund_id,
+            farg: p.farg,
+            mallProjektKategoriId: enTillRelation(p.mall_projekt)?.kategori_id ?? null,
+            mallProjektAnteckningsmallId: enTillRelation(p.mall_projekt)?.anteckningsmall_id ?? null,
+            projektAnteckningar: p.projekt_anteckning,
+          }))}
+          serier={serier ?? []}
+          kontaktpersoner={kontaktpersoner ?? []}
+          placeholders={placeholders ?? []}
+          personer={personer ?? []}
         />
       </main>
     </>

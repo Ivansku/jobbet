@@ -2,6 +2,13 @@ import { createClient } from '@/lib/supabase/server'
 import { AppNav } from '../../nav'
 import { RapporterNav } from '../rapporter-nav'
 import { TidsrapportVy } from './tidsrapport-vy'
+import { enTillRelation } from '@/lib/postgrest'
+
+// Fältuppsättning som det delade uppgiftsformuläret (src/app/uppgifter/uppgift-formular.tsx)
+// kräver för att kunna öppna en rad direkt från rapporten — samma mönster som
+// uppgifter/page.tsx och src/app/page.tsx.
+const UPPGIFT_FORMULAR_FALT =
+  'id, titel, beskrivning, status, prioritet, deadline, klockslag, person_id, kund_id, typ_id, kategori_id, projekt_id, serie_id, sortordning, tidsatgang_timmar, ar_placeholder, anteckningsmall_id, utan_anteckningsmall, uppgift_deltagare(kontaktperson_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(block_id, innehall, uppgift_id_genererad, genererad:uppgift!uppgift_anteckning_uppgift_id_genererad_fkey(titel, deadline))'
 
 // All datumräkning görs i UTC för att undvika att lokal tidszon (t.ex. svensk sommartid)
 // får datum att hoppa fram/tillbaka en dag vid konvertering mellan Date och ISO-sträng.
@@ -87,24 +94,49 @@ export default async function TidsrapporteringPage({
   const valdPersonId = person ?? aktuellPerson?.id ?? 'alla'
   const valdKategoriId = kategoriParam ?? 'alla'
 
-  let uppgiftQuery = supabase
-    .from('uppgift')
-    .select('id, titel, deadline, person_id, kund_id, typ_id, kategori_id, tidsatgang_timmar')
-    .gte('deadline', mondayISO)
-    .lte('deadline', sundayISO)
+  let uppgiftQuery = supabase.from('uppgift').select(UPPGIFT_FORMULAR_FALT).gte('deadline', mondayISO).lte('deadline', sundayISO)
 
   if (valdPersonId !== 'alla') {
     uppgiftQuery = uppgiftQuery.eq('person_id', valdPersonId)
   }
 
-  const [{ data: uppgifter }, { data: personer }, { data: kunder }, { data: typer }, { data: kategori }] =
-    await Promise.all([
-      uppgiftQuery.order('deadline'),
-      supabase.from('person').select('id, namn').order('namn'),
-      supabase.from('kund').select('id, namn').order('namn'),
-      supabase.from('uppgiftstyp').select('id, namn').order('namn'),
-      supabase.from('kategori').select('id, namn').order('namn'),
-    ])
+  const [
+    { data: uppgifter },
+    { data: personer },
+    { data: kunder },
+    { data: typer },
+    { data: kategori },
+    { data: projekt },
+    { data: serier },
+    { data: kontaktpersoner },
+    { data: placeholders },
+    { data: block },
+  ] = await Promise.all([
+    uppgiftQuery.order('deadline'),
+    supabase.from('person').select('id, namn').order('namn'),
+    supabase.from('kund').select('id, namn').order('namn'),
+    supabase.from('uppgiftstyp').select('id, namn, anteckningsmall_id').order('namn'),
+    supabase.from('kategori').select('id, namn').order('namn'),
+    supabase
+      .from('projekt')
+      .select(
+        'id, namn, kund_id, farg, mall_projekt:mall_projekt_id(kategori_id, anteckningsmall_id), projekt_anteckning(block_id, innehall)'
+      )
+      .order('namn'),
+    supabase
+      .from('uppgift_serie')
+      .select(
+        'id, titel, beskrivning, person_id, kund_id, typ_id, kategori_id, prioritet, start_datum, veckodagar, intervall_veckor, slut_datum, tidsatgang_timmar, klockslag'
+      )
+      .order('titel'),
+    supabase.from('kontaktperson').select('id, kund_id, fornamn, efternamn, epost').order('fornamn'),
+    supabase.from('uppgift').select('id, titel, deadline, projekt_id, typ_id').eq('ar_placeholder', true),
+    supabase
+      .from('anteckningsblock')
+      .select('id, namn, beskrivning, anteckningsmall_id')
+      .eq('aktiv', true)
+      .order('sortordning'),
+  ])
 
   const kundNamnMap = new Map((kunder ?? []).map((k) => [k.id, k.namn]))
   const typNamnMap = new Map((typer ?? []).map((t) => [t.id, t.namn]))
@@ -166,6 +198,23 @@ export default async function TidsrapporteringPage({
           kategoriTotaler={sorteradeKategoriTotaler}
           vecka={mondayISO}
           alleRader={alleRader}
+          uppgifterFulla={uppgifter ?? []}
+          kunder={kunder ?? []}
+          typer={typer ?? []}
+          kategoriLista={kategori ?? []}
+          projekt={(projekt ?? []).map((p) => ({
+            id: p.id,
+            namn: p.namn,
+            kund_id: p.kund_id,
+            farg: p.farg,
+            mallProjektKategoriId: enTillRelation(p.mall_projekt)?.kategori_id ?? null,
+            mallProjektAnteckningsmallId: enTillRelation(p.mall_projekt)?.anteckningsmall_id ?? null,
+            projektAnteckningar: p.projekt_anteckning,
+          }))}
+          serier={serier ?? []}
+          kontaktpersoner={kontaktpersoner ?? []}
+          placeholders={placeholders ?? []}
+          block={block ?? []}
         />
       </main>
     </>
