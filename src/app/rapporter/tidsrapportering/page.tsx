@@ -50,18 +50,22 @@ type Rad = {
   id: string
   titel: string
   typNamn: string | null
+  kategoriId: string
   kategoriNamn: string | null
+  kundNamn: string
   dag: string
   timmar: number
 }
-type Grupp = { kundNamn: string; timmar: number; uppgifter: Rad[] }
+type KategoriTotal = { kategoriId: string; kategoriNamn: string; timmar: number }
+
+export const UTAN_KATEGORI_ID = 'utan'
 
 export default async function TidsrapporteringPage({
   searchParams,
 }: {
-  searchParams: Promise<{ vecka?: string; person?: string }>
+  searchParams: Promise<{ vecka?: string; person?: string; kategori?: string }>
 }) {
-  const { vecka, person } = await searchParams
+  const { vecka, person, kategori: kategoriParam } = await searchParams
   const monday = getMonday(parseISODate(vecka ?? todayISODate()))
   const mondayISO = formatISODate(monday)
   const sunday = new Date(monday)
@@ -81,6 +85,7 @@ export default async function TidsrapporteringPage({
     .single()
 
   const valdPersonId = person ?? aktuellPerson?.id ?? 'alla'
+  const valdKategoriId = kategoriParam ?? 'alla'
 
   let uppgiftQuery = supabase
     .from('uppgift')
@@ -105,39 +110,39 @@ export default async function TidsrapporteringPage({
   const typNamnMap = new Map((typer ?? []).map((t) => [t.id, t.namn]))
   const kategoriNamnMap = new Map((kategori ?? []).map((k) => [k.id, k.namn]))
 
-  const grupper = new Map<string, Grupp>()
-  let totalTimmar = 0
-
-  for (const u of uppgifter ?? []) {
-    if (!u.deadline) continue
-    const timmar = u.tidsatgang_timmar ?? 0
-    const kundNamn = u.kund_id ? (kundNamnMap.get(u.kund_id) ?? 'Okänd kund') : 'Utan kund'
-
-    if (!grupper.has(kundNamn)) grupper.set(kundNamn, { kundNamn, timmar: 0, uppgifter: [] })
-    const grupp = grupper.get(kundNamn)!
-    grupp.timmar += timmar
-    grupp.uppgifter.push({
+  // Kategori-boxarna ska alltid visa hela veckans fördelning oavsett kategorifilter
+  // (samma princip som Flexels saldoboxar, som inte påverkas av modul-filtret) —
+  // summeras därför från alla uppgifter innan kategorifiltret appliceras nedan.
+  // Alla rader för veckan (person-filtrerade, men INTE kategori-filtrerade) skickas
+  // till klienten, som sköter kategori-filtreringen lokalt — annars krävs en server-
+  // rundtripp (ny sida, nya Supabase-anrop) för varje klick på en kategoribox, vilket
+  // kändes segt jämfört med en ren UI-toggle.
+  const alleRader: Rad[] = (uppgifter ?? [])
+    .filter((u): u is typeof u & { deadline: string } => !!u.deadline)
+    .map((u) => ({
       id: u.id,
       titel: u.titel,
       typNamn: u.typ_id ? (typNamnMap.get(u.typ_id) ?? null) : null,
+      kategoriId: u.kategori_id ?? UTAN_KATEGORI_ID,
       kategoriNamn: u.kategori_id ? (kategoriNamnMap.get(u.kategori_id) ?? null) : null,
+      kundNamn: u.kund_id ? (kundNamnMap.get(u.kund_id) ?? 'Okänd kund') : 'Utan kund',
       dag: u.deadline,
-      timmar,
+      timmar: u.tidsatgang_timmar ?? 0,
+    }))
+
+  const kategoriTotaler = new Map<string, { namn: string; timmar: number }>()
+  for (const r of alleRader) {
+    const namn = r.kategoriNamn ?? 'Utan kategori'
+    const befintlig = kategoriTotaler.get(r.kategoriId)
+    kategoriTotaler.set(r.kategoriId, { namn, timmar: (befintlig?.timmar ?? 0) + r.timmar })
+  }
+  const sorteradeKategoriTotaler: KategoriTotal[] = [...kategoriTotaler.entries()]
+    .map(([kategoriId, { namn, timmar }]) => ({ kategoriId, kategoriNamn: namn, timmar }))
+    .sort((a, b) => {
+      if (a.kategoriId === UTAN_KATEGORI_ID) return 1
+      if (b.kategoriId === UTAN_KATEGORI_ID) return -1
+      return a.kategoriNamn.localeCompare(b.kategoriNamn, 'sv')
     })
-    totalTimmar += timmar
-  }
-
-  for (const g of grupper.values()) {
-    g.uppgifter.sort((a, b) => a.dag.localeCompare(b.dag))
-  }
-
-  // "Utan kund" hamnar sist oavsett bokstavsordning — den är en undantagsgrupp,
-  // inte ett riktigt kundnamn, och ska inte blandas in bland de alfabetiska.
-  const sorteradeGrupper = [...grupper.values()].sort((a, b) => {
-    if (a.kundNamn === 'Utan kund') return 1
-    if (b.kundNamn === 'Utan kund') return -1
-    return a.kundNamn.localeCompare(b.kundNamn, 'sv')
-  })
 
   const prevVecka = new Date(monday)
   prevVecka.setUTCDate(prevVecka.getUTCDate() - 7)
@@ -152,14 +157,15 @@ export default async function TidsrapporteringPage({
         <RapporterNav />
         <TidsrapportVy
           veckoetikett={veckoetikett(monday, sunday)}
-          prevVeckaHref={`/rapporter/tidsrapportering?vecka=${formatISODate(prevVecka)}&person=${valdPersonId}`}
-          nextVeckaHref={`/rapporter/tidsrapportering?vecka=${formatISODate(nextVecka)}&person=${valdPersonId}`}
-          idagHref={`/rapporter/tidsrapportering?person=${valdPersonId}`}
+          prevVeckaHref={`/rapporter/tidsrapportering?vecka=${formatISODate(prevVecka)}&person=${valdPersonId}&kategori=${valdKategoriId}`}
+          nextVeckaHref={`/rapporter/tidsrapportering?vecka=${formatISODate(nextVecka)}&person=${valdPersonId}&kategori=${valdKategoriId}`}
+          idagHref={`/rapporter/tidsrapportering?person=${valdPersonId}&kategori=${valdKategoriId}`}
           personer={personer ?? []}
           valdPersonId={valdPersonId}
+          initialKategoriId={valdKategoriId}
+          kategoriTotaler={sorteradeKategoriTotaler}
           vecka={mondayISO}
-          grupper={sorteradeGrupper}
-          totalTimmar={totalTimmar}
+          alleRader={alleRader}
         />
       </main>
     </>

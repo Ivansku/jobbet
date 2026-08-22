@@ -1,3 +1,6 @@
+'use client'
+
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PersonValjare } from './person-valjare'
@@ -7,11 +10,14 @@ type Rad = {
   id: string
   titel: string
   typNamn: string | null
+  kategoriId: string
   kategoriNamn: string | null
+  kundNamn: string
   dag: string
   timmar: number
 }
 type Grupp = { kundNamn: string; timmar: number; uppgifter: Rad[] }
+type KategoriTotal = { kategoriId: string; kategoriNamn: string; timmar: number }
 
 const VECKONAV_KLASS =
   'inline-flex items-center justify-center rounded-lg border border-stone-300 bg-surface px-3 py-1.5 text-sm font-medium shadow-sm transition-colors hover:border-stone-400 hover:bg-stone-100 dark:border-stone-600 dark:hover:bg-stone-800'
@@ -28,9 +34,10 @@ export function TidsrapportVy({
   idagHref,
   personer,
   valdPersonId,
+  initialKategoriId,
+  kategoriTotaler,
   vecka,
-  grupper,
-  totalTimmar,
+  alleRader,
 }: {
   veckoetikett: string
   prevVeckaHref: string
@@ -38,10 +45,44 @@ export function TidsrapportVy({
   idagHref: string
   personer: Person[]
   valdPersonId: string
+  initialKategoriId: string
+  kategoriTotaler: KategoriTotal[]
   vecka: string
-  grupper: Grupp[]
-  totalTimmar: number
+  alleRader: Rad[]
 }) {
+  // Kategorifiltret hålls som lokalt state istället för att gå via URL/servern —
+  // annars krävs en hel sidladdning (nya Supabase-anrop) för varje klick på en
+  // kategoribox, vilket kändes segt jämfört med en direkt UI-toggle.
+  const [valdKategoriId, setValdKategoriId] = useState(initialKategoriId)
+
+  const { grupper, totalTimmar } = useMemo(() => {
+    const filtrerade = alleRader.filter((r) => valdKategoriId === 'alla' || r.kategoriId === valdKategoriId)
+
+    const grupper = new Map<string, Grupp>()
+    let totalTimmar = 0
+    for (const r of filtrerade) {
+      if (!grupper.has(r.kundNamn)) grupper.set(r.kundNamn, { kundNamn: r.kundNamn, timmar: 0, uppgifter: [] })
+      const grupp = grupper.get(r.kundNamn)!
+      grupp.timmar += r.timmar
+      grupp.uppgifter.push(r)
+      totalTimmar += r.timmar
+    }
+
+    for (const g of grupper.values()) {
+      g.uppgifter.sort((a, b) => a.dag.localeCompare(b.dag))
+    }
+
+    // "Utan kund" hamnar sist oavsett bokstavsordning — den är en undantagsgrupp,
+    // inte ett riktigt kundnamn, och ska inte blandas in bland de alfabetiska.
+    const sorteradeGrupper = [...grupper.values()].sort((a, b) => {
+      if (a.kundNamn === 'Utan kund') return 1
+      if (b.kundNamn === 'Utan kund') return -1
+      return a.kundNamn.localeCompare(b.kundNamn, 'sv')
+    })
+
+    return { grupper: sorteradeGrupper, totalTimmar }
+  }, [alleRader, valdKategoriId])
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -56,8 +97,38 @@ export function TidsrapportVy({
             Nästa →
           </Link>
         </div>
-        <PersonValjare personer={personer} valdPersonId={valdPersonId} vecka={vecka} />
+        <PersonValjare
+          personer={personer}
+          valdPersonId={valdPersonId}
+          vecka={vecka}
+          kategoriId={valdKategoriId}
+        />
       </div>
+
+      {kategoriTotaler.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {kategoriTotaler.map((k) => {
+            const aktiv = valdKategoriId === k.kategoriId
+            return (
+              <button
+                key={k.kategoriId}
+                type="button"
+                onClick={() => setValdKategoriId(aktiv ? 'alla' : k.kategoriId)}
+                className={`rounded-xl border p-4 text-left transition-colors ${
+                  aktiv
+                    ? 'border-accent-500 bg-accent-50 dark:bg-accent-950'
+                    : 'border-border-subtle bg-surface hover:border-stone-400 dark:hover:border-stone-600'
+                }`}
+              >
+                <p className={`text-xs ${aktiv ? 'text-accent-700 dark:text-accent-300' : 'text-stone-500'}`}>
+                  {k.kategoriNamn}
+                </p>
+                <p className="text-xl font-semibold text-foreground">{k.timmar} h</p>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-stone-500">{veckoetikett}</p>

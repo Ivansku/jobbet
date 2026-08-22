@@ -9,10 +9,12 @@ export function PersonValjare({
   personer,
   valdPersonId,
   vecka,
+  kategoriId,
 }: {
   personer: Person[]
   valdPersonId: string
   vecka: string
+  kategoriId: string
 }) {
   const router = useRouter()
 
@@ -21,7 +23,7 @@ export function PersonValjare({
       aria-label="Person"
       value={valdPersonId}
       onChange={(e) => {
-        router.push(`/rapporter/tidsrapportering?vecka=${vecka}&person=${e.target.value}`)
+        router.push(`/rapporter/tidsrapportering?vecka=${vecka}&person=${e.target.value}&kategori=${kategoriId}`)
       }}
       className="!w-auto"
     >
