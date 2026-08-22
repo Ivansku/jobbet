@@ -501,7 +501,10 @@ function MallUppgiftFormular({
       await uppdateraMallUppgift(existing.id, input)
       await sparaAnteckningskallor(existing.id, valdaBlock)
     } else {
-      await skapaMallUppgift({ mallProjektId, ...input })
+      const ny = await skapaMallUppgift({ mallProjektId, ...input })
+      if (ny) {
+        await sparaAnteckningskallor(ny.id, valdaBlock)
+      }
     }
 
     setSparar(false)
@@ -653,7 +656,7 @@ function MallUppgiftFormular({
           </p>
         )}
 
-        {existing && kallaGrupper.length > 0 && (
+        {kallaGrupper.length > 0 && (
           <div className="border-t border-border-subtle pt-3">
             <h3 className="mb-1 text-sm font-semibold text-stone-500">Fyll beskrivningen automatiskt</h3>
             <p className="mb-2 text-xs text-stone-400">

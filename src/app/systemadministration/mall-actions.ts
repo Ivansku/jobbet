@@ -84,23 +84,29 @@ export async function skapaMallUppgift(input: {
     .limit(1)
     .maybeSingle()
 
-  await supabase.from('mall_uppgift').insert({
-    foretag_id: foretagId,
-    mall_projekt_id: input.mallProjektId,
-    titel: titelTrimmad,
-    beskrivning: input.beskrivning || null,
-    typ_id: input.typId || null,
-    kategori_id: input.kategoriId || null,
-    prioritet: input.prioritet,
-    status: input.status,
-    person_id: input.personId || null,
-    tidsatgang_timmar: input.tidsatgangTimmar,
-    dagar_efter_start: input.dagarEfterStart,
-    ar_placeholder: input.arPlaceholder,
-    anteckningsmall_id: input.anteckningsmallId,
-    sortordning: (sistaUppgift?.sortordning ?? 0) + 1,
-  })
+  const { data: nyUppgift } = await supabase
+    .from('mall_uppgift')
+    .insert({
+      foretag_id: foretagId,
+      mall_projekt_id: input.mallProjektId,
+      titel: titelTrimmad,
+      beskrivning: input.beskrivning || null,
+      typ_id: input.typId || null,
+      kategori_id: input.kategoriId || null,
+      prioritet: input.prioritet,
+      status: input.status,
+      person_id: input.personId || null,
+      tidsatgang_timmar: input.tidsatgangTimmar,
+      dagar_efter_start: input.dagarEfterStart,
+      ar_placeholder: input.arPlaceholder,
+      anteckningsmall_id: input.anteckningsmallId,
+      sortordning: (sistaUppgift?.sortordning ?? 0) + 1,
+    })
+    .select('id')
+    .single()
+
   revalidatePath('/systemadministration')
+  return nyUppgift ?? null
 }
 
 export async function uppdateraMallUppgift(
