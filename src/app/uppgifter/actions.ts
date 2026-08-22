@@ -106,6 +106,45 @@ export async function skapaUppgift(input: {
   revalidatePath('/uppgifter')
 }
 
+// Adopterar alla Outlook-synkade uppgifter i samma Outlook-serie in i den
+// kopplade uppgift_serie: sätter serie_id och ärver kategori/typ därifrån.
+// Körs både när kopplingen skapas (fångar redan synkade förekomster) och vid
+// varje uppdatering av serien (håller adopterade rader i synk). Rör aldrig
+// fält Outlook själv äger (titel, deadline, klockslag osv).
+// Om synkFranDatum är satt raderas först alla matchande förekomster äldre än
+// det datumet (spökposter från innan mötesserien "på riktigt" drog igång) —
+// samma gräns som webhooken sedan använder för att aldrig återskapa dem.
+async function synkaOutlookSerieUppgifter(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  foretagId: string,
+  serieId: string,
+  outlookSeriesId: string,
+  kategoriId: string | null,
+  typId: string | null,
+  synkFranDatum: string | null
+) {
+  if (synkFranDatum) {
+    await supabase
+      .from('uppgift')
+      .delete()
+      .eq('foretag_id', foretagId)
+      .eq('outlook_series_id', outlookSeriesId)
+      .not('outlook_event_id', 'is', null)
+      .lt('deadline', synkFranDatum)
+  }
+
+  await supabase
+    .from('uppgift')
+    .update({
+      serie_id: serieId,
+      ...(kategoriId ? { kategori_id: kategoriId } : {}),
+      ...(typId ? { typ_id: typId } : {}),
+    })
+    .eq('foretag_id', foretagId)
+    .eq('outlook_series_id', outlookSeriesId)
+    .not('outlook_event_id', 'is', null)
+}
+
 export async function skapaUppgiftSerie(input: {
   titel: string
   beskrivning: string
@@ -120,30 +159,51 @@ export async function skapaUppgiftSerie(input: {
   slutDatum: string | null
   tidsatgangTimmar: number | null
   klockslag: string | null
+  outlookSeriesId: string | null
+  synkFranDatum: string | null
 }) {
-  if (input.veckodagar.length === 0) return
+  const outlookKopplad = !!input.outlookSeriesId
+  if (!outlookKopplad && input.veckodagar.length === 0) return
   const foretagId = await currentForetagId()
   if (!foretagId) return
 
   const supabase = await createClient()
-  await supabase.from('uppgift_serie').insert({
-    foretag_id: foretagId,
-    titel: input.titel,
-    beskrivning: input.beskrivning || null,
-    person_id: input.personId || null,
-    kund_id: input.kundId || null,
-    typ_id: input.typId || null,
-    kategori_id: input.kategoriId || null,
-    prioritet: input.prioritet,
-    start_datum: input.startDatum,
-    veckodagar: input.veckodagar,
-    intervall_veckor: input.intervallVeckor,
-    slut_datum: input.slutDatum,
-    tidsatgang_timmar: input.tidsatgangTimmar,
-    klockslag: input.klockslag,
-  })
+  const { data: nySerie } = await supabase
+    .from('uppgift_serie')
+    .insert({
+      foretag_id: foretagId,
+      titel: input.titel,
+      beskrivning: input.beskrivning || null,
+      person_id: input.personId || null,
+      kund_id: input.kundId || null,
+      typ_id: input.typId || null,
+      kategori_id: input.kategoriId || null,
+      prioritet: input.prioritet,
+      start_datum: input.startDatum,
+      veckodagar: input.veckodagar,
+      intervall_veckor: input.intervallVeckor,
+      slut_datum: input.slutDatum,
+      tidsatgang_timmar: input.tidsatgangTimmar,
+      klockslag: input.klockslag,
+      outlook_series_id: input.outlookSeriesId,
+      synk_fran_datum: outlookKopplad ? input.synkFranDatum : null,
+    })
+    .select('id')
+    .single()
 
-  await supabase.rpc('generera_serie_forekomster', { p_foretag_id: foretagId })
+  if (outlookKopplad && nySerie) {
+    await synkaOutlookSerieUppgifter(
+      supabase,
+      foretagId,
+      nySerie.id,
+      input.outlookSeriesId!,
+      input.kategoriId || null,
+      input.typId || null,
+      input.synkFranDatum
+    )
+  } else {
+    await supabase.rpc('generera_serie_forekomster', { p_foretag_id: foretagId })
+  }
 
   revalidatePath('/uppgifter')
 }
@@ -164,14 +224,23 @@ export async function uppdateraSerie(
     slutDatum: string | null
     tidsatgangTimmar: number | null
     klockslag: string | null
+    synkFranDatum: string | null
   }
 ) {
-  if (input.veckodagar.length === 0) return
   const foretagId = await currentForetagId()
   if (!foretagId) return
 
   const supabase = await createClient()
   const idag = todayISODate()
+
+  const { data: befintligSerie } = await supabase
+    .from('uppgift_serie')
+    .select('outlook_series_id')
+    .eq('id', id)
+    .single()
+  const outlookSeriesId = befintligSerie?.outlook_series_id ?? null
+
+  if (!outlookSeriesId && input.veckodagar.length === 0) return
 
   // En serie som ännu inte börjat (startdatum efter idag) har inget att
   // "redan ha genererat" — nollställs istället för att sättas till idag, annars
@@ -197,15 +266,35 @@ export async function uppdateraSerie(
       tidsatgang_timmar: input.tidsatgangTimmar,
       klockslag: input.klockslag,
       senast_genererad_datum: senastGenererat,
+      ...(outlookSeriesId ? { synk_fran_datum: input.synkFranDatum } : {}),
     })
     .eq('id', id)
 
-  // rensa bort ej pabörjade framtida förekomster som byggdes enligt den gamla regeln —
-  // redan klara/pågående lämnas orörda. Nästa generering (vid sidladdning) bygger om
-  // resten enligt den nya regeln.
-  await supabase.from('uppgift').delete().eq('serie_id', id).eq('status', 'oppen').gt('deadline', idag)
+  if (outlookSeriesId) {
+    await synkaOutlookSerieUppgifter(
+      supabase,
+      foretagId,
+      id,
+      outlookSeriesId,
+      input.kategoriId || null,
+      input.typId || null,
+      input.synkFranDatum
+    )
+  } else {
+    // rensa bort ej pabörjade framtida förekomster som byggdes enligt den gamla regeln —
+    // redan klara/pågående lämnas orörda. Nästa generering (vid sidladdning) bygger om
+    // resten enligt den nya regeln. outlook_event_id-raderna rörs aldrig här — de ägs
+    // av Outlook-synken, inte av generatorn.
+    await supabase
+      .from('uppgift')
+      .delete()
+      .eq('serie_id', id)
+      .eq('status', 'oppen')
+      .gt('deadline', idag)
+      .is('outlook_event_id', null)
 
-  await supabase.rpc('generera_serie_forekomster', { p_foretag_id: foretagId })
+    await supabase.rpc('generera_serie_forekomster', { p_foretag_id: foretagId })
+  }
 
   revalidatePath('/uppgifter')
 }
@@ -218,7 +307,13 @@ export async function avslutaSerie(id: string) {
   const idag = todayISODate()
 
   await supabase.from('uppgift_serie').update({ slut_datum: idag }).eq('id', id)
-  await supabase.from('uppgift').delete().eq('serie_id', id).eq('status', 'oppen').gt('deadline', idag)
+  await supabase
+    .from('uppgift')
+    .delete()
+    .eq('serie_id', id)
+    .eq('status', 'oppen')
+    .gt('deadline', idag)
+    .is('outlook_event_id', null)
 
   revalidatePath('/uppgifter')
 }

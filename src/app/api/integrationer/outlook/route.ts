@@ -373,6 +373,38 @@ export async function POST(request: NextRequest) {
 
   const befintligUppgift = await hittaUppgiftViaOutlookId(supabase, foretagId, eventId, iCalUId)
 
+  // Om en uppgift_serie är kopplad mot samma Outlook-serie (satt via
+  // Serier-vyn): förekomster adopteras in direkt (samma serie_id, ärver
+  // kategori/typ), och förekomster äldre än seriens synk_fran_datum ignoreras
+  // helt — skapas aldrig, och raderas om de redan finns. Skydd mot att gamla
+  // spökposter (från innan mötesserien "på riktigt" drog igång) återuppstår.
+  let serieId: string | null = null
+  let arvdKategoriId: string | null = null
+  let arvdTypId: string | null = null
+  let foreSynkStart = false
+  if (falt.outlook_series_id) {
+    const { data: koppladSerie } = await supabase
+      .from('uppgift_serie')
+      .select('id, kategori_id, typ_id, synk_fran_datum')
+      .eq('foretag_id', foretagId)
+      .eq('outlook_series_id', falt.outlook_series_id)
+      .maybeSingle()
+    if (koppladSerie) {
+      serieId = koppladSerie.id
+      arvdKategoriId = koppladSerie.kategori_id
+      arvdTypId = koppladSerie.typ_id
+      foreSynkStart = !!koppladSerie.synk_fran_datum && datum < koppladSerie.synk_fran_datum
+    }
+  }
+
+  if (foreSynkStart) {
+    if (befintligUppgift) {
+      await supabase.from('uppgift').delete().eq('id', befintligUppgift.id)
+      return NextResponse.json({ ok: true, uppgiftId: befintligUppgift.id, action: 'raderad_fore_synkstart' })
+    }
+    return NextResponse.json({ ok: true, action: 'ignorerad_fore_synkstart' })
+  }
+
   if (befintligUppgift) {
     await supabase.from('uppgift').update(falt).eq('id', befintligUppgift.id)
     await synkaDeltagareFranOutlook(
@@ -393,7 +425,10 @@ export async function POST(request: NextRequest) {
       foretag_id: foretagId,
       status: 'oppen',
       prioritet: 'lag',
+      serie_id: serieId,
       ...falt,
+      ...(arvdKategoriId ? { kategori_id: arvdKategoriId } : {}),
+      ...(arvdTypId ? { typ_id: arvdTypId } : {}),
     })
     .select('id')
     .single()

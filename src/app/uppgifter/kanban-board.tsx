@@ -36,6 +36,7 @@ import type {
   Uppgift,
   Kontaktperson,
   Serie,
+  OutlookSerie,
 } from './uppgift-formular'
 import { projektKortBakgrund } from '@/lib/projekt-farg'
 
@@ -114,6 +115,7 @@ export function KanbanBoard({
   kategori,
   projekt,
   serier,
+  outlookSerier,
   kontaktpersoner,
   block,
   currentPersonId,
@@ -134,6 +136,7 @@ export function KanbanBoard({
   kategori: Kategori[]
   projekt: Projekt[]
   serier: Serie[]
+  outlookSerier: OutlookSerie[]
   kontaktpersoner: Kontaktperson[]
   block: Anteckningsblock[]
   currentPersonId: string | null
@@ -504,6 +507,7 @@ export function KanbanBoard({
           kategori={kategori}
           projekt={projekt}
           serier={serier}
+          outlookSerier={outlookSerier}
           kontaktpersoner={kontaktpersoner}
           block={block}
           currentPersonId={currentPersonId}

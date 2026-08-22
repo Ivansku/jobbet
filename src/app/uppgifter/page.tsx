@@ -106,6 +106,7 @@ export default async function UppgifterPage({
     { data: serier },
     { data: kontaktpersoner },
     { data: block },
+    { data: outlookForekomster },
   ] = await Promise.all([
     aktuellPerson?.foretag_id
       ? supabase.rpc('generera_serie_forekomster', { p_foretag_id: aktuellPerson.foretag_id })
@@ -135,7 +136,7 @@ export default async function UppgifterPage({
     supabase
       .from('uppgift_serie')
       .select(
-        'id, titel, beskrivning, person_id, kund_id, typ_id, kategori_id, prioritet, start_datum, veckodagar, intervall_veckor, slut_datum, tidsatgang_timmar, klockslag'
+        'id, titel, beskrivning, person_id, kund_id, typ_id, kategori_id, prioritet, start_datum, veckodagar, intervall_veckor, slut_datum, tidsatgang_timmar, klockslag, outlook_series_id, synk_fran_datum'
       )
       .order('titel'),
     supabase.from('kontaktperson').select('id, kund_id, fornamn, efternamn, epost').order('fornamn'),
@@ -144,7 +145,25 @@ export default async function UppgifterPage({
       .select('id, namn, beskrivning, anteckningsmall_id')
       .eq('aktiv', true)
       .order('sortordning'),
+    // Underlag för "Koppla mot Outlook-serie" i Serier-modalen — bara de Outlook-serier
+    // som ännu inte har en kopplad uppgift_serie ska gå att välja.
+    supabase.from('uppgift').select('outlook_series_id, titel, klockslag').not('outlook_series_id', 'is', null),
   ])
+
+  const redanKopplade = new Set((serier ?? []).map((s) => s.outlook_series_id).filter(Boolean))
+  const outlookSerier = Array.from(
+    new Map(
+      (outlookForekomster ?? [])
+        .filter((o) => o.outlook_series_id && !redanKopplade.has(o.outlook_series_id))
+        .map((o) => [
+          o.outlook_series_id as string,
+          {
+            outlookSeriesId: o.outlook_series_id as string,
+            label: o.klockslag ? `${o.titel} (${o.klockslag.slice(0, 5)})` : o.titel,
+          },
+        ])
+    ).values()
+  )
 
   const prevVecka = new Date(monday)
   prevVecka.setUTCDate(prevVecka.getUTCDate() - 7)
@@ -176,6 +195,7 @@ export default async function UppgifterPage({
             projektAnteckningar: p.projekt_anteckning,
           }))}
           serier={serier ?? []}
+          outlookSerier={outlookSerier}
           kontaktpersoner={kontaktpersoner ?? []}
           block={block ?? []}
           currentPersonId={aktuellPerson?.id ?? null}

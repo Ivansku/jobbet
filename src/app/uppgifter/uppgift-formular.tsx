@@ -108,6 +108,16 @@ export type Serie = {
   slut_datum: string | null
   tidsatgang_timmar: number | null
   klockslag: string | null
+  outlook_series_id: string | null
+  synk_fran_datum: string | null
+}
+export type OutlookSerie = { outlookSeriesId: string; label: string }
+
+// Startdatum är irrelevant för en Outlook-kopplad serie (Outlook äger datumen),
+// men kolumnen är NOT NULL — dagens datum duger som platshållare.
+function todayISO() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 }
 
 export const PRIORITET_PILLS = [
@@ -257,6 +267,7 @@ export function UppgiftFormular({
   currentPersonId,
   initialDeadline,
   serieLage = false,
+  outlookSerier,
   onEditSerie,
   onClose,
   onChanged,
@@ -275,6 +286,7 @@ export function UppgiftFormular({
   currentPersonId: string | null
   initialDeadline: string | null
   serieLage?: boolean
+  outlookSerier?: OutlookSerie[]
   onEditSerie: (serieId: string) => void
   onClose: () => void
   onChanged?: () => void
@@ -311,6 +323,11 @@ export function UppgiftFormular({
   const [veckodagar, setVeckodagar] = useState<number[]>(existingSerie?.veckodagar ?? [])
   const [intervallVeckor, setIntervallVeckor] = useState(existingSerie?.intervall_veckor ?? 1)
   const [slutDatum, setSlutDatum] = useState(existingSerie?.slut_datum ?? '')
+  const [valtOutlookSeriesId, setValtOutlookSeriesId] = useState('')
+  // Kopplingen sätts bara vid skapande — en redan kopplad serie visas som
+  // låst (den byter aldrig Outlook-serie i efterhand, bara kategori/typ).
+  const outlookKopplad = existingSerie ? !!existingSerie.outlook_series_id : !!valtOutlookSeriesId
+  const [synkFranDatum, setSynkFranDatum] = useState(existingSerie?.synk_fran_datum ?? '')
   const [sparar, setSparar] = useState(false)
   const [visaBekraftelse, setVisaBekraftelse] = useState(false)
   const [tarBort, setTarBort] = useState(false)
@@ -322,7 +339,7 @@ export function UppgiftFormular({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!titel.trim()) return
-    if (serieModus && (!deadline || veckodagar.length === 0)) return
+    if (serieModus && !outlookKopplad && (!deadline || veckodagar.length === 0)) return
     setSparar(true)
 
     const tidsatgangTimmar = tidsatgang.trim() ? Number(tidsatgang) : null
@@ -343,6 +360,7 @@ export function UppgiftFormular({
         slutDatum: slutDatum || null,
         tidsatgangTimmar,
         klockslag: klockslagVarde,
+        synkFranDatum: synkFranDatum || null,
       })
     } else if (serieLage) {
       await skapaUppgiftSerie({
@@ -353,12 +371,14 @@ export function UppgiftFormular({
         typId,
         kategoriId,
         prioritet,
-        startDatum: deadline,
+        startDatum: outlookKopplad ? deadline || todayISO() : deadline,
         veckodagar,
         intervallVeckor,
         slutDatum: slutDatum || null,
         tidsatgangTimmar,
         klockslag: klockslagVarde,
+        outlookSeriesId: valtOutlookSeriesId || null,
+        synkFranDatum: synkFranDatum || null,
       })
     } else if (existing) {
       await uppdateraUppgift(existing.id, {
@@ -644,48 +664,97 @@ export function UppgiftFormular({
           />
         )}
 
-        <FormularSektion label="Tid">
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={serieModus ? 'Startdatum' : 'Dag'} htmlFor="uppgift-deadline">
-              <Input
-                type="date"
-                id="uppgift-deadline"
-                value={deadline ?? ''}
-                onChange={(e) => setDeadline(e.target.value)}
-                required={serieModus}
-              />
-            </Field>
+        {((serieLage && !existingSerie && outlookSerier && outlookSerier.length > 0) ||
+          existingSerie?.outlook_series_id) && (
+          <FormularSektion label="Outlook-koppling">
+            {serieLage && !existingSerie && outlookSerier && outlookSerier.length > 0 && (
+              <Field label="Koppla mot Outlook-serie" htmlFor="serie-outlook">
+                <Select
+                  id="serie-outlook"
+                  value={valtOutlookSeriesId}
+                  onChange={(e) => setValtOutlookSeriesId(e.target.value)}
+                >
+                  <option value="">Ingen koppling (vanlig serie)</option>
+                  {outlookSerier.map((o) => (
+                    <option key={o.outlookSeriesId} value={o.outlookSeriesId}>
+                      {o.label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            )}
+
+            {existingSerie?.outlook_series_id && (
+              <p className="text-xs text-stone-400">Kopplad till en Outlook-serie.</p>
+            )}
+
+            {outlookKopplad && (
+              <>
+                <p className="text-xs text-stone-400">
+                  Outlook äger datum, tid och titel för de här mötena — bara kategori och typ nedan
+                  tillämpas, på alla befintliga och framtida förekomster.
+                </p>
+                <Field label="Synka från datum" htmlFor="serie-synk-fran">
+                  <Input
+                    type="date"
+                    id="serie-synk-fran"
+                    value={synkFranDatum}
+                    onChange={(e) => setSynkFranDatum(e.target.value)}
+                  />
+                  <p className="mt-1 text-xs text-stone-400">
+                    Förekomster äldre än detta datum raderas direkt och skapas aldrig igen av
+                    Outlook-synken. Lämna tomt för ingen gräns.
+                  </p>
+                </Field>
+              </>
+            )}
+          </FormularSektion>
+        )}
+
+        {!outlookKopplad && (
+          <FormularSektion label="Tid">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={serieModus ? 'Startdatum' : 'Dag'} htmlFor="uppgift-deadline">
+                <Input
+                  type="date"
+                  id="uppgift-deadline"
+                  value={deadline ?? ''}
+                  onChange={(e) => setDeadline(e.target.value)}
+                  required={serieModus}
+                />
+              </Field>
+
+              <Field
+                label="Klockslag"
+                htmlFor="uppgift-klockslag"
+              >
+                <Input
+                  type="time"
+                  id="uppgift-klockslag"
+                  value={klockslag}
+                  onChange={(e) => setKlockslag(e.target.value)}
+                />
+              </Field>
+            </div>
 
             <Field
-              label="Klockslag"
-              htmlFor="uppgift-klockslag"
+              label={serieModus ? 'Tidsåtgång (standard för serien)' : 'Tidsåtgång (timmar)'}
+              htmlFor="uppgift-tidsatgang"
             >
               <Input
-                type="time"
-                id="uppgift-klockslag"
-                value={klockslag}
-                onChange={(e) => setKlockslag(e.target.value)}
+                type="number"
+                id="uppgift-tidsatgang"
+                min={0}
+                step={0.5}
+                value={tidsatgang}
+                onChange={(e) => setTidsatgang(e.target.value)}
+                placeholder="T.ex. 0.5"
               />
             </Field>
-          </div>
+          </FormularSektion>
+        )}
 
-          <Field
-            label={serieModus ? 'Tidsåtgång (standard för serien)' : 'Tidsåtgång (timmar)'}
-            htmlFor="uppgift-tidsatgang"
-          >
-            <Input
-              type="number"
-              id="uppgift-tidsatgang"
-              min={0}
-              step={0.5}
-              value={tidsatgang}
-              onChange={(e) => setTidsatgang(e.target.value)}
-              placeholder="T.ex. 0.5"
-            />
-          </Field>
-        </FormularSektion>
-
-        {serieModus && (
+        {serieModus && !outlookKopplad && (
           <FormularSektion label="Upprepning">
             <Field label="Upprepa på" htmlFor="serie-veckodagar">
               <VeckodagValjare value={veckodagar} onChange={setVeckodagar} />
@@ -770,7 +839,7 @@ export function UppgiftFormular({
                 type="submit"
                 variant="primary"
                 loading={sparar}
-                disabled={!titel.trim() || !deadline || veckodagar.length === 0}
+                disabled={!titel.trim() || (!outlookKopplad && (!deadline || veckodagar.length === 0))}
               >
                 Spara
               </Button>
@@ -785,7 +854,9 @@ export function UppgiftFormular({
               type="submit"
               variant="primary"
               loading={sparar}
-              disabled={!titel.trim() || (serieLage && (!deadline || veckodagar.length === 0))}
+              disabled={
+                !titel.trim() || (serieLage && !outlookKopplad && (!deadline || veckodagar.length === 0))
+              }
             >
               {existing ? 'Spara' : serieLage ? 'Skapa serie' : 'Skapa'}
             </Button>
