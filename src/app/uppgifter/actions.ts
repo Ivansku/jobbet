@@ -736,7 +736,7 @@ export async function kopplaTillPlaceholder(riktigUppgiftId: string, projektId: 
 
   const { data: placeholder } = await supabase
     .from('uppgift')
-    .select('id, projekt_id, kategori_id, sortordning, anteckningsmall_id')
+    .select('id, projekt_id, kategori_id, sortordning, anteckningsmall_id, utan_anteckningsmall')
     .eq('id', placeholderId)
     .eq('ar_placeholder', true)
     .single()
@@ -755,6 +755,10 @@ export async function kopplaTillPlaceholder(riktigUppgiftId: string, projektId: 
       ...(riktig.anteckningsmall_id == null && placeholder.anteckningsmall_id != null
         ? { anteckningsmall_id: placeholder.anteckningsmall_id }
         : {}),
+      // Bara ärvd när placeholdern uttryckligen sattes till "Ingen mall" — en
+      // falsk placeholder-flagga betyder bara "aldrig satt" och ska aldrig kunna
+      // slå tillbaka en riktig uppgifts egen true till false.
+      ...(placeholder.utan_anteckningsmall ? { utan_anteckningsmall: true } : {}),
     })
     .eq('id', riktigUppgiftId)
   if (updateError) {

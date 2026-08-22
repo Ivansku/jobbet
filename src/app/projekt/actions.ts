@@ -105,7 +105,7 @@ export async function skapaUppgifterFranMall(projektId: string) {
   const { data: mallUppgifter } = await supabase
     .from('mall_uppgift')
     .select(
-      'id, titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, ar_placeholder, anteckningsmall_id'
+      'id, titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, ar_placeholder, anteckningsmall_id, utan_anteckningsmall'
     )
     .eq('mall_projekt_id', projekt.mall_projekt_id)
     .order('sortordning')
@@ -136,6 +136,7 @@ export async function skapaUppgifterFranMall(projektId: string) {
       status: m.status,
       ar_placeholder: m.ar_placeholder,
       anteckningsmall_id: m.anteckningsmall_id,
+      utan_anteckningsmall: m.utan_anteckningsmall,
       sortordning: epokForDatum(deadline) + index,
     }
   })

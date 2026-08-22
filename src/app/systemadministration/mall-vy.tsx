@@ -53,6 +53,7 @@ type MallUppgift = {
   sortordning: number
   ar_placeholder: boolean
   anteckningsmall_id: string | null
+  utan_anteckningsmall: boolean
   anteckningskallor: string[]
 }
 type MallProjekt = {
@@ -473,6 +474,7 @@ function MallUppgiftFormular({
   const [dagarEfterStart, setDagarEfterStart] = useState(existing?.dagar_efter_start?.toString() ?? '0')
   const [arPlaceholder, setArPlaceholder] = useState(existing?.ar_placeholder ?? false)
   const [anteckningsmallId, setAnteckningsmallId] = useState(existing?.anteckningsmall_id ?? '')
+  const [utanAnteckningsmall, setUtanAnteckningsmall] = useState(existing?.utan_anteckningsmall ?? false)
   const [sparar, setSparar] = useState(false)
   const [tarBort, setTarBort] = useState(false)
   const [valdaBlock, setValdaBlock] = useState<string[]>(existing?.anteckningskallor ?? [])
@@ -519,7 +521,8 @@ function MallUppgiftFormular({
       tidsatgangTimmar: tidsatgang.trim() ? Number(tidsatgang) : null,
       dagarEfterStart: Math.max(0, Number(dagarEfterStart) || 0),
       arPlaceholder,
-      anteckningsmallId: visaAnteckningsmallValjare ? anteckningsmallId || null : null,
+      anteckningsmallId: visaAnteckningsmallValjare && !utanAnteckningsmall ? anteckningsmallId || null : null,
+      utanAnteckningsmall: visaAnteckningsmallValjare && utanAnteckningsmall,
     }
 
     if (existing) {
@@ -651,10 +654,15 @@ function MallUppgiftFormular({
           <Field label="Anteckningsmall" htmlFor="mall-uppgift-anteckningsmall">
             <Select
               id="mall-uppgift-anteckningsmall"
-              value={anteckningsmallId}
-              onChange={(e) => setAnteckningsmallId(e.target.value)}
+              value={utanAnteckningsmall ? '__ingen__' : anteckningsmallId}
+              onChange={(e) => {
+                const varde = e.target.value
+                setUtanAnteckningsmall(varde === '__ingen__')
+                setAnteckningsmallId(varde === '__ingen__' ? '' : varde)
+              }}
             >
               <option value="">Använd typens standard</option>
+              <option value="__ingen__">Ingen mall</option>
               {anteckningsmallar.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.namn}

@@ -32,7 +32,9 @@ export function UppgiftDetalj({
   const kundNamn = uppgift.kund_id ? kunder.find((k) => k.id === uppgift.kund_id)?.namn : undefined
   // Uppgiftens egen anteckningsmall (satt vid projektgenerering) går före
   // typens standard — men går aldrig att byta här, bara i Projektmallar.
-  const effektivMallId = uppgift.anteckningsmall_id ?? typ?.anteckningsmall_id ?? null
+  const effektivMallId = uppgift.utan_anteckningsmall
+    ? null
+    : (uppgift.anteckningsmall_id ?? typ?.anteckningsmall_id ?? null)
   const mallBlock = block.filter((b) => b.anteckningsmall_id === effektivMallId)
 
   async function handleSubmit(e: React.FormEvent) {

@@ -99,6 +99,7 @@ type Uppgift = {
   skapa_uppgifter_vid_klar: boolean | null
   ar_placeholder: boolean
   anteckningsmall_id: string | null
+  utan_anteckningsmall: boolean
   uppgift_deltagare: { kontaktperson_id: string }[]
   uppgift_anteckning: UppgiftAnteckning[]
 }
@@ -324,6 +325,7 @@ export function KanbanBoard({
               skapa_uppgifter_vid_klar: (rad.skapa_uppgifter_vid_klar as boolean | null) ?? null,
               ar_placeholder: (rad.ar_placeholder as boolean | undefined) ?? false,
               anteckningsmall_id: (rad.anteckningsmall_id as string | null) ?? null,
+              utan_anteckningsmall: (rad.utan_anteckningsmall as boolean | undefined) ?? false,
               uppgift_deltagare: befintlig?.uppgift_deltagare ?? [],
               uppgift_anteckning: befintlig?.uppgift_anteckning ?? [],
             }
@@ -1149,7 +1151,9 @@ function UppgiftFormular({
   // Uppgiftens egen anteckningsmall (satt vid projektgenerering) går före
   // typens standard — men går aldrig att byta här, bara i Projektmallar.
   const valdTyp = typer.find((t) => t.id === typId)
-  const effektivMallId = existing?.anteckningsmall_id ?? valdTyp?.anteckningsmall_id ?? null
+  const effektivMallId = existing?.utan_anteckningsmall
+    ? null
+    : (existing?.anteckningsmall_id ?? valdTyp?.anteckningsmall_id ?? null)
   const mallBlock = block.filter((b) => b.anteckningsmall_id === effektivMallId)
   const valtProjekt = projekt.find((p) => p.id === projektId)
   const projektAnteckningsmallId = valtProjekt?.mallProjektAnteckningsmallId ?? null

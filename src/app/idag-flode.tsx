@@ -35,6 +35,7 @@ export type UppgiftDetaljerad = Uppgift & {
   skapa_uppgifter_vid_klar: boolean | null
   ar_placeholder: boolean
   anteckningsmall_id: string | null
+  utan_anteckningsmall: boolean
   uppgift_deltagare: { kontaktperson_id: string }[]
   uppgift_anteckning: {
     block_id: string

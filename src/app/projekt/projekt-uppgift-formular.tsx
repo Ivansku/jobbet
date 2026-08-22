@@ -39,6 +39,7 @@ export type ProjektUppgiftDetaljerad = {
   prioritet: string
   ar_placeholder: boolean
   anteckningsmall_id: string | null
+  utan_anteckningsmall: boolean
   skapa_uppgifter_vid_klar: boolean | null
   uppgift_deltagare: { kontaktperson_id: string }[]
   uppgift_anteckning: UppgiftAnteckning[]
@@ -81,7 +82,9 @@ export function ProjektUppgiftFormular({
   const typ = typer.find((t) => t.id === uppgift.typ_id)
   // Samma upplösning som Uppgifter-vyn och Idag-vyn: uppgiftens egen mall
   // (satt vid projektgenerering) går före typens standard.
-  const effektivMallId = uppgift.anteckningsmall_id ?? typ?.anteckningsmall_id ?? null
+  const effektivMallId = uppgift.utan_anteckningsmall
+    ? null
+    : (uppgift.anteckningsmall_id ?? typ?.anteckningsmall_id ?? null)
   const mallBlock = block.filter((b) => b.anteckningsmall_id === effektivMallId)
   const projektMallBlock = block.filter((b) => b.anteckningsmall_id === projektAnteckningsmallId)
 
