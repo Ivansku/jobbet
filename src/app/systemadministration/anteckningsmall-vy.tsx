@@ -39,7 +39,6 @@ type Anteckningsblock = {
   beskrivning: string | null
   sortordning: number
   aktiv: boolean
-  kundvisning_standard: boolean
 }
 type Anteckningsmall = { id: string; namn: string; block: Anteckningsblock[] }
 
@@ -323,7 +322,6 @@ function AnteckningsblockFormular({
 }) {
   const [namn, setNamn] = useState(existing?.namn ?? '')
   const [beskrivning, setBeskrivning] = useState(existing?.beskrivning ?? '')
-  const [kundvisningStandard, setKundvisningStandard] = useState(existing?.kundvisning_standard ?? false)
   const [aktiv, setAktiv] = useState(existing?.aktiv ?? true)
   const [sparar, setSparar] = useState(false)
   const [fel, setFel] = useState<string | null>(null)
@@ -336,7 +334,6 @@ function AnteckningsblockFormular({
     const input = {
       namn,
       beskrivning,
-      kundvisningStandard,
     }
 
     const resultat = existing
@@ -385,16 +382,6 @@ function AnteckningsblockFormular({
             rows={2}
           />
         </Field>
-
-        <label className="flex items-center gap-2 text-sm font-medium">
-          <input
-            type="checkbox"
-            checked={kundvisningStandard}
-            onChange={(e) => setKundvisningStandard(e.target.checked)}
-            className="h-4 w-4 accent-accent-600"
-          />
-          Ibockad som standard i kundsammanfattningen
-        </label>
 
         {existing && (
           <label className="flex items-center gap-2 text-sm font-medium">

@@ -486,60 +486,6 @@ async function fyllINedstromsBeskrivningarFranAnteckningar(
   }
 }
 
-// Körs varje gång en uppgift sätts till klar (dropdown i formuläret eller
-// kryssrutan på Kanban-kortet) — genererar bara om det effektiva värdet
-// (uppgiftens egen inställning, annars typens standard) är påslaget.
-export async function byggKundsammanfattning(uppgiftId: string) {
-  const supabase = await createClient()
-
-  const { data: mote } = await supabase
-    .from('uppgift')
-    .select(
-      'titel, deadline, kund:kund_id(namn), uppgift_deltagare(kontaktperson:kontaktperson_id(epost))'
-    )
-    .eq('id', uppgiftId)
-    .single()
-  if (!mote) return null
-
-  const { data: anteckningar } = await supabase
-    .from('uppgift_anteckning')
-    .select(
-      'innehall, block:block_id(namn, kundvisning_standard), genererad:uppgift!uppgift_anteckning_uppgift_id_genererad_fkey(titel, status)'
-    )
-    .eq('uppgift_id', uppgiftId)
-
-  const kundNamn = enTillRelation(mote.kund)?.namn ?? ''
-  const till = (mote.uppgift_deltagare ?? [])
-    .map((d) => enTillRelation(d.kontaktperson)?.epost)
-    .filter((epost): epost is string => !!epost)
-
-  const rader = (anteckningar ?? []).map((a) => ({
-    innehall: a.innehall,
-    block: enTillRelation(a.block),
-    genererad: enTillRelation(a.genererad),
-  }))
-
-  const kundvisningsBlock = rader.filter((a) => a.block?.kundvisning_standard && a.innehall?.trim())
-  const klaraGenererade = rader
-    .map((a) => a.genererad)
-    .filter((g): g is { titel: string; status: string } => !!g && g.status === 'klar')
-
-  const brodtextDelar = kundvisningsBlock.map((a) => `${a.block!.namn}\n${a.innehall}`)
-  if (klaraGenererade.length > 0) {
-    brodtextDelar.push(`Genomfört:\n${klaraGenererade.map((g) => `- ${g.titel}`).join('\n')}`)
-  }
-
-  const amne = `Sammanfattning – ${kundNamn} – ${mote.titel} ${mote.deadline ?? ''}`.trim()
-  const brodtext = brodtextDelar.join('\n\n')
-
-  await supabase
-    .from('uppgift')
-    .update({ sammanfattning_skickad_at: new Date().toISOString() })
-    .eq('id', uppgiftId)
-
-  return { till, amne, brodtext }
-}
-
 export async function hamtaTidigareMoten(kundId: string, excludeUppgiftId: string) {
   const supabase = await createClient()
   const { data } = await supabase

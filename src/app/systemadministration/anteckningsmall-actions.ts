@@ -41,7 +41,7 @@ export async function hamtaAnteckningsblockForMall(anteckningsmallId: string) {
   const supabase = await createClient()
   const { data } = await supabase
     .from('anteckningsblock')
-    .select('id, namn, beskrivning, sortordning, aktiv, kundvisning_standard')
+    .select('id, namn, beskrivning, sortordning, aktiv')
     .eq('anteckningsmall_id', anteckningsmallId)
     .order('sortordning')
   return data ?? []
@@ -50,7 +50,6 @@ export async function hamtaAnteckningsblockForMall(anteckningsmallId: string) {
 type AnteckningsblockInput = {
   namn: string
   beskrivning: string
-  kundvisningStandard: boolean
 }
 
 function validateraAnteckningsblock(input: AnteckningsblockInput): string | null {
@@ -79,7 +78,6 @@ export async function skapaAnteckningsblock(input: AnteckningsblockInput & { ant
     anteckningsmall_id: input.anteckningsmallId,
     namn: input.namn.trim(),
     beskrivning: input.beskrivning.trim() || null,
-    kundvisning_standard: input.kundvisningStandard,
     sortordning: (sistaBlock?.sortordning ?? 0) + 1,
   })
   revalidatePath('/systemadministration')
@@ -96,7 +94,6 @@ export async function uppdateraAnteckningsblock(id: string, input: Anteckningsbl
     .update({
       namn: input.namn.trim(),
       beskrivning: input.beskrivning.trim() || null,
-      kundvisning_standard: input.kundvisningStandard,
       uppdaterad_at: new Date().toISOString(),
     })
     .eq('id', id)

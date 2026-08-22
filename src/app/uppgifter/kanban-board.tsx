@@ -1391,22 +1391,22 @@ function UppgiftFormular({
           )}
         </FormularSektion>
 
-        {existing?.id && projektId && projektAnteckningsmallId && (
-          <FormularSektion label="Projektanteckningar">
-            <ProjektAnteckningarSektion
-              projektId={projektId}
-              blocks={projektMallBlock}
-              initialAnteckningar={valtProjekt?.projektAnteckningar ?? []}
-            />
-          </FormularSektion>
-        )}
-
         {existing?.id && effektivMallId && (
           <FormularSektion label="Mötesanteckningar">
             <MotesanteckningarSektion
               uppgiftId={existing.id}
               blocks={mallBlock}
               initialAnteckningar={existing.uppgift_anteckning}
+            />
+          </FormularSektion>
+        )}
+
+        {existing?.id && projektId && projektAnteckningsmallId && (
+          <FormularSektion label="Projektanteckningar">
+            <ProjektAnteckningarSektion
+              projektId={projektId}
+              blocks={projektMallBlock}
+              initialAnteckningar={valtProjekt?.projektAnteckningar ?? []}
             />
           </FormularSektion>
         )}

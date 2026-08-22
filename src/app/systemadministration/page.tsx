@@ -35,7 +35,7 @@ export default async function SystemadministrationPage() {
     supabase.from('kategori').select('id, namn').order('namn'),
     supabase
       .from('anteckningsmall')
-      .select('id, namn, anteckningsblock(id, namn, beskrivning, sortordning, aktiv, kundvisning_standard)')
+      .select('id, namn, anteckningsblock(id, namn, beskrivning, sortordning, aktiv)')
       .order('namn'),
     supabase
       .from('person')

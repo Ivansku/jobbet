@@ -2,11 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { sparaAnteckning, byggKundsammanfattning } from './actions'
+import { sparaAnteckning } from './actions'
 import { Field } from '@/components/ui/field'
 import { MarkdownEditor } from '@/components/ui/markdown-editor'
 import { Button } from '@/components/ui/button'
-import { buildMailto } from '@/lib/mailto'
 import { mondagAvVecka } from './vecka-helpers'
 import { enTillRelation } from '@/lib/postgrest'
 
@@ -68,7 +67,6 @@ export function MotesanteckningarSektion({
   const [anteckningar, setAnteckningar] = useState<Anteckning[]>(() =>
     initialAnteckningar.map(tillAnteckning)
   )
-  const [skickar, setSkickar] = useState(false)
   const [sparar, setSparar] = useState(false)
   const router = useRouter()
   const [expanderad, setExpanderad] = useState(false)
@@ -179,14 +177,6 @@ export function MotesanteckningarSektion({
     setSparar(false)
   }
 
-  async function handleSkicka() {
-    setSkickar(true)
-    const sammanfattning = await byggKundsammanfattning(uppgiftId)
-    setSkickar(false)
-    if (!sammanfattning) return
-    window.location.href = buildMailto(sammanfattning)
-  }
-
   return (
     <div
       className={
@@ -210,27 +200,15 @@ export function MotesanteckningarSektion({
         {expanderad ? (
           <h3 className="text-sm font-semibold">Mötesanteckningar</h3>
         ) : (
-          <div className="flex flex-col gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="w-full"
-              onClick={() => setExpanderad((v) => !v)}
-            >
-              Anteckningsläge
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="w-full"
-              loading={skickar}
-              onClick={handleSkicka}
-            >
-              Skicka sammanfattning
-            </Button>
-          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="w-full"
+            onClick={() => setExpanderad((v) => !v)}
+          >
+            Anteckningsläge
+          </Button>
         )}
       </div>
 
