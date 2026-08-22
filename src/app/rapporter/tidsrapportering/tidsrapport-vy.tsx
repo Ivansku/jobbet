@@ -200,10 +200,8 @@ export function TidsrapportVy({
                     className="flex cursor-pointer items-center justify-between gap-2 px-4 py-2 pl-6 text-xs hover:bg-stone-100 dark:hover:bg-stone-800"
                   >
                     <span className="truncate font-medium text-stone-700 dark:text-stone-200">{u.titel}</span>
-                    <span className="flex shrink-0 items-center gap-2 text-stone-400">
-                      {u.typNamn && <span>{u.typNamn}</span>}
-                      {u.kategoriNamn && <span>{u.kategoriNamn}</span>}
-                      <span>{kortDatum(u.dag)}</span>
+                    <span className="flex shrink-0 items-center gap-1 text-stone-400">
+                      <span>{[u.typNamn, u.kategoriNamn, kortDatum(u.dag)].filter(Boolean).join(' · ')} ·</span>
                       <span className="font-medium text-stone-600 dark:text-stone-300">{u.timmar} h</span>
                     </span>
                   </li>
