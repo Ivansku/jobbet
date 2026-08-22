@@ -229,11 +229,14 @@ export async function sparaProjektAnteckning(projektId: string, blockId: string,
 
 export async function hamtaProjektUppgifter(projektId: string) {
   const supabase = await createClient()
+  // Samma sortering som page.tsx: deadline (utan datum sist), sortordning som
+  // tiebreak inom samma datum — se kommentaren i projekt/page.tsx.
   const { data } = await supabase
     .from('uppgift')
     .select(PROJEKT_UPPGIFT_FALT)
     .eq('projekt_id', projektId)
-    .order('sortordning')
+    .order('deadline', { ascending: true, nullsFirst: false })
+    .order('sortordning', { ascending: true })
 
   return (data ?? []).map((u) => ({
     ...u,

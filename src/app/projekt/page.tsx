@@ -28,16 +28,24 @@ export default async function ProjektPage() {
   // ska hämta dem själv vid öppning — annars syns en fördröjning varje gång
   // ett projekt öppnas.
   const projektRader = (projekt ?? []).map((p) => {
-    // Sorteras på sortordning (mallens/checklistans tänkta ordning) istället för
-    // deadline. Två skäl: (1) den inbäddade uppgift(...)-relationen saknar ORDER BY,
-    // så Postgres radordning för rader med samma/saknad deadline är odefinierad och
-    // kunde ändras av en vanlig UPDATE (t.ex. en klarmarkering), vilket syntes som att
-    // raden "hoppade" i listan. (2) en placeholder som kopplas till en riktig uppgift
-    // (se kopplaTillPlaceholder) ärver placeholderns sortordning men behåller sin egen
-    // (ofta senare) verkliga deadline — sortering på deadline skulle då slänga ner den
-    // längst ner i listan istället för att låta den ligga kvar på mallens plats.
+    // Sorteras på deadline (uppgifter utan deadline sist) — annars hamnar lösa
+    // uppgifter som kopplats till projektet i efterhand (t.ex. via "Koppla till
+    // placeholder" eller genom att sätta projektet på en redan existerande uppgift)
+    // fel i listan, eftersom deras sortordning inte är jämförbar med mallens
+    // datumbaserade sortordning (se epokForDatum i projekt/actions.ts). sortordning
+    // används bara som tiebreak inom samma datum (eller båda utan datum), för att
+    // hålla mallens inbördes ordning stabil — annars saknar den inbäddade
+    // uppgift(...)-relationen ORDER BY, så Postgres radordning för sådana rader är
+    // odefinierad och kan ändras av en vanlig UPDATE (t.ex. en klarmarkering).
     const uppgifter = [...p.uppgift]
-      .sort((a, b) => a.sortordning - b.sortordning)
+      .sort((a, b) => {
+        if (a.deadline !== b.deadline) {
+          if (a.deadline === null) return 1
+          if (b.deadline === null) return -1
+          return a.deadline < b.deadline ? -1 : 1
+        }
+        return a.sortordning - b.sortordning
+      })
       .map((u) => ({ ...u, ansvarigNamn: enTillRelation(u.person)?.namn ?? null }))
 
     return {

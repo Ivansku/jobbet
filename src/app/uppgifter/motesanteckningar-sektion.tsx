@@ -27,6 +27,26 @@ function CloseIcon({ className = '' }: { className?: string }) {
   )
 }
 
+function FullscreenIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+      <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+      <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+      <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+    </svg>
+  )
+}
+
 type Block = { id: string; namn: string; beskrivning: string | null }
 type Anteckning = {
   block_id: string
@@ -200,15 +220,18 @@ export function MotesanteckningarSektion({
         {expanderad ? (
           <h3 className="text-sm font-semibold">Mötesanteckningar</h3>
         ) : (
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className="w-full"
-            onClick={() => setExpanderad((v) => !v)}
-          >
-            Anteckningsläge
-          </Button>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold">Mötesanteckningar</h3>
+            <button
+              type="button"
+              onClick={() => setExpanderad(true)}
+              aria-label="Anteckningsläge"
+              title="Anteckningsläge"
+              className="shrink-0 rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 dark:hover:bg-stone-800 dark:hover:text-stone-300"
+            >
+              <FullscreenIcon className="h-4 w-4" />
+            </button>
+          </div>
         )}
       </div>
 
