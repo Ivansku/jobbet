@@ -157,6 +157,26 @@ function kortDatum(iso: string) {
   return `${parseInt(d, 10)}/${parseInt(m, 10)}`
 }
 
+function BeskrivningIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M14 3v5a1 1 0 0 0 1 1h5" />
+      <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z" />
+      <path d="M9 13h6" />
+      <path d="M9 17h6" />
+    </svg>
+  )
+}
+
 function initialer(namn: string) {
   const delar = namn.trim().split(/\s+/)
   if (delar.length === 1) return delar[0].slice(0, 2).toUpperCase()
@@ -774,6 +794,8 @@ function KortInnehall({
   const vantar = u.status === 'vantar'
   const forsenad = !!u.deadline && u.deadline < today && u.status !== 'klar'
   const ansvarigNamn = u.person_id ? personMap.get(u.person_id) : undefined
+  const harBeskrivning =
+    !!u.beskrivning?.trim() || u.uppgift_anteckning.some((a) => !!a.innehall?.trim())
 
   // Kompakt "brödsmula" (Kund · Projekttyp · Typ) istället för en badge per fält —
   // ger samma överblick som den gamla "Kunden: Projekt: Typ - text"-konventionen,
@@ -813,13 +835,18 @@ function KortInnehall({
           onChange={onToggleStatus ? () => onToggleStatus(u) : undefined}
         />
       </div>
-      {(forsenad || vantar || ansvarigNamn || u.tidsatgang_timmar) && (
+      {(forsenad || vantar || ansvarigNamn || u.tidsatgang_timmar || harBeskrivning) && (
         <div className="mt-1.5 flex items-center justify-between gap-1">
           <div className="flex flex-wrap gap-1">
             {forsenad && <Badge tone="danger">Försenad</Badge>}
             {vantar && <Badge tone="warning">Väntar</Badge>}
           </div>
           <div className="flex shrink-0 items-center gap-1">
+            {harBeskrivning && (
+              <span title="Har beskrivning eller anteckning">
+                <BeskrivningIcon className="h-3 w-3 text-stone-400" />
+              </span>
+            )}
             {!!u.tidsatgang_timmar && (
               <span className="text-[10px] font-medium text-stone-400">{u.tidsatgang_timmar}h</span>
             )}
