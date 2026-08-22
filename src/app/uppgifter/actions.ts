@@ -35,6 +35,24 @@ function fyllTitelMall(mall: string, kundNamn: string | null): string {
 // Skriver alltid över hela deltagarlistan för uppgiften (radera + återskapa)
 // istället för att diffa — enklast att hålla korrekt när man kan både lägga
 // till och ta bort deltagare i samma redigering.
+// Nya uppgifter utan klockslag ska hamna sist i sin kolumns lista (samma beteende
+// som drag-and-drop redan ger), inte högst upp eller på en godtycklig plats.
+async function sistaSortordningForNyUppgift(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  foretagId: string,
+  deadline: string | null
+): Promise<number> {
+  let query = supabase
+    .from('uppgift')
+    .select('sortordning')
+    .eq('foretag_id', foretagId)
+    .order('sortordning', { ascending: false })
+    .limit(1)
+  query = deadline ? query.eq('deadline', deadline) : query.is('deadline', null)
+  const { data } = await query
+  return data && data.length > 0 ? data[0].sortordning + 1 : 0
+}
+
 async function synkaDeltagare(
   supabase: Awaited<ReturnType<typeof createClient>>,
   uppgiftId: string,
@@ -74,7 +92,9 @@ export async function skapaUppgift(input: {
   if (!foretagId) return
 
   const supabase = await createClient()
-  const sortordning = beraknaSortordning(input.deadline, input.klockslag)
+  const sortordning =
+    beraknaSortordning(input.deadline, input.klockslag) ??
+    (await sistaSortordningForNyUppgift(supabase, foretagId, input.deadline))
   const { data: nyUppgift } = await supabase
     .from('uppgift')
     .insert({
@@ -92,7 +112,7 @@ export async function skapaUppgift(input: {
       tidsatgang_timmar: input.tidsatgangTimmar,
       klockslag: input.klockslag,
       ar_placeholder: input.arPlaceholder,
-      ...(sortordning !== undefined ? { sortordning } : {}),
+      sortordning,
     })
     .select('id')
     .single()
