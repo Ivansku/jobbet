@@ -261,7 +261,7 @@ export function IdagFlode({
 
               {eftersläpning.length > 0 && (
                 <div>
-                  <Eyebrow>Gårdagens försenat</Eyebrow>
+                  <Eyebrow>Försenat</Eyebrow>
                   <ul className="mt-3 flex flex-col">
                     {eftersläpning.map((u) => {
                       const meta = u.kund_id ? kundMap.get(u.kund_id) : arMote(u) ? 'Möte' : null
