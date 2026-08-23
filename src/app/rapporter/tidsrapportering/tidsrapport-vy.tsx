@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PersonValjare } from './person-valjare'
+import { PeriodValjare } from './period-valjare'
+import type { Period } from './page'
 import { UppgiftFormular } from '../../uppgifter/uppgift-formular'
 import type {
   Uppgift,
@@ -29,7 +31,6 @@ type Rad = {
   dag: string
   timmar: number
 }
-type Grupp = { kundNamn: string; timmar: number; uppgifter: Rad[] }
 type KategoriTotal = { kategoriId: string; kategoriNamn: string; timmar: number }
 
 const VECKONAV_KLASS =
@@ -41,15 +42,17 @@ function kortDatum(iso: string) {
 }
 
 export function TidsrapportVy({
-  veckoetikett,
-  prevVeckaHref,
-  nextVeckaHref,
+  periodEtikett,
+  idagLabel,
+  prevPeriodHref,
+  nextPeriodHref,
   idagHref,
   personer,
   valdPersonId,
   initialKategoriId,
   kategoriTotaler,
-  vecka,
+  period,
+  datum,
   alleRader,
   uppgifterFulla,
   kunder,
@@ -61,15 +64,17 @@ export function TidsrapportVy({
   placeholders,
   block,
 }: {
-  veckoetikett: string
-  prevVeckaHref: string
-  nextVeckaHref: string
+  periodEtikett: string
+  idagLabel: string
+  prevPeriodHref: string
+  nextPeriodHref: string
   idagHref: string
   personer: Person[]
   valdPersonId: string
   initialKategoriId: string
   kategoriTotaler: KategoriTotal[]
-  vecka: string
+  period: Period
+  datum: string
   alleRader: Rad[]
   uppgifterFulla: Uppgift[]
   kunder: Kund[]
@@ -90,54 +95,37 @@ export function TidsrapportVy({
   const uppgifterMap = useMemo(() => new Map(uppgifterFulla.map((u) => [u.id, u])), [uppgifterFulla])
   const redigerar = redigerarId ? (uppgifterMap.get(redigerarId) ?? null) : null
 
-  const { grupper, totalTimmar } = useMemo(() => {
+  const { rader, totalTimmar } = useMemo(() => {
     const filtrerade = alleRader.filter((r) => valdKategoriId === 'alla' || r.kategoriId === valdKategoriId)
-
-    const grupper = new Map<string, Grupp>()
-    let totalTimmar = 0
-    for (const r of filtrerade) {
-      if (!grupper.has(r.kundNamn)) grupper.set(r.kundNamn, { kundNamn: r.kundNamn, timmar: 0, uppgifter: [] })
-      const grupp = grupper.get(r.kundNamn)!
-      grupp.timmar += r.timmar
-      grupp.uppgifter.push(r)
-      totalTimmar += r.timmar
-    }
-
-    for (const g of grupper.values()) {
-      g.uppgifter.sort((a, b) => a.dag.localeCompare(b.dag))
-    }
-
-    // "Utan kund" hamnar sist oavsett bokstavsordning — den är en undantagsgrupp,
-    // inte ett riktigt kundnamn, och ska inte blandas in bland de alfabetiska.
-    const sorteradeGrupper = [...grupper.values()].sort((a, b) => {
-      if (a.kundNamn === 'Utan kund') return 1
-      if (b.kundNamn === 'Utan kund') return -1
-      return a.kundNamn.localeCompare(b.kundNamn, 'sv')
-    })
-
-    return { grupper: sorteradeGrupper, totalTimmar }
+    const rader = [...filtrerade].sort((a, b) => a.dag.localeCompare(b.dag) || a.titel.localeCompare(b.titel, 'sv'))
+    const totalTimmar = filtrerade.reduce((sum, r) => sum + r.timmar, 0)
+    return { rader, totalTimmar }
   }, [alleRader, valdKategoriId])
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-2">
-          <Link href={prevVeckaHref} className={VECKONAV_KLASS}>
+          <Link href={prevPeriodHref} className={VECKONAV_KLASS}>
             ← Föregående
           </Link>
           <Link href={idagHref} className={VECKONAV_KLASS}>
-            Denna vecka
+            {idagLabel}
           </Link>
-          <Link href={nextVeckaHref} className={VECKONAV_KLASS}>
+          <Link href={nextPeriodHref} className={VECKONAV_KLASS}>
             Nästa →
           </Link>
         </div>
-        <PersonValjare
-          personer={personer}
-          valdPersonId={valdPersonId}
-          vecka={vecka}
-          kategoriId={valdKategoriId}
-        />
+        <div className="flex gap-2">
+          <PeriodValjare period={period} datum={datum} personId={valdPersonId} kategoriId={valdKategoriId} />
+          <PersonValjare
+            personer={personer}
+            valdPersonId={valdPersonId}
+            datum={datum}
+            period={period}
+            kategoriId={valdKategoriId}
+          />
+        </div>
       </div>
 
       {kategoriTotaler.length > 0 && (
@@ -166,47 +154,38 @@ export function TidsrapportVy({
       )}
 
       <div className="flex items-center justify-between">
-        <p className="text-sm text-stone-500">{veckoetikett}</p>
+        <p className="text-sm text-stone-500">{periodEtikett}</p>
         <p className="text-sm font-medium">
           Totalt: <span className="text-accent-700 dark:text-accent-300">{totalTimmar} h</span>
         </p>
       </div>
 
-      {grupper.length === 0 ? (
+      {rader.length === 0 ? (
         <EmptyState
           title="Ingen registrerad tid"
-          description="Inga uppgifter med tidsåtgång hittades för den här veckan och personen."
+          description="Inga uppgifter med tidsåtgång hittades för den här perioden och personen."
         />
       ) : (
-        <ul className="flex flex-col gap-4">
-          {grupper.map((g) => (
-            <li key={g.kundNamn} className="overflow-hidden rounded-xl border border-border-subtle bg-surface">
-              <div className="px-4 py-3 text-sm font-medium">
-                {g.kundNamn} <span className="text-stone-400">({g.timmar} h)</span>
-              </div>
-              <ul className="divide-y divide-border-subtle border-t border-border-subtle bg-stone-50/50 dark:bg-stone-900/30">
-                {g.uppgifter.map((u) => (
-                  <li
-                    key={u.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setRedigerarId(u.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        setRedigerarId(u.id)
-                      }
-                    }}
-                    className="flex cursor-pointer items-center justify-between gap-2 px-4 py-2 pl-6 text-xs hover:bg-stone-100 dark:hover:bg-stone-800"
-                  >
-                    <span className="truncate font-medium text-stone-700 dark:text-stone-200">{u.titel}</span>
-                    <span className="flex shrink-0 items-center gap-1 text-stone-400">
-                      <span>{[u.typNamn, u.kategoriNamn, kortDatum(u.dag)].filter(Boolean).join(' · ')} ·</span>
-                      <span className="font-medium text-stone-600 dark:text-stone-300">{u.timmar} h</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
+        <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle bg-surface">
+          {rader.map((u) => (
+            <li
+              key={u.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => setRedigerarId(u.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setRedigerarId(u.id)
+                }
+              }}
+              className="flex cursor-pointer items-center justify-between gap-2 px-4 py-2.5 text-sm hover:bg-stone-100 dark:hover:bg-stone-800"
+            >
+              <span className="truncate font-medium text-stone-700 dark:text-stone-200">{u.titel}</span>
+              <span className="flex shrink-0 items-center gap-1 text-xs text-stone-400">
+                <span>{[u.kundNamn, u.typNamn, u.kategoriNamn, kortDatum(u.dag)].filter(Boolean).join(' · ')} ·</span>
+                <span className="font-medium text-stone-600 dark:text-stone-300">{u.timmar} h</span>
+              </span>
             </li>
           ))}
         </ul>

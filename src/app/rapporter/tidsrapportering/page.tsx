@@ -43,6 +43,20 @@ function todayISODate(): string {
 }
 
 const MANADER = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec']
+const MANADER_FULLA = [
+  'januari',
+  'februari',
+  'mars',
+  'april',
+  'maj',
+  'juni',
+  'juli',
+  'augusti',
+  'september',
+  'oktober',
+  'november',
+  'december',
+]
 
 function veckoetikett(monday: Date, sunday: Date): string {
   const m1 = MANADER[monday.getUTCMonth()]
@@ -51,6 +65,56 @@ function veckoetikett(monday: Date, sunday: Date): string {
   const d2 = sunday.getUTCDate()
   const ar = sunday.getUTCFullYear()
   return m1 === m2 ? `${d1}–${d2} ${m1} ${ar}` : `${d1} ${m1} – ${d2} ${m2} ${ar}`
+}
+
+export type Period = 'vecka' | 'manad' | 'kvartal'
+
+// Alla tre perioder delar samma "anchor date"-modell: startISO/slutISO räknas
+// alltid fram från en enda ankardatum, och föregående/nästa hoppar till
+// respektive periods startdatum — så samma URL-mönster (datum + period)
+// funkar oavsett granularitet.
+function periodRange(anchor: Date, period: Period): { start: Date; end: Date } {
+  if (period === 'manad') {
+    const y = anchor.getUTCFullYear()
+    const m = anchor.getUTCMonth()
+    return { start: new Date(Date.UTC(y, m, 1)), end: new Date(Date.UTC(y, m + 1, 0)) }
+  }
+  if (period === 'kvartal') {
+    const y = anchor.getUTCFullYear()
+    const qStart = Math.floor(anchor.getUTCMonth() / 3) * 3
+    return { start: new Date(Date.UTC(y, qStart, 1)), end: new Date(Date.UTC(y, qStart + 3, 0)) }
+  }
+  const monday = getMonday(anchor)
+  const sunday = new Date(monday)
+  sunday.setUTCDate(sunday.getUTCDate() + 6)
+  return { start: monday, end: sunday }
+}
+
+function stegaPeriod(periodStart: Date, period: Period, steg: 1 | -1): Date {
+  if (period === 'manad') {
+    return new Date(Date.UTC(periodStart.getUTCFullYear(), periodStart.getUTCMonth() + steg, 1))
+  }
+  if (period === 'kvartal') {
+    return new Date(Date.UTC(periodStart.getUTCFullYear(), periodStart.getUTCMonth() + steg * 3, 1))
+  }
+  const d = new Date(periodStart)
+  d.setUTCDate(d.getUTCDate() + steg * 7)
+  return d
+}
+
+function periodEtikett(period: Period, start: Date, end: Date): string {
+  if (period === 'manad') return `${MANADER_FULLA[start.getUTCMonth()]} ${start.getUTCFullYear()}`
+  if (period === 'kvartal') {
+    const kvartal = Math.floor(start.getUTCMonth() / 3) + 1
+    return `Kvartal ${kvartal} ${start.getUTCFullYear()}`
+  }
+  return veckoetikett(start, end)
+}
+
+function idagLabel(period: Period): string {
+  if (period === 'manad') return 'Denna månad'
+  if (period === 'kvartal') return 'Detta kvartal'
+  return 'Denna vecka'
 }
 
 type Rad = {
@@ -70,14 +134,13 @@ export const UTAN_KATEGORI_ID = 'utan'
 export default async function TidsrapporteringPage({
   searchParams,
 }: {
-  searchParams: Promise<{ vecka?: string; person?: string; kategori?: string }>
+  searchParams: Promise<{ datum?: string; period?: string; person?: string; kategori?: string }>
 }) {
-  const { vecka, person, kategori: kategoriParam } = await searchParams
-  const monday = getMonday(parseISODate(vecka ?? todayISODate()))
-  const mondayISO = formatISODate(monday)
-  const sunday = new Date(monday)
-  sunday.setUTCDate(sunday.getUTCDate() + 6)
-  const sundayISO = formatISODate(sunday)
+  const { datum, period: periodParam, person, kategori: kategoriParam } = await searchParams
+  const period: Period = periodParam === 'manad' || periodParam === 'kvartal' ? periodParam : 'vecka'
+  const { start, end } = periodRange(parseISODate(datum ?? todayISODate()), period)
+  const startISO = formatISODate(start)
+  const endISO = formatISODate(end)
 
   const supabase = await createClient()
 
@@ -94,7 +157,7 @@ export default async function TidsrapporteringPage({
   const valdPersonId = person ?? aktuellPerson?.id ?? 'alla'
   const valdKategoriId = kategoriParam ?? 'alla'
 
-  let uppgiftQuery = supabase.from('uppgift').select(UPPGIFT_FORMULAR_FALT).gte('deadline', mondayISO).lte('deadline', sundayISO)
+  let uppgiftQuery = supabase.from('uppgift').select(UPPGIFT_FORMULAR_FALT).gte('deadline', startISO).lte('deadline', endISO)
 
   if (valdPersonId !== 'alla') {
     uppgiftQuery = uppgiftQuery.eq('person_id', valdPersonId)
@@ -176,10 +239,8 @@ export default async function TidsrapporteringPage({
       return a.kategoriNamn.localeCompare(b.kategoriNamn, 'sv')
     })
 
-  const prevVecka = new Date(monday)
-  prevVecka.setUTCDate(prevVecka.getUTCDate() - 7)
-  const nextVecka = new Date(monday)
-  nextVecka.setUTCDate(nextVecka.getUTCDate() + 7)
+  const prevAnchor = stegaPeriod(start, period, -1)
+  const nextAnchor = stegaPeriod(start, period, 1)
 
   return (
     <>
@@ -188,15 +249,17 @@ export default async function TidsrapporteringPage({
         <h1 className="mb-4 text-2xl font-semibold tracking-tight">Rapporter</h1>
         <RapporterNav />
         <TidsrapportVy
-          veckoetikett={veckoetikett(monday, sunday)}
-          prevVeckaHref={`/rapporter/tidsrapportering?vecka=${formatISODate(prevVecka)}&person=${valdPersonId}&kategori=${valdKategoriId}`}
-          nextVeckaHref={`/rapporter/tidsrapportering?vecka=${formatISODate(nextVecka)}&person=${valdPersonId}&kategori=${valdKategoriId}`}
-          idagHref={`/rapporter/tidsrapportering?person=${valdPersonId}&kategori=${valdKategoriId}`}
+          periodEtikett={periodEtikett(period, start, end)}
+          idagLabel={idagLabel(period)}
+          prevPeriodHref={`/rapporter/tidsrapportering?datum=${formatISODate(prevAnchor)}&period=${period}&person=${valdPersonId}&kategori=${valdKategoriId}`}
+          nextPeriodHref={`/rapporter/tidsrapportering?datum=${formatISODate(nextAnchor)}&period=${period}&person=${valdPersonId}&kategori=${valdKategoriId}`}
+          idagHref={`/rapporter/tidsrapportering?period=${period}&person=${valdPersonId}&kategori=${valdKategoriId}`}
           personer={personer ?? []}
           valdPersonId={valdPersonId}
           initialKategoriId={valdKategoriId}
           kategoriTotaler={sorteradeKategoriTotaler}
-          vecka={mondayISO}
+          period={period}
+          datum={startISO}
           alleRader={alleRader}
           uppgifterFulla={uppgifter ?? []}
           kunder={kunder ?? []}

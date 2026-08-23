@@ -2,18 +2,21 @@
 
 import { useRouter } from 'next/navigation'
 import { Select } from '@/components/ui/input'
+import type { Period } from './page'
 
 type Person = { id: string; namn: string }
 
 export function PersonValjare({
   personer,
   valdPersonId,
-  vecka,
+  datum,
+  period,
   kategoriId,
 }: {
   personer: Person[]
   valdPersonId: string
-  vecka: string
+  datum: string
+  period: Period
   kategoriId: string
 }) {
   const router = useRouter()
@@ -23,7 +26,9 @@ export function PersonValjare({
       aria-label="Person"
       value={valdPersonId}
       onChange={(e) => {
-        router.push(`/rapporter/tidsrapportering?vecka=${vecka}&person=${e.target.value}&kategori=${kategoriId}`)
+        router.push(
+          `/rapporter/tidsrapportering?datum=${datum}&period=${period}&person=${e.target.value}&kategori=${kategoriId}`
+        )
       }}
       className="!w-auto"
     >
