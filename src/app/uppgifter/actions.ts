@@ -107,10 +107,12 @@ export async function skapaUppgift(input: {
 }
 
 // Adopterar alla Outlook-synkade uppgifter i samma Outlook-serie in i den
-// kopplade uppgift_serie: sätter serie_id och ärver kategori/typ därifrån.
-// Körs både när kopplingen skapas (fångar redan synkade förekomster) och vid
-// varje uppdatering av serien (håller adopterade rader i synk). Rör aldrig
-// fält Outlook själv äger (titel, deadline, klockslag osv).
+// kopplade uppgift_serie: sätter serie_id och ärver kategori/typ/kund
+// därifrån (seriens kund vinner över Outlook-synkens ämnesradstolkning,
+// eftersom den är ett explicit val). Körs både när kopplingen skapas
+// (fångar redan synkade förekomster) och vid varje uppdatering av serien
+// (håller adopterade rader i synk). Rör aldrig fält Outlook själv äger
+// (titel, deadline, klockslag osv).
 // Om synkFranDatum är satt raderas först alla matchande förekomster äldre än
 // det datumet (spökposter från innan mötesserien "på riktigt" drog igång) —
 // samma gräns som webhooken sedan använder för att aldrig återskapa dem.
@@ -119,6 +121,7 @@ async function synkaOutlookSerieUppgifter(
   foretagId: string,
   serieId: string,
   outlookSeriesId: string,
+  kundId: string | null,
   kategoriId: string | null,
   typId: string | null,
   synkFranDatum: string | null
@@ -137,6 +140,7 @@ async function synkaOutlookSerieUppgifter(
     .from('uppgift')
     .update({
       serie_id: serieId,
+      ...(kundId ? { kund_id: kundId } : {}),
       ...(kategoriId ? { kategori_id: kategoriId } : {}),
       ...(typId ? { typ_id: typId } : {}),
     })
@@ -197,6 +201,7 @@ export async function skapaUppgiftSerie(input: {
       foretagId,
       nySerie.id,
       input.outlookSeriesId!,
+      input.kundId || null,
       input.kategoriId || null,
       input.typId || null,
       input.synkFranDatum
@@ -276,6 +281,7 @@ export async function uppdateraSerie(
       foretagId,
       id,
       outlookSeriesId,
+      input.kundId || null,
       input.kategoriId || null,
       input.typId || null,
       input.synkFranDatum

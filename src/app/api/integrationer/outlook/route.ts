@@ -375,9 +375,11 @@ export async function POST(request: NextRequest) {
 
   // Om en uppgift_serie är kopplad mot samma Outlook-serie (satt via
   // Serier-vyn): förekomster adopteras in direkt (samma serie_id, ärver
-  // kategori/typ), och förekomster äldre än seriens synk_fran_datum ignoreras
-  // helt — skapas aldrig, och raderas om de redan finns. Skydd mot att gamla
-  // spökposter (från innan mötesserien "på riktigt" drog igång) återuppstår.
+  // kategori/typ/kund — seriens kund vinner över ämnesradstolkningen ovan
+  // eftersom den är ett explicit val, inte en gissning), och förekomster
+  // äldre än seriens synk_fran_datum ignoreras helt — skapas aldrig, och
+  // raderas om de redan finns. Skydd mot att gamla spökposter (från innan
+  // mötesserien "på riktigt" drog igång) återuppstår.
   let serieId: string | null = null
   let arvdKategoriId: string | null = null
   let arvdTypId: string | null = null
@@ -385,7 +387,7 @@ export async function POST(request: NextRequest) {
   if (falt.outlook_series_id) {
     const { data: koppladSerie } = await supabase
       .from('uppgift_serie')
-      .select('id, kategori_id, typ_id, synk_fran_datum')
+      .select('id, kund_id, kategori_id, typ_id, synk_fran_datum')
       .eq('foretag_id', foretagId)
       .eq('outlook_series_id', falt.outlook_series_id)
       .maybeSingle()
@@ -393,6 +395,9 @@ export async function POST(request: NextRequest) {
       serieId = koppladSerie.id
       arvdKategoriId = koppladSerie.kategori_id
       arvdTypId = koppladSerie.typ_id
+      if (koppladSerie.kund_id) {
+        falt.kund_id = koppladSerie.kund_id
+      }
       foreSynkStart = !!koppladSerie.synk_fran_datum && datum < koppladSerie.synk_fran_datum
     }
   }
