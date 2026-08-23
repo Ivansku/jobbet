@@ -67,7 +67,7 @@ function veckoetikett(monday: Date, sunday: Date): string {
   return m1 === m2 ? `${d1}–${d2} ${m1} ${ar}` : `${d1} ${m1} – ${d2} ${m2} ${ar}`
 }
 
-export type Period = 'vecka' | 'manad' | 'kvartal'
+export type Period = 'vecka' | 'manad' | 'kvartal' | 'ar'
 
 // Alla tre perioder delar samma "anchor date"-modell: startISO/slutISO räknas
 // alltid fram från en enda ankardatum, och föregående/nästa hoppar till
@@ -84,6 +84,10 @@ function periodRange(anchor: Date, period: Period): { start: Date; end: Date } {
     const qStart = Math.floor(anchor.getUTCMonth() / 3) * 3
     return { start: new Date(Date.UTC(y, qStart, 1)), end: new Date(Date.UTC(y, qStart + 3, 0)) }
   }
+  if (period === 'ar') {
+    const y = anchor.getUTCFullYear()
+    return { start: new Date(Date.UTC(y, 0, 1)), end: new Date(Date.UTC(y, 11, 31)) }
+  }
   const monday = getMonday(anchor)
   const sunday = new Date(monday)
   sunday.setUTCDate(sunday.getUTCDate() + 6)
@@ -97,6 +101,9 @@ function stegaPeriod(periodStart: Date, period: Period, steg: 1 | -1): Date {
   if (period === 'kvartal') {
     return new Date(Date.UTC(periodStart.getUTCFullYear(), periodStart.getUTCMonth() + steg * 3, 1))
   }
+  if (period === 'ar') {
+    return new Date(Date.UTC(periodStart.getUTCFullYear() + steg, 0, 1))
+  }
   const d = new Date(periodStart)
   d.setUTCDate(d.getUTCDate() + steg * 7)
   return d
@@ -108,12 +115,14 @@ function periodEtikett(period: Period, start: Date, end: Date): string {
     const kvartal = Math.floor(start.getUTCMonth() / 3) + 1
     return `Kvartal ${kvartal} ${start.getUTCFullYear()}`
   }
+  if (period === 'ar') return `${start.getUTCFullYear()}`
   return veckoetikett(start, end)
 }
 
 function idagLabel(period: Period): string {
   if (period === 'manad') return 'Denna månad'
   if (period === 'kvartal') return 'Detta kvartal'
+  if (period === 'ar') return 'Detta år'
   return 'Denna vecka'
 }
 
@@ -137,7 +146,8 @@ export default async function TidsrapporteringPage({
   searchParams: Promise<{ datum?: string; period?: string; person?: string; kategori?: string }>
 }) {
   const { datum, period: periodParam, person, kategori: kategoriParam } = await searchParams
-  const period: Period = periodParam === 'manad' || periodParam === 'kvartal' ? periodParam : 'vecka'
+  const period: Period =
+    periodParam === 'manad' || periodParam === 'kvartal' || periodParam === 'ar' ? periodParam : 'vecka'
   const { start, end } = periodRange(parseISODate(datum ?? todayISODate()), period)
   const startISO = formatISODate(start)
   const endISO = formatISODate(end)

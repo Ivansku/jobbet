@@ -31,6 +31,7 @@ export function PeriodValjare({
       <option value="vecka">Vecka</option>
       <option value="manad">Månad</option>
       <option value="kvartal">Kvartal</option>
+      <option value="ar">År</option>
     </Select>
   )
 }
