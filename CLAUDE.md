@@ -54,8 +54,8 @@ This project uses Supabase with Row Level Security. Claude may use Supabase MCP 
 
 ## Column constraints
 
-- `uppgift.status` has a CHECK constraint: allowed values are `öppen`, `pågår`, `väntar`, `klar`. Verify before inserting new values or ALTER the constraint first.
-- `uppgift.prioritet` has a CHECK constraint: allowed values are `låg`, `medel`, `hög`.
+- `uppgift.status` has a CHECK constraint: allowed values are `oppen`, `pagar`, `vantar`, `klar` (ASCII, no diacritics — verified against `pg_get_constraintdef` 2026-08-23; the UI labels are the diacritic forms, but the stored/constraint values are not). Verify before inserting new values or ALTER the constraint first.
+- `uppgift.prioritet` has a CHECK constraint: allowed values are `lag`, `medel`, `hog` (ASCII, no diacritics — same caveat as above).
 - `person.roll` has a CHECK constraint: allowed values are `admin`, `medlem`.
 - Before inserting a new value into any enum-like column, check if a CHECK constraint exists and verify the value is allowed — or ALTER the constraint first.
 - After adding columns or changing constraints, run `NOTIFY pgrst, 'reload schema'` to refresh PostgREST cache.
