@@ -335,6 +335,9 @@ export function UppgiftFormular({
   const [visaTaBortSerie, setVisaTaBortSerie] = useState<'kopplaLoss' | 'medUppgifter' | null>(null)
   const [antalSerieUppgifter, setAntalSerieUppgifter] = useState<number | null>(null)
   const [serieArbetar, setSerieArbetar] = useState(false)
+  // Buffrade mötesanteckningar för en uppgift som ännu inte finns i databasen —
+  // skickas med i skapaUppgift och sparas i samma åtgärd som uppgiften skapas.
+  const [nyaAnteckningar, setNyaAnteckningar] = useState<Record<string, string>>({})
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -413,6 +416,9 @@ export function UppgiftFormular({
         klockslag: klockslagVarde,
         deltagareIds,
         arPlaceholder,
+        anteckningar: Object.entries(nyaAnteckningar)
+          .filter(([, innehall]) => innehall.trim())
+          .map(([blockId, innehall]) => ({ blockId, innehall })),
       })
     }
 
@@ -796,12 +802,18 @@ export function UppgiftFormular({
           </button>
         )}
 
-        {existing?.id && effektivMallId && (
+        {effektivMallId && !serieModus && (
           <FormularSektion label="Mötesanteckningar">
             <MotesanteckningarSektion
-              uppgiftId={existing.id}
+              uppgiftId={existing?.id ?? null}
               blocks={mallBlock}
-              initialAnteckningar={existing.uppgift_anteckning}
+              initialAnteckningar={existing?.uppgift_anteckning ?? []}
+              onLocalChange={
+                existing
+                  ? undefined
+                  : (blockId, innehall) =>
+                      setNyaAnteckningar((bas) => ({ ...bas, [blockId]: innehall }))
+              }
             />
           </FormularSektion>
         )}

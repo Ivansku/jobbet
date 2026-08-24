@@ -79,10 +79,15 @@ export function MotesanteckningarSektion({
   uppgiftId,
   blocks,
   initialAnteckningar,
+  onLocalChange,
 }: {
-  uppgiftId: string
+  // null när uppgiften ännu inte är sparad (t.ex. i "Ny uppgift"-formuläret) —
+  // då finns inget att koppla anteckningen mot i databasen, så innehållet
+  // buffras uppåt via onLocalChange istället för att autosparas.
+  uppgiftId: string | null
   blocks: Block[]
   initialAnteckningar: InitialAnteckning[]
+  onLocalChange?: (blockId: string, innehall: string) => void
 }) {
   const [anteckningar, setAnteckningar] = useState<Anteckning[]>(() =>
     initialAnteckningar.map(tillAnteckning)
@@ -114,6 +119,7 @@ export function MotesanteckningarSektion({
   useEffect(() => {
     const pending = pendingRef.current
     return () => {
+      if (!uppgiftId) return
       pending.forEach((innehall, blockId) => {
         sparaAnteckning(uppgiftId, blockId, innehall)
       })
@@ -149,6 +155,7 @@ export function MotesanteckningarSektion({
   const debounceTimer = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
   function schemalaggSpara(blockId: string, innehall: string) {
+    if (!uppgiftId) return
     const befintlig = debounceTimer.current.get(blockId)
     if (befintlig) clearTimeout(befintlig)
     debounceTimer.current.set(
@@ -162,11 +169,16 @@ export function MotesanteckningarSektion({
 
   function handleChange(blockId: string, innehall: string) {
     uppdateraLokalt(blockId, innehall)
-    pendingRef.current.set(blockId, innehall)
-    schemalaggSpara(blockId, innehall)
+    if (uppgiftId) {
+      pendingRef.current.set(blockId, innehall)
+      schemalaggSpara(blockId, innehall)
+    } else {
+      onLocalChange?.(blockId, innehall)
+    }
   }
 
   function handleBlur(blockId: string, innehall: string) {
+    if (!uppgiftId) return
     if (!pendingRef.current.has(blockId)) return
     const timer = debounceTimer.current.get(blockId)
     if (timer) clearTimeout(timer)
@@ -185,6 +197,7 @@ export function MotesanteckningarSektion({
   // den sparade anteckningen — annars visar en omöppnad uppgift den gamla texten tills
   // sidan laddas om helt.
   async function handleSparaAlla() {
+    if (!uppgiftId) return
     setSparar(true)
     const poster = Array.from(pendingRef.current.entries())
     poster.forEach(([blockId]) => {
@@ -266,7 +279,7 @@ export function MotesanteckningarSektion({
         )
       })}
 
-      {expanderad && (
+      {expanderad && uppgiftId && (
         <div className="sticky bottom-0 -mx-6 mt-auto flex shrink-0 justify-end border-t border-border-subtle bg-surface px-6 py-3">
           <Button type="button" variant="primary" size="sm" loading={sparar} onClick={handleSparaAlla}>
             Spara

@@ -69,6 +69,7 @@ export async function skapaUppgift(input: {
   klockslag: string | null
   deltagareIds: string[]
   arPlaceholder: boolean
+  anteckningar?: { blockId: string; innehall: string }[]
 }) {
   const foretagId = await currentForetagId()
   if (!foretagId) return
@@ -101,6 +102,18 @@ export async function skapaUppgift(input: {
 
   if (nyUppgift && input.deltagareIds.length > 0) {
     await synkaDeltagare(supabase, nyUppgift.id, foretagId, input.deltagareIds)
+  }
+
+  if (nyUppgift && input.anteckningar && input.anteckningar.length > 0) {
+    await supabase.from('uppgift_anteckning').insert(
+      input.anteckningar.map((a) => ({
+        uppgift_id: nyUppgift.id,
+        block_id: a.blockId,
+        foretag_id: foretagId,
+        innehall: a.innehall,
+        uppdaterad_at: new Date().toISOString(),
+      }))
+    )
   }
 
   revalidatePath('/uppgifter')
