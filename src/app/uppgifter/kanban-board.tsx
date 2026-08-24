@@ -25,6 +25,7 @@ import { createClient } from '@/lib/supabase/client'
 import { ROD_DAG_STREGMONSTER_KLASS, HALVDAG_MASK_KLASS } from '@/lib/svenska-dagar'
 import { SerieVy } from './serie-vy'
 import { UppgiftFormular } from './uppgift-formular'
+import { TidsatgangDialog } from './tidsatgang-dialog'
 import type {
   Person,
   Kund,
@@ -148,6 +149,7 @@ export function KanbanBoard({
 }) {
   const [, startTransition] = useTransition()
   const [redigerar, setRedigerar] = useState<Uppgift | 'ny' | null>(null)
+  const [visaTidsatgangFor, setVisaTidsatgangFor] = useState<Uppgift | null>(null)
   const [nyDatum, setNyDatum] = useState<string | null>(null)
   const [aktivId, setAktivId] = useState<string | null>(null)
   const [redigerarSerie, setRedigerarSerie] = useState<Serie | null>(null)
@@ -359,12 +361,27 @@ export function KanbanBoard({
     })
   }
 
+  // Avbockning kräver ingen bekräftelse — bara den som klarmarkerar (den
+  // riktiga "jag är klar"-stunden) behöver ta ställning till tidsåtgången.
   function toggleStatus(u: Uppgift) {
-    const nyStatus = u.status === 'klar' ? 'oppen' : 'klar'
+    if (u.status === 'klar') {
+      startTransition(() => {
+        patchUppgiftOptimistiskt({ id: u.id, patch: { status: 'oppen' } })
+        uppdateraStatus(u.id, 'oppen')
+      })
+      return
+    }
+    setVisaTidsatgangFor(u)
+  }
+
+  function bekraftaTidsatgang(timmar: number | null) {
+    const u = visaTidsatgangFor
+    if (!u) return
     startTransition(() => {
-      patchUppgiftOptimistiskt({ id: u.id, patch: { status: nyStatus } })
-      uppdateraStatus(u.id, nyStatus)
+      patchUppgiftOptimistiskt({ id: u.id, patch: { status: 'klar', tidsatgang_timmar: timmar } })
+      uppdateraStatus(u.id, 'klar', timmar)
     })
+    setVisaTidsatgangFor(null)
   }
 
   return (
@@ -457,6 +474,15 @@ export function KanbanBoard({
           </div>
         ) : null}
       </DragOverlay>
+
+      {visaTidsatgangFor && (
+        <TidsatgangDialog
+          titel={visaTidsatgangFor.titel}
+          initialTimmar={visaTidsatgangFor.tidsatgang_timmar}
+          onConfirm={bekraftaTidsatgang}
+          onCancel={() => setVisaTidsatgangFor(null)}
+        />
+      )}
 
       {redigerar && (
         <UppgiftFormular
