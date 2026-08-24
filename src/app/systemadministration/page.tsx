@@ -6,6 +6,7 @@ import { KategoriVy } from './kategori-vy'
 import { AnteckningsmallVy } from './anteckningsmall-vy'
 import { AnvandareVy } from './anvandare-vy'
 import { MallVy } from './mall-vy'
+import { ZammadVy } from './zammad-vy'
 
 export default async function SystemadministrationPage() {
   const supabase = await createClient()
@@ -15,7 +16,7 @@ export default async function SystemadministrationPage() {
 
   const { data: person } = await supabase
     .from('person')
-    .select('id, roll')
+    .select('id, roll, foretag_id')
     .eq('auth_user_id', user?.id ?? '')
     .single()
 
@@ -30,6 +31,7 @@ export default async function SystemadministrationPage() {
     { data: personer },
     { data: flexelInstallningar },
     { data: mallProjekt },
+    { data: foretag },
   ] = await Promise.all([
     supabase.from('uppgiftstyp').select('id, namn, anteckningsmall_id').order('namn'),
     supabase.from('kategori').select('id, namn').order('namn'),
@@ -50,6 +52,7 @@ export default async function SystemadministrationPage() {
         'id, namn, kategori_id, anteckningsmall_id, mall_uppgift(id, titel, beskrivning, typ_id, kategori_id, prioritet, status, person_id, tidsatgang_timmar, dagar_efter_start, sortordning, ar_placeholder, anteckningsmall_id, utan_anteckningsmall)'
       )
       .order('namn'),
+    supabase.from('foretag').select('zammad_senast_synkad_at').eq('id', person?.foretag_id ?? '').maybeSingle(),
   ])
 
   // Uppgiftsmallarna hämtas färdigt här (server-side) istället för att MallVy
@@ -88,6 +91,7 @@ export default async function SystemadministrationPage() {
             anteckningsmallar={anteckningsmallar}
           />
           <AnteckningsmallVy mallar={anteckningsmallar} />
+          <ZammadVy senastSynkad={foretag?.zammad_senast_synkad_at ?? null} />
         </div>
       </main>
     </>

@@ -7,7 +7,7 @@ import { hamtaManuellaAnteckningarForKunder } from './manuell-anteckning-actions
 export default async function KunderPage() {
   const supabase = await createClient()
   const [{ data: kunder }, { data: kontaktpersoner }] = await Promise.all([
-    supabase.from('kund').select('id, namn').order('namn'),
+    supabase.from('kund').select('id, namn, domains, zammad_organization_id').order('namn'),
     supabase
       .from('kontaktperson')
       .select('id, kund_id, fornamn, efternamn, epost, senast_kontaktad, uppgift_deltagare(uppgift(deadline, status))')

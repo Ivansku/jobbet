@@ -15,7 +15,7 @@ import { KundMotesanteckningarSektion, type Mote } from './kund-motesanteckninga
 import { KundManuellaAnteckningarSektion } from './kund-manuella-anteckningar-sektion'
 import type { ManuellAnteckning } from './manuell-anteckning-actions'
 
-type Kund = { id: string; namn: string }
+type Kund = { id: string; namn: string; domains: string[]; zammad_organization_id: number | null }
 type Kontaktperson = {
   id: string
   kund_id: string
@@ -188,10 +188,19 @@ function KundFormular({
   onClose: () => void
 }) {
   const [namn, setNamn] = useState(existing?.namn ?? '')
+  const [domains, setDomains] = useState(existing?.domains ?? [])
+  const [nyDomain, setNyDomain] = useState('')
   const [sparar, setSparar] = useState(false)
   const [visaBekraftelse, setVisaBekraftelse] = useState(false)
   const [tarBort, setTarBort] = useState(false)
   const [redigerarKontakt, setRedigerarKontakt] = useState<Kontaktperson | 'ny' | null>(null)
+
+  function laggTillDomain() {
+    const d = nyDomain.trim().toLowerCase()
+    if (!d || domains.includes(d)) return
+    setDomains([...domains, d])
+    setNyDomain('')
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -199,9 +208,9 @@ function KundFormular({
     setSparar(true)
 
     if (existing) {
-      await uppdateraKund(existing.id, namn)
+      await uppdateraKund(existing.id, namn, domains)
     } else {
-      await skapaKund(namn)
+      await skapaKund(namn, domains)
     }
 
     setSparar(false)
@@ -259,6 +268,54 @@ function KundFormular({
             autoFocus
           />
         </Field>
+        <Field label="Domäner" htmlFor="kund-domain-ny">
+          {domains.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {domains.map((d) => (
+                <span
+                  key={d}
+                  className="inline-flex items-center gap-1 rounded-full border border-border-subtle bg-stone-50 px-2.5 py-1 text-xs text-stone-600 dark:bg-stone-800 dark:text-stone-300"
+                >
+                  {d}
+                  <button
+                    type="button"
+                    onClick={() => setDomains(domains.filter((x) => x !== d))}
+                    aria-label={`Ta bort domänen ${d}`}
+                    className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-200"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Input
+              id="kund-domain-ny"
+              className="min-w-0 flex-1"
+              value={nyDomain}
+              onChange={(e) => setNyDomain(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  laggTillDomain()
+                }
+              }}
+              placeholder="t.ex. exempel.se"
+            />
+            <Button type="button" variant="secondary" size="sm" className="shrink-0" onClick={laggTillDomain}>
+              Lägg till
+            </Button>
+          </div>
+        </Field>
+        {existing && (
+          <p className="text-xs text-stone-400">
+            Zammad:{' '}
+            {existing.zammad_organization_id
+              ? `kopplad (org #${existing.zammad_organization_id})`
+              : 'ej kopplad'}
+          </p>
+        )}
 
         {existing && (
           <KontaktpersonSektion

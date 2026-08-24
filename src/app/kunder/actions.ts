@@ -4,7 +4,11 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { enTillRelation } from '@/lib/postgrest'
 
-export async function skapaKund(namn: string) {
+function stadaDomaner(domains: string[]): string[] {
+  return [...new Set(domains.map((d) => d.trim().toLowerCase()).filter(Boolean))]
+}
+
+export async function skapaKund(namn: string, domains: string[] = []) {
   const namnTrimmat = namn.trim()
   if (!namnTrimmat) return null
 
@@ -24,7 +28,7 @@ export async function skapaKund(namn: string) {
 
   const { data: kund } = await supabase
     .from('kund')
-    .insert({ foretag_id: person.foretag_id, namn: namnTrimmat })
+    .insert({ foretag_id: person.foretag_id, namn: namnTrimmat, domains: stadaDomaner(domains) })
     .select('id, namn')
     .single()
 
@@ -33,12 +37,12 @@ export async function skapaKund(namn: string) {
   return kund
 }
 
-export async function uppdateraKund(id: string, namn: string) {
+export async function uppdateraKund(id: string, namn: string, domains: string[]) {
   const namnTrimmat = namn.trim()
   if (!namnTrimmat) return
 
   const supabase = await createClient()
-  await supabase.from('kund').update({ namn: namnTrimmat }).eq('id', id)
+  await supabase.from('kund').update({ namn: namnTrimmat, domains: stadaDomaner(domains) }).eq('id', id)
   revalidatePath('/kunder')
 }
 
