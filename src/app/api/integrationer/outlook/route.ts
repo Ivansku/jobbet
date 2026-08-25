@@ -341,6 +341,29 @@ export async function POST(request: NextRequest) {
         break
       }
     }
+
+    // Tredje fallback: ingen känd kontaktperson hittades, prova att matcha en
+    // deltagares e-postdomän mot kundens registrerade domäner (samma mönster
+    // som Zammad-synken). Hittas en kund skapas kontaktpersonen automatiskt av
+    // synkaDeltagareFranOutlook nedan, precis som i de andra stegen.
+    if (!kundId) {
+      for (const epost of kandidater) {
+        const emailDomain = epost.split('@')[1]?.toLowerCase()
+        if (!emailDomain) continue
+
+        const { data: matchandeKund } = await supabase
+          .from('kund')
+          .select('id')
+          .eq('foretag_id', foretagId)
+          .contains('domains', [emailDomain])
+          .maybeSingle()
+
+        if (matchandeKund) {
+          kundId = matchandeKund.id
+          break
+        }
+      }
+    }
   }
 
   const { data: typ } = await supabase
