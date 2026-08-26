@@ -346,6 +346,27 @@ export function KanbanBoard({
       const infogaEfter =
         !!activeRect && activeRect.top + activeRect.height / 2 > overRect.top + overRect.height / 2
 
+      const granne = infogaEfter ? sorteradeIKolumn[malIndex + 1] : sorteradeIKolumn[malIndex - 1]
+
+      if (granne && granne.sortordning === malUppgift.sortordning) {
+        // Grannen har exakt samma sortordning som målkortet (t.ex. flera kort som
+        // råkat kollidera på ett klockslags epoktid tidigare) — då finns inget tal
+        // mellan dem att lägga det nya kortet på och medelvärdet blir bara samma
+        // dubblett igen. Numrera om hela kolumnen med jämna mellanrum istället,
+        // med det nya kortet infogat på rätt plats, så kollisionen läks ut.
+        const omordnad = [...sorteradeIKolumn]
+        omordnad.splice(infogaEfter ? malIndex + 1 : malIndex, 0, { ...malUppgift, id })
+        startTransition(() => {
+          omordnad.forEach((u, i) => {
+            const so = i * 1000
+            const deadline = u.id === id ? malDatum : kolumnForUppgift(u)
+            patchUppgiftOptimistiskt({ id: u.id, patch: { deadline, sortordning: so } })
+            flyttaUppgift(u.id, deadline, so)
+          })
+        })
+        return
+      }
+
       if (infogaEfter) {
         const nasta = sorteradeIKolumn[malIndex + 1]
         nyOrdning = nasta ? (malUppgift.sortordning + nasta.sortordning) / 2 : malUppgift.sortordning + 1
