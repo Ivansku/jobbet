@@ -798,7 +798,7 @@ function KortInnehall({
         </p>
       )}
       <div className="flex items-start justify-between gap-2">
-        <p className={`text-sm font-medium break-words text-foreground ${klar ? 'line-through' : ''}`}>
+        <p className={`text-sm font-medium wrap-anywhere text-foreground ${klar ? 'line-through' : ''}`}>
           {u.klockslag && (
             <span className="mr-1.5 font-normal text-stone-400">{u.klockslag.slice(0, 5)}</span>
           )}
