@@ -27,6 +27,7 @@ import { SerieVy } from './serie-vy'
 import { UppgiftFormular } from './uppgift-formular'
 import type { TidigareMote } from './tidigare-moten-sektion'
 import { TidsatgangDialog } from './tidsatgang-dialog'
+import { FlyttaDatumDialog } from './flytta-datum-dialog'
 import type {
   Person,
   Kund,
@@ -153,6 +154,8 @@ export function KanbanBoard({
   const [, startTransition] = useTransition()
   const [redigerar, setRedigerar] = useState<Uppgift | 'ny' | null>(null)
   const [visaTidsatgangFor, setVisaTidsatgangFor] = useState<Uppgift | null>(null)
+  const [visaFlyttaFor, setVisaFlyttaFor] = useState<Uppgift | null>(null)
+  const [hoveredUppgiftId, setHoveredUppgiftId] = useState<string | null>(null)
   const [nyDatum, setNyDatum] = useState<string | null>(null)
   const [aktivId, setAktivId] = useState<string | null>(null)
   const [redigerarSerie, setRedigerarSerie] = useState<Serie | null>(null)
@@ -408,6 +411,45 @@ export function KanbanBoard({
     setVisaTidsatgangFor(null)
   }
 
+  // Snabbgenväg (hovra kort + tryck "D") för att bara ändra dag utan att öppna
+  // hela formuläret — placerar kortet sist i måldagens kolumn, samma regel som
+  // drag-and-drop använder när man släpper direkt i en kolumn (inte på ett kort).
+  function flyttaTillDatum(datum: string | null) {
+    const u = visaFlyttaFor
+    if (!u) return
+    const sorteradeIKolumn = uppgifterVy
+      .filter((o) => o.id !== u.id && kolumnForUppgift(o) === datum)
+      .sort((a, b) => a.sortordning - b.sortordning)
+    const sista = sorteradeIKolumn[sorteradeIKolumn.length - 1]
+    const nyOrdning = sista ? sista.sortordning + 1 : 0
+    startTransition(() => {
+      patchUppgiftOptimistiskt({ id: u.id, patch: { deadline: datum, sortordning: nyOrdning } })
+      flyttaUppgift(u.id, datum, nyOrdning)
+    })
+    setVisaFlyttaFor(null)
+  }
+
+  // Ingen synlig indikation i UI:t — medvetet en dold "power user"-genväg.
+  // Ignorerar tangenttryckningar riktade mot inmatningsfält och när någon annan
+  // dialog redan är öppen, så den inte krockar med text man skriver där.
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key.toLowerCase() !== 'd' || e.ctrlKey || e.altKey || e.metaKey) return
+      if (!hoveredUppgiftId) return
+      if (redigerar || visaTidsatgangFor || visaFlyttaFor || redigerarSerie || skaparSerie) return
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
+
+      const u = uppgifterVy.find((o) => o.id === hoveredUppgiftId)
+      if (!u) return
+      e.preventDefault()
+      setVisaFlyttaFor(u)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [hoveredUppgiftId, redigerar, visaTidsatgangFor, visaFlyttaFor, redigerarSerie, skaparSerie, uppgifterVy])
+
   return (
     <DndContext
       id="uppgifter-kanban"
@@ -473,6 +515,7 @@ export function KanbanBoard({
               onSelect={setRedigerar}
               onToggleStatus={toggleStatus}
               onAddNew={oppnaNy}
+              onHover={setHoveredUppgiftId}
             />
           ))}
         </div>
@@ -505,6 +548,15 @@ export function KanbanBoard({
           initialTimmar={visaTidsatgangFor.tidsatgang_timmar}
           onConfirm={bekraftaTidsatgang}
           onCancel={() => setVisaTidsatgangFor(null)}
+        />
+      )}
+
+      {visaFlyttaFor && (
+        <FlyttaDatumDialog
+          titel={visaFlyttaFor.titel}
+          initialDatum={visaFlyttaFor.deadline}
+          onConfirm={flyttaTillDatum}
+          onCancel={() => setVisaFlyttaFor(null)}
         />
       )}
 
@@ -589,6 +641,7 @@ function KanbanColumn({
   onSelect,
   onToggleStatus,
   onAddNew,
+  onHover,
 }: {
   kol: Kolumn
   dag?: DagInfo
@@ -604,6 +657,7 @@ function KanbanColumn({
   onSelect: (u: Uppgift) => void
   onToggleStatus: (u: Uppgift) => void
   onAddNew: (datum: string | null) => void
+  onHover: (id: string | null) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: kol.key })
   const arIdag = kol.datum === today
@@ -683,6 +737,7 @@ function KanbanColumn({
                 projektFargMap={projektFargMap}
                 onSelect={onSelect}
                 onToggleStatus={onToggleStatus}
+                onHover={onHover}
               />
             ))
           )}
@@ -710,6 +765,7 @@ function KanbanCard({
   projektFargMap,
   onSelect,
   onToggleStatus,
+  onHover,
 }: {
   uppgift: Uppgift
   today: string
@@ -720,6 +776,7 @@ function KanbanCard({
   projektFargMap: Map<string, string | null>
   onSelect: (u: Uppgift) => void
   onToggleStatus: (u: Uppgift) => void
+  onHover: (id: string | null) => void
 }) {
   // Klockslagsatta kort positioneras automatiskt i kronologisk ordning — att låta dem
   // dras skulle bara resultera i att de studsar tillbaka till sin klockslags-plats,
@@ -744,6 +801,8 @@ function KanbanCard({
       {...listeners}
       {...attributes}
       onClick={() => onSelect(u)}
+      onMouseEnter={() => onHover(u.id)}
+      onMouseLeave={() => onHover(null)}
       className={`cursor-pointer rounded-xl border border-border-subtle border-l-4 p-3 shadow-sm transition-shadow hover:shadow-md ${bakgrund} ${border} ${
         klar ? 'opacity-60' : ''
       } ${isDragging ? 'opacity-30' : ''} ${isOver ? 'ring-2 ring-accent-400' : ''}`}
