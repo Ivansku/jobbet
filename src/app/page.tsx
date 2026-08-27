@@ -83,7 +83,8 @@ export default async function Home() {
       .eq('person_id', person.id)
       .eq('deadline', idag)
       .eq('ar_placeholder', false)
-      .order('sortordning'),
+      .order('sortordning')
+      .order('id'),
     supabase
       .from('uppgift')
       .select(UPPGIFT_DETALJERAD_FALT)
@@ -98,7 +99,8 @@ export default async function Home() {
       .eq('person_id', person.id)
       .eq('deadline', imorgon)
       .eq('ar_placeholder', false)
-      .order('sortordning'),
+      .order('sortordning')
+      .order('id'),
     supabase.from('dagsfokus').select('uppgift_id').eq('person_id', person.id).eq('datum', idag),
     supabase.from('flexel_installning').select('modul').eq('person_id', person.id).eq('aktiv', true),
     supabase.from('kund').select('id, namn').order('namn'),

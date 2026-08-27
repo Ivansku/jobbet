@@ -241,6 +241,7 @@ export async function hamtaProjektUppgifter(projektId: string) {
     .eq('projekt_id', projektId)
     .order('deadline', { ascending: true, nullsFirst: false })
     .order('sortordning', { ascending: true })
+    .order('id', { ascending: true })
 
   return (data ?? []).map((u) => ({
     ...u,

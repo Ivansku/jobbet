@@ -119,7 +119,8 @@ export default async function UppgifterPage({
       )
       .eq('ar_placeholder', false)
       .or(`deadline.is.null,and(deadline.gte.${weekDates[0]},deadline.lte.${sundayISO})`)
-      .order('sortordning'),
+      .order('sortordning')
+      .order('id'),
     // Hämtas alltid färdigt här (litet antal rader) istället för att formuläret ska
     // fråga vid öppning — annars syns en fördröjning innan "Koppla till
     // placeholder" hinner avgöra om det finns något att koppla till.
