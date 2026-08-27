@@ -231,10 +231,12 @@ export function MotesanteckningarSektion({
       )}
       <div className="flex shrink-0 flex-col gap-3">
         {expanderad ? (
-          <h3 className="text-sm font-semibold">Mötesanteckningar</h3>
+          <h3 className="text-sm font-semibold">Uppgiftsanteckningar</h3>
         ) : (
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold">Mötesanteckningar</h3>
+            <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">
+              Uppgiftsanteckningar
+            </p>
             <button
               type="button"
               onClick={() => setExpanderad(true)}

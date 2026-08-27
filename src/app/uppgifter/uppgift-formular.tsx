@@ -803,7 +803,7 @@ export function UppgiftFormular({
         )}
 
         {effektivMallId && !serieModus && (
-          <FormularSektion label="Mötesanteckningar">
+          <FormularSektion>
             <MotesanteckningarSektion
               uppgiftId={existing?.id ?? null}
               blocks={mallBlock}
