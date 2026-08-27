@@ -48,9 +48,167 @@ type DagInfo = { rodDag: boolean; helgdag: string | null; halvdag: boolean }
 
 const VECKODAGAR = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag']
 const ARBETSDAGAR_PER_VECKA = 5
+// Antagen arbetsdags-start för överplaneringsberäkningen nedan — ingen egen
+// inställning finns per person, 08:00 är ett rimligt schablonvärde för v1.
+const DAGSSTART_MINUTER = 8 * 60
+// Schablon-lunch, samma anledning som DAGSSTART_MINUTER ovan: ingen egen
+// inställning finns per person. Utan den räknades tidsåtgången (som bara
+// täcker faktiskt uppgiftsarbete) som om hela dagen jobbades obruten, vilket
+// gjorde både de beräknade tiderna efter lunch och dagens slutgräns en timme
+// för optimistiska.
+const LUNCH_START_MINUTER = 12 * 60
+const LUNCH_MINUTER = 60
 
+// Rundar till närmaste halvtimme — kapaciteten (arbetstimmar/vecka delat på 5
+// dagar) ger sällan jämna tal (t.ex. 6,4h), vilket annars syns som en missvisande
+// exakthet i både kapacitetsbadgen och de beräknade klockslagen nedan.
 function formatTimmar(timmar: number): string {
-  return Number(timmar.toFixed(1)).toString()
+  const rundad = Math.round(timmar * 2) / 2
+  return Number(rundad.toFixed(1)).toString()
+}
+
+function tidTillMinuter(klockslag: string): number {
+  const [h, m] = klockslag.split(':').map(Number)
+  return h * 60 + m
+}
+
+function minuterTillTid(minuter: number): string {
+  const rundad = Math.round(minuter / 30) * 30
+  const h = Math.floor(rundad / 60)
+    .toString()
+    .padStart(2, '0')
+  const m = (rundad % 60).toString().padStart(2, '0')
+  return `${h}:${m}`
+}
+
+function formatForsening(minuter: number): string {
+  const h = Math.floor(minuter / 60)
+  const m = minuter % 60
+  if (h === 0) return `${m} min`
+  if (m === 0) return `${h}h`
+  return `${h}h ${m}min`
+}
+
+type TidsaxelPunkt = { minuter: number; uppskattad: boolean; forsenadMed?: number; efterArbetstid: boolean }
+
+// Simulerar en "virtuell klocka" som tickar genom en persons uppgifter i
+// kolumnens sortordning, med start DAGSSTART_MINUTER: otidsatta uppgifter
+// knuffar klockan framåt med sin tidsåtgång och får sin punkt märkt som
+// uppskattad (så kortet kan visa en beräknad, inte påhittad, starttid), medan
+// tidsatta uppgifter aldrig kan börja innan sitt eget klockslag (klockan
+// hoppar fram till max av de två) — så en uppgift markeras bara som försenad
+// om det som ligger FÖRE den i ordningen redan har ätit upp tiden fram till
+// dess klockslag. Uppgifter utan tidsåtgång räknas som 0 (påverkar inte
+// klockan) snarare än att anta en gissad längd. `efterArbetstid` flaggar även
+// en punkt (verklig eller uppskattad) vars start ELLER slut (start + egen
+// varaktighet) ligger efter personens satta arbetsdagsslut, oavsett kollision
+// med ett specifikt möte — annars missas t.ex. en uppgift som börjar inom
+// arbetstid men pågår långt förbi den. Klarmarkerade
+// uppgifter filtreras inte bort här — det är rendering-lagrets ansvar att inte
+// visa varningen för dem, eftersom "sen" inte är relevant för något redan gjort.
+function berakneTidsaxel(
+  uppgifter: Uppgift[],
+  currentPersonId: string | null,
+  dagensSlutMinuter: number
+): Map<string, TidsaxelPunkt> {
+  const axel = new Map<string, TidsaxelPunkt>()
+  let klockaMin = DAGSSTART_MINUTER
+  let lunchTagen = false
+  for (const u of uppgifter) {
+    if (u.person_id !== currentPersonId) continue
+    // Lunchen läggs in första gången klockan når 12:00, innan dagens uppgift
+    // bedöms — så både ett eventuellt klockslag-krock-läge och en beräknad
+    // starttid efter lunch redan räknar med den ätna timmen.
+    if (!lunchTagen && klockaMin >= LUNCH_START_MINUTER) {
+      klockaMin += LUNCH_MINUTER
+      lunchTagen = true
+    }
+    // Varaktigheten räknas in i "efter arbetstid"-jämförelsen (inte bara starttiden)
+    // — annars missas fall som en 2h-uppgift som börjar inom arbetstid kl 14:30 men
+    // pågår till 16:30, långt efter dagens slut.
+    const varaktighetMin = Math.round((u.tidsatgang_timmar ?? 0) * 60)
+    if (u.klockslag) {
+      const klockslagMin = tidTillMinuter(u.klockslag)
+      const forsenadMed = klockaMin > klockslagMin ? klockaMin - klockslagMin : undefined
+      axel.set(u.id, {
+        minuter: klockslagMin,
+        uppskattad: false,
+        forsenadMed,
+        efterArbetstid: klockslagMin + varaktighetMin > dagensSlutMinuter,
+      })
+      // Klockan sätts till mötets EGNA klockslag, inte max(klocka, klockslag) —
+      // en eventuell försening fram TILL mötet (för mycket innan) ska synas som
+      // en varning på just det mötet, men inte kasta skugga på resten av dagen.
+      // Mötet har sin egen verkliga sluttid i kalendern oavsett hur sent man kom.
+      klockaMin = klockslagMin
+      // Om mötets klockslag redan ligger efter 12:00 är lunchen implicit redan
+      // förbrukad av att klockan hoppade dit — markera den som tagen utan att
+      // lägga på ytterligare en timme, annars dubbelräknas den mot nästa uppgift.
+      if (!lunchTagen && klockaMin >= LUNCH_START_MINUTER) lunchTagen = true
+    } else {
+      axel.set(u.id, {
+        minuter: klockaMin,
+        uppskattad: true,
+        efterArbetstid: klockaMin + varaktighetMin > dagensSlutMinuter,
+      })
+    }
+    klockaMin += varaktighetMin
+  }
+  return axel
+}
+
+// En lucka i dagens tidslinje: `innanId` pekar på vilket kort (i uppgifter-listans
+// befintliga renderingsordning) luckan visas direkt före, eller null för luckan
+// efter dagens sista kort. `langdMin` är den lediga tiden i minuter, med ett
+// eventuellt lunchöverlapp bortdraget (se overlapMinuter nedan) — visas som en enda
+// sammanhängande lucka i UI:t även om lunchen råkar dela upp den i praktiken, en
+// medveten v1-förenkling.
+type Lucka = { innanId: string | null; langdMin: number }
+
+function overlapMinuter(startA: number, slutA: number, startB: number, slutB: number): number {
+  return Math.max(0, Math.min(slutA, slutB) - Math.max(startA, startB))
+}
+
+// Räknar ut var i dagen (given kolumnens övriga uppgifter, med `exkluderaId` —
+// typiskt det kort man just nu drar — borttaget) det finns oanvänd tid kvar, så
+// planerings-assistenten kan visa "hit får plats en uppgift av den här längden".
+// Återanvänder berakneTidsaxel rakt av: den ger redan varje kvarvarande uppgifts
+// start+sluttid i samma packade ordning (inklusive lunch-hantering och att ett
+// klockslagssatt kort kan lämna en lucka innan det om det ligger senare än vad de
+// föregående uppgifterna hunnit fram till) — komplementet av de intervallen inom
+// [DAGSSTART_MINUTER, dagensSlutMinuter] ÄR luckorna.
+function berakneLuckor(
+  uppgifter: Uppgift[],
+  currentPersonId: string | null,
+  dagensSlutMinuter: number,
+  exkluderaId: string,
+  minLangdMin: number
+): Lucka[] {
+  const egna = uppgifter.filter((u) => u.person_id === currentPersonId && u.id !== exkluderaId)
+  const axel = berakneTidsaxel(egna, currentPersonId, dagensSlutMinuter)
+  const punkter = egna
+    .map((u) => {
+      const p = axel.get(u.id)
+      if (!p) return null
+      return { id: u.id, start: p.minuter, slut: p.minuter + Math.round((u.tidsatgang_timmar ?? 0) * 60) }
+    })
+    .filter((p): p is { id: string; start: number; slut: number } => p !== null)
+
+  const luckor: Lucka[] = []
+  let markor = DAGSSTART_MINUTER
+  for (const p of punkter) {
+    if (p.start > markor) {
+      const langd = p.start - markor - overlapMinuter(markor, p.start, LUNCH_START_MINUTER, LUNCH_START_MINUTER + LUNCH_MINUTER)
+      if (langd >= minLangdMin) luckor.push({ innanId: p.id, langdMin: langd })
+    }
+    markor = Math.max(markor, p.slut)
+  }
+  if (dagensSlutMinuter > markor) {
+    const langd =
+      dagensSlutMinuter - markor - overlapMinuter(markor, dagensSlutMinuter, LUNCH_START_MINUTER, LUNCH_START_MINUTER + LUNCH_MINUTER)
+    if (langd >= minLangdMin) luckor.push({ innanId: null, langdMin: langd })
+  }
+  return luckor
 }
 
 // Prioritet syns bara som en dämpad kantfärg på kortet (ingen separat badge/text) —
@@ -512,6 +670,7 @@ export function KanbanBoard({
               projektFargMap={projektFargMap}
               currentPersonId={currentPersonId}
               kapacitetPerDag={arbetstimmarPerVecka / ARBETSDAGAR_PER_VECKA}
+              aktivUppgift={aktivUppgift}
               onSelect={setRedigerar}
               onToggleStatus={toggleStatus}
               onAddNew={oppnaNy}
@@ -638,6 +797,7 @@ function KanbanColumn({
   projektFargMap,
   currentPersonId,
   kapacitetPerDag,
+  aktivUppgift,
   onSelect,
   onToggleStatus,
   onAddNew,
@@ -654,6 +814,7 @@ function KanbanColumn({
   projektFargMap: Map<string, string | null>
   currentPersonId: string | null
   kapacitetPerDag: number
+  aktivUppgift: Uppgift | null
   onSelect: (u: Uppgift) => void
   onToggleStatus: (u: Uppgift) => void
   onAddNew: (datum: string | null) => void
@@ -666,6 +827,27 @@ function KanbanColumn({
   const planeratTimmar = uppgifter
     .filter((u) => u.person_id === currentPersonId)
     .reduce((sum, u) => sum + (u.tidsatgang_timmar ?? 0), 0)
+  const dagensSlutMinuter =
+    DAGSSTART_MINUTER + Math.round((dag?.halvdag ? 4 : kapacitetPerDag) * 60) + LUNCH_MINUTER
+  const tidsaxel = kol.datum
+    ? berakneTidsaxel(uppgifter, currentPersonId, dagensSlutMinuter)
+    : new Map<string, TidsaxelPunkt>()
+
+  // Planerings-assistenten: medan ett kort dras runt, visa var i veckan det skulle
+  // få plats. Sökningen sker på det burna kortets EGEN ägare (kan skilja sig från
+  // currentPersonId om man råkar dra en kollegas kort) — bara den personens egen
+  // tid är relevant för var deras uppgift får plats. Ingen tidsåtgång på det burna
+  // kortet betyder inget att jämföra luckor mot, då visas inga ledig-markeringar.
+  const minLangdMin =
+    kol.datum && aktivUppgift?.tidsatgang_timmar && aktivUppgift.person_id
+      ? Math.round(aktivUppgift.tidsatgang_timmar * 60)
+      : 0
+  const luckor =
+    minLangdMin > 0
+      ? berakneLuckor(uppgifter, aktivUppgift!.person_id, dagensSlutMinuter, aktivUppgift!.id, minLangdMin)
+      : []
+  const luckaInnanId = new Map(luckor.filter((l) => l.innanId !== null).map((l) => [l.innanId as string, l]))
+  const luckaEfterSista = luckor.find((l) => l.innanId === null) ?? null
 
   // Röd dag/halvdag markeras med diagonala streck ovanpå standardbakgrunden istället för
   // en egen kulör (både rött och grönt krockade visuellt med danger-/success-färgerna
@@ -725,22 +907,29 @@ function KanbanColumn({
           {uppgifter.length === 0 ? (
             <p className="py-4 text-center text-xs text-stone-400">Inga uppgifter</p>
           ) : (
-            uppgifter.map((u) => (
-              <KanbanCard
-                key={u.id}
-                uppgift={u}
-                today={today}
-                personMap={personMap}
-                kundMap={kundMap}
-                typMap={typMap}
-                kategoriMap={kategoriMap}
-                projektFargMap={projektFargMap}
-                onSelect={onSelect}
-                onToggleStatus={onToggleStatus}
-                onHover={onHover}
-              />
-            ))
+            uppgifter.map((u) => {
+              const lucka = luckaInnanId.get(u.id)
+              return (
+                <div key={u.id} className="contents">
+                  {lucka && <LuckaHint langdMin={lucka.langdMin} />}
+                  <KanbanCard
+                    uppgift={u}
+                    today={today}
+                    personMap={personMap}
+                    kundMap={kundMap}
+                    typMap={typMap}
+                    kategoriMap={kategoriMap}
+                    projektFargMap={projektFargMap}
+                    tidsaxelPunkt={tidsaxel.get(u.id)}
+                    onSelect={onSelect}
+                    onToggleStatus={onToggleStatus}
+                    onHover={onHover}
+                  />
+                </div>
+              )
+            })
           )}
+          {luckaEfterSista && <LuckaHint langdMin={luckaEfterSista.langdMin} />}
 
           <button
             type="button"
@@ -755,6 +944,24 @@ function KanbanColumn({
   )
 }
 
+// Rent visuell "hit får du plats"-markering under en drag — ingen egen dropzon (se
+// planerings-assistenten ovan), man släpper fortfarande på kortet ovanför/under
+// som vanligt. Grön (success-tonerna, samma som Badge tone="success" använder)
+// eftersom det är ett positivt "plats finns"-besked, inte en drop-hint.
+function LuckaHint({ langdMin }: { langdMin: number }) {
+  // Rundas till närmaste halvtimme av samma anledning som formatTimmar/minuterTillTid
+  // ovan — golvat på 30 min så en lucka som precis kvalar in inte visas som "0 min".
+  const rundad = Math.max(30, Math.round(langdMin / 30) * 30)
+  return (
+    <div
+      aria-hidden
+      className="rounded-lg border-2 border-dashed border-success-600 bg-success-50/60 px-2 py-1.5 text-center text-xs font-medium text-success-700 dark:border-success-700 dark:bg-success-950/30 dark:text-success-100"
+    >
+      {formatForsening(rundad)} ledigt
+    </div>
+  )
+}
+
 function KanbanCard({
   uppgift: u,
   today,
@@ -763,6 +970,7 @@ function KanbanCard({
   typMap,
   kategoriMap,
   projektFargMap,
+  tidsaxelPunkt,
   onSelect,
   onToggleStatus,
   onHover,
@@ -774,6 +982,7 @@ function KanbanCard({
   typMap: Map<string, string>
   kategoriMap: Map<string, string>
   projektFargMap: Map<string, string | null>
+  tidsaxelPunkt?: TidsaxelPunkt
   onSelect: (u: Uppgift) => void
   onToggleStatus: (u: Uppgift) => void
   onHover: (id: string | null) => void
@@ -814,6 +1023,7 @@ function KanbanCard({
         kundMap={kundMap}
         typMap={typMap}
         kategoriMap={kategoriMap}
+        tidsaxelPunkt={tidsaxelPunkt}
         onToggleStatus={onToggleStatus}
       />
     </div>
@@ -827,6 +1037,7 @@ function KortInnehall({
   kundMap,
   typMap,
   kategoriMap,
+  tidsaxelPunkt,
   onToggleStatus,
 }: {
   uppgift: Uppgift
@@ -835,11 +1046,15 @@ function KortInnehall({
   kundMap: Map<string, string>
   typMap: Map<string, string>
   kategoriMap: Map<string, string>
+  tidsaxelPunkt?: TidsaxelPunkt
   onToggleStatus?: (u: Uppgift) => void
 }) {
   const klar = u.status === 'klar'
   const vantar = u.status === 'vantar'
   const forsenad = !!u.deadline && u.deadline < today && u.status !== 'klar'
+  // En redan klarmarkerad uppgift ska inte visas som "sen" — planen höll även om
+  // tidsaxel-beräkningen (som inte vet om verklig utförandetid) tror att den inte gjorde det.
+  const varning = !klar && (tidsaxelPunkt?.forsenadMed !== undefined || !!tidsaxelPunkt?.efterArbetstid)
   const ansvarigNamn = u.person_id ? personMap.get(u.person_id) : undefined
   const harBeskrivning =
     !!u.beskrivning?.trim() || u.uppgift_anteckning.some((a) => !!a.innehall?.trim())
@@ -864,8 +1079,19 @@ function KortInnehall({
       )}
       <div className="flex items-start justify-between gap-2">
         <p className={`text-sm font-medium wrap-anywhere text-foreground ${klar ? 'line-through' : ''}`}>
-          {u.klockslag && (
-            <span className="mr-1.5 font-normal text-stone-400">{u.klockslag.slice(0, 5)}</span>
+          {u.klockslag ? (
+            <span className={`mr-1.5 font-normal ${varning ? 'text-red-600 dark:text-red-400' : 'text-stone-400'}`}>
+              {u.klockslag.slice(0, 5)}
+            </span>
+          ) : (
+            tidsaxelPunkt && (
+              <span
+                className={`mr-1.5 font-normal ${varning ? 'text-red-600 dark:text-red-400' : 'text-stone-400'}`}
+                title="Beräknad starttid utifrån tidigare uppgifter denna dag"
+              >
+                ~{minuterTillTid(tidsaxelPunkt.minuter)}
+              </span>
+            )
           )}
           {u.titel}
         </p>
@@ -880,11 +1106,15 @@ function KortInnehall({
           onChange={onToggleStatus ? () => onToggleStatus(u) : undefined}
         />
       </div>
-      {(forsenad || vantar || ansvarigNamn || u.tidsatgang_timmar || harBeskrivning) && (
+      {(forsenad || vantar || varning || ansvarigNamn || u.tidsatgang_timmar || harBeskrivning) && (
         <div className="mt-1.5 flex items-center justify-between gap-1">
           <div className="flex flex-wrap gap-1">
             {forsenad && <Badge tone="danger">Försenad</Badge>}
             {vantar && <Badge tone="warning">Väntar</Badge>}
+            {varning && tidsaxelPunkt?.forsenadMed !== undefined && (
+              <Badge tone="danger">{formatForsening(tidsaxelPunkt.forsenadMed)} sen</Badge>
+            )}
+            {varning && tidsaxelPunkt?.forsenadMed === undefined && <Badge tone="danger">Efter arbetstid</Badge>}
           </div>
           <div className="flex shrink-0 items-center gap-1">
             {harBeskrivning && (
