@@ -210,12 +210,12 @@ function ProjektKolumn({
                       className={`h-2 w-2 shrink-0 rounded-full ${PROJEKT_FARGER.find((f) => f.value === p.farg)?.dot ?? ''}`}
                     />
                   )}
-                  <span className="truncate font-medium">{p.namn}</span>
+                  <span className="truncate font-medium">{p.kundNamn ?? 'Internt'}</span>
                 </span>
                 <Badge tone={STATUS_TONE[p.status] ?? 'neutral'}>{STATUS_LABEL[p.status] ?? p.status}</Badge>
               </div>
               <div className="flex items-center justify-between gap-2 text-xs text-stone-400">
-                <span className="truncate">{p.kundNamn ?? 'Internt'}</span>
+                <span className="truncate">{p.namn}</span>
                 <span className="shrink-0">
                   {p.antalKlara} av {p.antalUppgifter} klara
                 </span>
