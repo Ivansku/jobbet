@@ -41,7 +41,7 @@ Use this skill when:
 | `projekt_medlem` | Junction: person ↔ projekt membership. | PK `(projekt_id, person_id)`. `roll`: `agare` \| `redigerare` \| `lasare`. |
 | `uppgift` | Task. Core work item. | `status`: `oppen`/`pagar`/`vantar`/`klar`. `prioritet`: `lag`/`medel`/`hog`. Optional `projekt_id`, `person_id` (assignee), `kund_id`, `typ_id`, `serie_id`, `kategori_id`, `anteckningsmall_id`. `ar_placeholder` marks template-derived rows not yet scheduled. Outlook sync fields (`outlook_event_id`, `outlook_ical_uid` — stable fallback key used when Exchange reissues `outlook_event_id` for the same meeting, unique per `(foretag_id, outlook_ical_uid)` when set, `obligatoriska_deltagare`, `valfria_deltagare`). Self-referencing `genererad_fran_uppgift_id`. |
 | `uppgiftstyp` | Task type, scoped to `foretag`. | Drives `skapa_uppgifter_vid_klar` (auto-generate follow-up tasks). May carry a default `anteckningsmall_id`. |
-| `uppgift_serie` | Recurring task series/template. | `veckodagar` (int2[] restricted to 1-5), `intervall_veckor`, generates `uppgift` rows over time; `senast_genererad_datum` tracks generation cursor. |
+| `uppgift_serie` | Recurring task series/template. | `serie_typ` (`dag`/`vecka`/`manad`) + `intervall` (every N days/weeks/months); `veckodagar` (int2[] restricted to 1-5) only used for `vecka` — CHECK constraint enforces it's set for `vecka` and null otherwise. For `manad`, the day-of-month is derived from `start_datum` (no separate column, avoids the two being able to disagree), clamped to the last day of shorter months. Generates `uppgift` rows over time; `senast_genererad_datum` tracks generation cursor. |
 | `kategori` | Free-form tag, scoped to `foretag`. | |
 | `uppgift_deltagare` | Junction: uppgift ↔ kontaktperson. | PK `(uppgift_id, kontaktperson_id)`. `typ`: `obligatorisk` \| `valfri`. |
 | `kund_anteckning` | Customer note. | Markdown `innehall`. |
@@ -94,6 +94,7 @@ These are the CHECK constraints that exist today. **Always verify the current co
 | `mall_uppgift.status` | `oppen`, `pagar`, `vantar`, `klar` |
 | `mall_uppgift.prioritet` | `lag`, `medel`, `hog` |
 | `uppgift_serie.prioritet` | `lag`, `medel`, `hog` |
+| `uppgift_serie.serie_typ` | `dag`, `vecka`, `manad` |
 | `person.roll` | `NULL`, `admin`, `medlem` |
 | `projekt.status` | `planerat`, `aktivt`, `pausat`, `avslutat` |
 | `projekt_medlem.roll` | `agare`, `redigerare`, `lasare` |
@@ -144,7 +145,7 @@ Follow this pattern for new many-to-many relationships rather than introducing a
 
 jobbet has two distinct "generate real rows from a template" mechanisms — do not conflate them:
 
-1. **Recurring series**: `uppgift_serie` → `uppgift`. Driven by `veckodagar` + `intervall_veckor`, cursor tracked in `senast_genererad_datum`. New `uppgift` rows copy `person_id`, `kund_id`, `typ_id`, `kategori_id`, `prioritet`, `tidsatgang_timmar`, `klockslag` from the series.
+1. **Recurring series**: `uppgift_serie` → `uppgift`. Driven by `serie_typ` (`dag`/`vecka`/`manad`) + `intervall`; `veckodagar` selects weekdays for the `vecka` type, while the `manad` type has no separate day-of-month column — it reuses the day from `start_datum` itself (clamped to the last day in shorter months). Cursor tracked in `senast_genererad_datum`. New `uppgift` rows copy `person_id`, `kund_id`, `typ_id`, `kategori_id`, `prioritet`, `tidsatgang_timmar`, `klockslag` from the series.
 2. **Project templates**: `mall_projekt` → `projekt`, and `mall_uppgift` → `uppgift` (offset by `dagar_efter_start` days from the project's `startdatum`).
 3. **Note-driven task generation**: `anteckningsblock.genererar_uppgift` — when true, saving a note in that block can create a follow-up `uppgift` (titled from `uppgift_titel_mall`, deadline offset by `deadline_dagar_efter_motet`). The generated task is linked back via `uppgift_anteckning.uppgift_id_genererad`.
 

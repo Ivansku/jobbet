@@ -15,6 +15,18 @@ function veckodagarText(dagar: number[]) {
     .join(', ')
 }
 
+function upprepningText(s: Serie) {
+  if (s.serie_typ === 'dag') {
+    return s.intervall > 1 ? `Var ${s.intervall}:e dag` : 'Varje dag'
+  }
+  if (s.serie_typ === 'manad') {
+    const dagIManad = Number(s.start_datum.slice(8, 10))
+    const manadText = s.intervall > 1 ? `var ${s.intervall}:e månad` : 'varje månad'
+    return `Dag ${dagIManad} i månaden, ${manadText}`
+  }
+  return `${s.intervall > 1 ? `Var ${s.intervall}:e vecka: ` : ''}${veckodagarText(s.veckodagar)}`
+}
+
 export function SerieVy({
   serier,
   onNewSerie,
@@ -55,8 +67,7 @@ export function SerieVy({
                   >
                     <span className="font-medium">{s.titel}</span>
                     <span className="text-xs text-stone-400">
-                      {s.intervall_veckor > 1 ? `Var ${s.intervall_veckor}:e vecka: ` : ''}
-                      {veckodagarText(s.veckodagar)} · Från {s.start_datum} ·{' '}
+                      {upprepningText(s)} · Från {s.start_datum} ·{' '}
                       {s.slut_datum ? `till ${s.slut_datum}` : 'inget slutdatum'}
                     </span>
                   </button>

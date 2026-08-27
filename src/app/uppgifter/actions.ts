@@ -172,8 +172,9 @@ export async function skapaUppgiftSerie(input: {
   kategoriId: string
   prioritet: string
   startDatum: string
+  serieTyp: string
   veckodagar: number[]
-  intervallVeckor: number
+  intervall: number
   slutDatum: string | null
   tidsatgangTimmar: number | null
   klockslag: string | null
@@ -181,7 +182,7 @@ export async function skapaUppgiftSerie(input: {
   synkFranDatum: string | null
 }) {
   const outlookKopplad = !!input.outlookSeriesId
-  if (!outlookKopplad && input.veckodagar.length === 0) return
+  if (!outlookKopplad && input.serieTyp === 'vecka' && input.veckodagar.length === 0) return
   const foretagId = await currentForetagId()
   if (!foretagId) return
 
@@ -198,8 +199,9 @@ export async function skapaUppgiftSerie(input: {
       kategori_id: input.kategoriId || null,
       prioritet: input.prioritet,
       start_datum: input.startDatum,
-      veckodagar: input.veckodagar,
-      intervall_veckor: input.intervallVeckor,
+      serie_typ: input.serieTyp,
+      veckodagar: input.serieTyp === 'vecka' ? input.veckodagar : null,
+      intervall: input.intervall,
       slut_datum: input.slutDatum,
       tidsatgang_timmar: input.tidsatgangTimmar,
       klockslag: input.klockslag,
@@ -238,8 +240,9 @@ export async function uppdateraSerie(
     kategoriId: string
     prioritet: string
     startDatum: string
+    serieTyp: string
     veckodagar: number[]
-    intervallVeckor: number
+    intervall: number
     slutDatum: string | null
     tidsatgangTimmar: number | null
     klockslag: string | null
@@ -259,7 +262,7 @@ export async function uppdateraSerie(
     .single()
   const outlookSeriesId = befintligSerie?.outlook_series_id ?? null
 
-  if (!outlookSeriesId && input.veckodagar.length === 0) return
+  if (!outlookSeriesId && input.serieTyp === 'vecka' && input.veckodagar.length === 0) return
 
   // En serie som ännu inte börjat (startdatum efter idag) har inget att
   // "redan ha genererat" — nollställs istället för att sättas till idag, annars
@@ -279,8 +282,9 @@ export async function uppdateraSerie(
       kategori_id: input.kategoriId || null,
       prioritet: input.prioritet,
       start_datum: input.startDatum,
-      veckodagar: input.veckodagar,
-      intervall_veckor: input.intervallVeckor,
+      serie_typ: input.serieTyp,
+      veckodagar: input.serieTyp === 'vecka' ? input.veckodagar : null,
+      intervall: input.intervall,
       slut_datum: input.slutDatum,
       tidsatgang_timmar: input.tidsatgangTimmar,
       klockslag: input.klockslag,

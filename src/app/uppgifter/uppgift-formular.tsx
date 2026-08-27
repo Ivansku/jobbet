@@ -104,8 +104,9 @@ export type Serie = {
   kategori_id: string | null
   prioritet: string
   start_datum: string
+  serie_typ: 'dag' | 'vecka' | 'manad'
   veckodagar: number[]
-  intervall_veckor: number
+  intervall: number
   slut_datum: string | null
   tidsatgang_timmar: number | null
   klockslag: string | null
@@ -132,6 +133,12 @@ export const STATUS_PILLS = [
   { value: 'pagar', label: 'Pågår' },
   { value: 'vantar', label: 'Väntar' },
   { value: 'klar', label: 'Klar' },
+]
+
+export const SERIE_TYP_PILLS = [
+  { value: 'dag', label: 'Dag' },
+  { value: 'vecka', label: 'Vecka' },
+  { value: 'manad', label: 'Månad' },
 ]
 
 export function FormularSektion({ label, children }: { label?: string; children: ReactNode }) {
@@ -330,8 +337,9 @@ export function UppgiftFormular({
   // projektgenerering. Behålls oförändrat vid spara; styr bara om
   // "Koppla till placeholder" ska visas nedan.
   const arPlaceholder = existing?.ar_placeholder ?? false
+  const [serieTyp, setSerieTyp] = useState<'dag' | 'vecka' | 'manad'>(existingSerie?.serie_typ ?? 'vecka')
   const [veckodagar, setVeckodagar] = useState<number[]>(existingSerie?.veckodagar ?? [])
-  const [intervallVeckor, setIntervallVeckor] = useState(existingSerie?.intervall_veckor ?? 1)
+  const [intervall, setIntervall] = useState(existingSerie?.intervall ?? 1)
   const [slutDatum, setSlutDatum] = useState(existingSerie?.slut_datum ?? '')
   const [valtOutlookSeriesId, setValtOutlookSeriesId] = useState('')
   // Kopplingen sätts bara vid skapande — en redan kopplad serie visas som
@@ -349,10 +357,12 @@ export function UppgiftFormular({
   // skickas med i skapaUppgift och sparas i samma åtgärd som uppgiften skapas.
   const [nyaAnteckningar, setNyaAnteckningar] = useState<Record<string, string>>({})
 
+  const serieUpprepningOgiltig = serieTyp === 'vecka' && veckodagar.length === 0
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!titel.trim()) return
-    if (serieModus && !outlookKopplad && (!deadline || veckodagar.length === 0)) return
+    if (serieModus && !outlookKopplad && (!deadline || serieUpprepningOgiltig)) return
     setSparar(true)
 
     const tidsatgangTimmar = tidsatgang.trim() ? Number(tidsatgang) : null
@@ -368,8 +378,9 @@ export function UppgiftFormular({
         kategoriId,
         prioritet,
         startDatum: deadline,
+        serieTyp,
         veckodagar,
-        intervallVeckor,
+        intervall,
         slutDatum: slutDatum || null,
         tidsatgangTimmar,
         klockslag: klockslagVarde,
@@ -385,8 +396,9 @@ export function UppgiftFormular({
         kategoriId,
         prioritet,
         startDatum: outlookKopplad ? deadline || todayISO() : deadline,
+        serieTyp,
         veckodagar,
-        intervallVeckor,
+        intervall,
         slutDatum: slutDatum || null,
         tidsatgangTimmar,
         klockslag: klockslagVarde,
@@ -772,9 +784,13 @@ export function UppgiftFormular({
 
         {serieModus && !outlookKopplad && (
           <FormularSektion label="Upprepning">
-            <Field label="Upprepa på" htmlFor="serie-veckodagar">
-              <VeckodagValjare value={veckodagar} onChange={setVeckodagar} />
-            </Field>
+            <PillGrupp label="Typ" value={serieTyp} onChange={(v) => setSerieTyp(v as typeof serieTyp)} options={SERIE_TYP_PILLS} />
+
+            {serieTyp === 'vecka' && (
+              <Field label="Upprepa på" htmlFor="serie-veckodagar">
+                <VeckodagValjare value={veckodagar} onChange={setVeckodagar} />
+              </Field>
+            )}
 
             <Field label="Upprepa var" htmlFor="serie-intervall">
               <div className="flex items-center gap-2">
@@ -782,11 +798,15 @@ export function UppgiftFormular({
                   type="number"
                   id="serie-intervall"
                   min={1}
-                  value={intervallVeckor}
-                  onChange={(e) => setIntervallVeckor(Math.max(1, Number(e.target.value)))}
+                  value={intervall}
+                  onChange={(e) => setIntervall(Math.max(1, Number(e.target.value)))}
                   className="w-16"
                 />
-                <span className="text-sm text-stone-500">vecka</span>
+                <span className="text-sm text-stone-500">
+                  {serieTyp === 'dag' && (intervall === 1 ? 'dag' : 'dagar')}
+                  {serieTyp === 'vecka' && (intervall === 1 ? 'vecka' : 'veckor')}
+                  {serieTyp === 'manad' && (intervall === 1 ? 'månad' : 'månader')}
+                </span>
               </div>
             </Field>
 
@@ -861,7 +881,7 @@ export function UppgiftFormular({
                 type="submit"
                 variant="primary"
                 loading={sparar}
-                disabled={!titel.trim() || (!outlookKopplad && (!deadline || veckodagar.length === 0))}
+                disabled={!titel.trim() || (!outlookKopplad && (!deadline || serieUpprepningOgiltig))}
               >
                 Spara
               </Button>
@@ -877,7 +897,7 @@ export function UppgiftFormular({
               variant="primary"
               loading={sparar}
               disabled={
-                !titel.trim() || (serieLage && !outlookKopplad && (!deadline || veckodagar.length === 0))
+                !titel.trim() || (serieLage && !outlookKopplad && (!deadline || serieUpprepningOgiltig))
               }
             >
               {existing ? 'Spara' : serieLage ? 'Skapa serie' : 'Skapa'}

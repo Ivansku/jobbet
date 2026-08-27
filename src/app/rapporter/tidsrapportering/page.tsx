@@ -200,7 +200,7 @@ export default async function TidsrapporteringPage({
     supabase
       .from('uppgift_serie')
       .select(
-        'id, titel, beskrivning, person_id, kund_id, typ_id, kategori_id, prioritet, start_datum, veckodagar, intervall_veckor, slut_datum, tidsatgang_timmar, klockslag, outlook_series_id, synk_fran_datum'
+        'id, titel, beskrivning, person_id, kund_id, typ_id, kategori_id, prioritet, start_datum, serie_typ, veckodagar, intervall, slut_datum, tidsatgang_timmar, klockslag, outlook_series_id, synk_fran_datum'
       )
       .order('titel'),
     supabase.from('kontaktperson').select('id, kund_id, fornamn, efternamn, epost').order('fornamn'),
