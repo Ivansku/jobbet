@@ -12,6 +12,7 @@ import {
   taBortSerie,
   taBortSerieMedUppgifter,
   raknaSerieUppgifter,
+  hamtaUppgift,
 } from './actions'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
@@ -292,6 +293,13 @@ export function UppgiftFormular({
   onChanged?: () => void
 }) {
   const serieModus = serieLage || !!existingSerie
+
+  const [tidigareUppgift, setTidigareUppgift] = useState<Uppgift | null>(null)
+
+  async function oppnaTidigareUppgift(uppgiftId: string) {
+    const uppgift = await hamtaUppgift(uppgiftId)
+    if (uppgift) setTidigareUppgift(uppgift)
+  }
 
   const [titel, setTitel] = useState(existingSerie?.titel ?? existing?.titel ?? '')
   const [beskrivning, setBeskrivning] = useState(existingSerie?.beskrivning ?? existing?.beskrivning ?? '')
@@ -829,11 +837,12 @@ export function UppgiftFormular({
         )}
 
         {existing?.id && effektivMallId && kundId && (
-          <FormularSektion label="Tidigare möten">
+          <FormularSektion label="Tidigare dialog">
             <TidigareMotenSektion
               kundId={kundId}
               excludeUppgiftId={existing.id}
               kundNamn={kunder.find((k) => k.id === kundId)?.namn ?? ''}
+              onOppna={oppnaTidigareUppgift}
             />
           </FormularSektion>
         )}
@@ -875,6 +884,26 @@ export function UppgiftFormular({
           </div>
         )}
       </form>
+
+      {tidigareUppgift && (
+        <UppgiftFormular
+          existing={tidigareUppgift}
+          placeholders={placeholders}
+          personer={personer}
+          kunder={kunder}
+          typer={typer}
+          kategori={kategori}
+          projekt={projekt}
+          serier={serier}
+          kontaktpersoner={kontaktpersoner}
+          block={block}
+          currentPersonId={currentPersonId}
+          initialDeadline={null}
+          outlookSerier={outlookSerier}
+          onEditSerie={onEditSerie}
+          onClose={() => setTidigareUppgift(null)}
+        />
+      )}
     </Modal>
   )
 }

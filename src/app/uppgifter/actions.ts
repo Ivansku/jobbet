@@ -459,6 +459,19 @@ export async function sparaAnteckning(uppgiftId: string, blockId: string, inneha
   )
 }
 
+export async function hamtaUppgift(id: string) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('uppgift')
+    .select(
+      'id, titel, beskrivning, status, prioritet, deadline, person_id, kund_id, typ_id, kategori_id, projekt_id, serie_id, sortordning, tidsatgang_timmar, klockslag, ar_placeholder, anteckningsmall_id, utan_anteckningsmall, uppgift_deltagare(kontaktperson_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(block_id, innehall, uppgift_id_genererad, genererad:uppgift!uppgift_anteckning_uppgift_id_genererad_fkey(titel, deadline))'
+    )
+    .eq('id', id)
+    .single()
+
+  return data
+}
+
 export async function hamtaTidigareMoten(kundId: string, excludeUppgiftId: string) {
   const supabase = await createClient()
   const { data } = await supabase
