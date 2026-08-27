@@ -22,6 +22,7 @@ import type {
   OppenPlaceholder,
   Person,
 } from '../uppgifter/uppgift-formular'
+import type { TidigareMote } from '../uppgifter/tidigare-moten-sektion'
 import { ProjektAnteckningarSektion } from './projekt-anteckningar-sektion'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
@@ -89,6 +90,7 @@ export function ProjektVy({
   kontaktpersoner,
   placeholders,
   personer,
+  tidigareDialoger,
 }: {
   projekt: Projekt[]
   kunder: Kund[]
@@ -101,6 +103,7 @@ export function ProjektVy({
   kontaktpersoner: Kontaktperson[]
   placeholders: OppenPlaceholder[]
   personer: Person[]
+  tidigareDialoger: Record<string, TidigareMote[]>
 }) {
   const [redigerar, setRedigerar] = useState<Projekt | 'ny' | null>(null)
   const [nyMallId, setNyMallId] = useState<string | null>(null)
@@ -161,6 +164,7 @@ export function ProjektVy({
           kontaktpersoner={kontaktpersoner}
           placeholders={placeholders}
           personer={personer}
+          tidigareDialoger={tidigareDialoger}
           existing={redigerar === 'ny' ? null : redigerar}
           initialMallId={nyMallId}
           onClose={() => setRedigerar(null)}
@@ -294,6 +298,7 @@ function ProjektFormular({
   kontaktpersoner,
   placeholders,
   personer,
+  tidigareDialoger,
   existing,
   initialMallId,
   onClose,
@@ -308,6 +313,7 @@ function ProjektFormular({
   kontaktpersoner: Kontaktperson[]
   placeholders: OppenPlaceholder[]
   personer: Person[]
+  tidigareDialoger: Record<string, TidigareMote[]>
   existing: Projekt | null
   initialMallId: string | null
   onClose: () => void
@@ -385,6 +391,7 @@ function ProjektFormular({
         serier={serier}
         kontaktpersoner={kontaktpersoner}
         block={block}
+        tidigareDialoger={tidigareDialoger}
         currentPersonId={null}
         initialDeadline={null}
         onEditSerie={() => router.push('/uppgifter')}

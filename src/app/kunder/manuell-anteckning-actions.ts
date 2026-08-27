@@ -35,9 +35,9 @@ async function synkaAnteckningDeltagare(
   )
 }
 
-// Hämtar manuella anteckningar för samtliga angivna kunder i en enda rundtripp,
-// samma mönster som hamtaMotesanteckningarForKunder — anropas server-side från
-// sidan så att kundkortet slipper en egen klientfördröjning när det öppnas.
+// Hämtar manuella anteckningar för samtliga angivna kunder i en enda rundtripp —
+// anropas server-side från sidan så att kundkortet slipper en egen klientfördröjning
+// när det öppnas.
 export async function hamtaManuellaAnteckningarForKunder(kundIds: string[]) {
   if (kundIds.length === 0) return {}
 

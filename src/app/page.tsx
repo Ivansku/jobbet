@@ -4,6 +4,7 @@ import { IdagFlode } from './idag-flode'
 import { nuIStockholm, plusDagar, aktivtFlode } from '@/lib/dagsflode'
 import { hamtaSvenskaDagar } from '@/lib/svenska-dagar'
 import { enTillRelation } from '@/lib/postgrest'
+import { hamtaTidigareDialogerForKunder } from './uppgifter/actions'
 
 const UPPGIFT_FALT = 'id, titel, status, deadline, klockslag, kund_id, outlook_event_id'
 
@@ -170,6 +171,7 @@ export default async function Home() {
   }
 
   const fokusUppgiftIds = (dagensFokus ?? []).map((f) => f.uppgift_id)
+  const tidigareDialoger = await hamtaTidigareDialogerForKunder((kunder ?? []).map((k) => k.id))
 
   return (
     <>
@@ -206,6 +208,7 @@ export default async function Home() {
           kontaktpersoner={kontaktpersoner ?? []}
           placeholders={placeholders ?? []}
           personer={personer ?? []}
+          tidigareDialoger={tidigareDialoger}
           currentPersonId={person.id}
         />
       </main>

@@ -26,7 +26,7 @@ import { KundValjare } from './kund-valjare'
 import { DeltagareValjare } from './deltagare-valjare'
 import { MotesanteckningarSektion } from './motesanteckningar-sektion'
 import { ProjektAnteckningarSektion } from '../projekt/projekt-anteckningar-sektion'
-import { TidigareMotenSektion } from './tidigare-moten-sektion'
+import { TidigareMotenSektion, type TidigareMote } from './tidigare-moten-sektion'
 import { KopplaPlaceholderSektion } from './koppla-placeholder-sektion'
 
 export type Person = { id: string; namn: string }
@@ -269,6 +269,7 @@ export function UppgiftFormular({
   initialDeadline,
   serieLage = false,
   outlookSerier,
+  tidigareDialoger,
   onEditSerie,
   onClose,
   onChanged,
@@ -288,6 +289,7 @@ export function UppgiftFormular({
   initialDeadline: string | null
   serieLage?: boolean
   outlookSerier?: OutlookSerie[]
+  tidigareDialoger: Record<string, TidigareMote[]>
   onEditSerie: (serieId: string) => void
   onClose: () => void
   onChanged?: () => void
@@ -839,9 +841,8 @@ export function UppgiftFormular({
         {existing?.id && effektivMallId && kundId && (
           <FormularSektion label="Tidigare dialog">
             <TidigareMotenSektion
-              kundId={kundId}
+              moten={tidigareDialoger[kundId] ?? []}
               excludeUppgiftId={existing.id}
-              kundNamn={kunder.find((k) => k.id === kundId)?.namn ?? ''}
               onOppna={oppnaTidigareUppgift}
             />
           </FormularSektion>
@@ -900,6 +901,7 @@ export function UppgiftFormular({
           currentPersonId={currentPersonId}
           initialDeadline={null}
           outlookSerier={outlookSerier}
+          tidigareDialoger={tidigareDialoger}
           onEditSerie={onEditSerie}
           onClose={() => setTidigareUppgift(null)}
         />

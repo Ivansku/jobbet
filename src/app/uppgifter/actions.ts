@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { beraknaSortordning } from '@/lib/sortordning'
 import { currentForetagId } from '@/lib/foretag'
 import { enTillRelation } from '@/lib/postgrest'
+import type { TidigareMote } from './tidigare-moten-sektion'
 
 function todayISODate() {
   const now = new Date()
@@ -472,29 +473,39 @@ export async function hamtaUppgift(id: string) {
   return data
 }
 
-export async function hamtaTidigareMoten(kundId: string, excludeUppgiftId: string) {
+// Hämtar "Tidigare dialog" för samtliga angivna kunder i en enda rundtripp — anropas
+// server-side från respektive sidas page.tsx (Uppgifter och Kunder) så att sektionen
+// kan visas direkt när formuläret öppnas, utan en egen klientfördröjning per kund.
+export async function hamtaTidigareDialogerForKunder(kundIds: string[]): Promise<Record<string, TidigareMote[]>> {
+  if (kundIds.length === 0) return {}
+
   const supabase = await createClient()
   const { data } = await supabase
     .from('uppgift')
     .select(
-      'id, titel, deadline, typ:typ_id!inner(anteckningsmall_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(innehall, block:block_id(namn))'
+      'id, kund_id, titel, deadline, typ:typ_id!inner(anteckningsmall_id), uppgift_anteckning!uppgift_anteckning_uppgift_id_fkey(innehall, block:block_id(namn))'
     )
-    .eq('kund_id', kundId)
+    .in('kund_id', kundIds)
     .not('typ.anteckningsmall_id', 'is', null)
-    .neq('id', excludeUppgiftId)
     .not('deadline', 'is', null)
     .order('deadline', { ascending: false })
-    .limit(10)
 
-  return (data ?? []).map((u) => ({
-    id: u.id,
-    titel: u.titel,
-    deadline: u.deadline as string,
-    utdrag: (u.uppgift_anteckning ?? [])
-      .filter((a) => a.innehall?.trim())
-      .slice(0, 2)
-      .map((a) => `${enTillRelation(a.block)?.namn}: ${(a.innehall ?? '').slice(0, 80)}`),
-  }))
+  const perKund: Record<string, TidigareMote[]> = {}
+  for (const u of data ?? []) {
+    if (!u.kund_id) continue
+    const lista = (perKund[u.kund_id] ??= [])
+    if (lista.length >= 10) continue
+    lista.push({
+      id: u.id,
+      titel: u.titel,
+      deadline: u.deadline as string,
+      utdrag: (u.uppgift_anteckning ?? [])
+        .filter((a) => a.innehall?.trim())
+        .slice(0, 2)
+        .map((a) => `${enTillRelation(a.block)?.namn}: ${(a.innehall ?? '').slice(0, 80)}`),
+    })
+  }
+  return perKund
 }
 
 // Kopplar en riktig uppgift till en väntande placeholder i samma projekt: skriver

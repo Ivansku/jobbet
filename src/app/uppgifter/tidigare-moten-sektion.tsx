@@ -1,40 +1,22 @@
-'use client'
-
-import { useEffect, useState } from 'react'
-import { hamtaTidigareMoten } from './actions'
-
-type TidigareMote = { id: string; titel: string; deadline: string; utdrag: string[] }
+export type TidigareMote = { id: string; titel: string; deadline: string; utdrag: string[] }
 
 export function TidigareMotenSektion({
-  kundId,
+  moten,
   excludeUppgiftId,
-  kundNamn,
   onOppna,
 }: {
-  kundId: string
-  excludeUppgiftId: string
-  kundNamn: string
+  moten: TidigareMote[]
+  excludeUppgiftId?: string
   onOppna: (uppgiftId: string) => void
 }) {
-  const [moten, setMoten] = useState<TidigareMote[] | null>(null)
+  const lista = excludeUppgiftId ? moten.filter((m) => m.id !== excludeUppgiftId) : moten
 
-  useEffect(() => {
-    let aktiv = true
-    hamtaTidigareMoten(kundId, excludeUppgiftId).then((rader) => {
-      if (aktiv) setMoten(rader)
-    })
-    return () => {
-      aktiv = false
-    }
-  }, [kundId, excludeUppgiftId])
-
-  if (!moten || moten.length === 0) return null
+  if (lista.length === 0) return null
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border-subtle p-3">
-      <h3 className="text-sm font-semibold">Tidigare dialog med {kundNamn}</h3>
       <ul className="flex flex-col gap-2">
-        {moten.map((m) => (
+        {lista.map((m) => (
           <li key={m.id} className="text-xs">
             <button
               type="button"

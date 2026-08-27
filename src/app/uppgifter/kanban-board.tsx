@@ -25,6 +25,7 @@ import { createClient } from '@/lib/supabase/client'
 import { ROD_DAG_STREGMONSTER_KLASS, HALVDAG_MASK_KLASS } from '@/lib/svenska-dagar'
 import { SerieVy } from './serie-vy'
 import { UppgiftFormular } from './uppgift-formular'
+import type { TidigareMote } from './tidigare-moten-sektion'
 import { TidsatgangDialog } from './tidsatgang-dialog'
 import type {
   Person,
@@ -119,6 +120,7 @@ export function KanbanBoard({
   outlookSerier,
   kontaktpersoner,
   block,
+  tidigareDialoger,
   currentPersonId,
   foretagId,
   arbetstimmarPerVecka,
@@ -140,6 +142,7 @@ export function KanbanBoard({
   outlookSerier: OutlookSerie[]
   kontaktpersoner: Kontaktperson[]
   block: Anteckningsblock[]
+  tidigareDialoger: Record<string, TidigareMote[]>
   currentPersonId: string | null
   foretagId: string | null
   arbetstimmarPerVecka: number
@@ -517,6 +520,7 @@ export function KanbanBoard({
           serier={serier}
           kontaktpersoner={kontaktpersoner}
           block={block}
+          tidigareDialoger={tidigareDialoger}
           currentPersonId={currentPersonId}
           initialDeadline={nyDatum}
           onEditSerie={oppnaSerieRedigering}
@@ -537,6 +541,7 @@ export function KanbanBoard({
           serier={serier}
           kontaktpersoner={kontaktpersoner}
           block={block}
+          tidigareDialoger={tidigareDialoger}
           currentPersonId={currentPersonId}
           initialDeadline={null}
           onEditSerie={oppnaSerieRedigering}
@@ -557,6 +562,7 @@ export function KanbanBoard({
           outlookSerier={outlookSerier}
           kontaktpersoner={kontaktpersoner}
           block={block}
+          tidigareDialoger={tidigareDialoger}
           currentPersonId={currentPersonId}
           initialDeadline={null}
           serieLage

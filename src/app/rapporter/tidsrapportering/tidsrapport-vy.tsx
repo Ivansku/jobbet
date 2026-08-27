@@ -19,6 +19,7 @@ import type {
   OppenPlaceholder,
   Anteckningsblock,
 } from '../../uppgifter/uppgift-formular'
+import type { TidigareMote } from '../../uppgifter/tidigare-moten-sektion'
 
 type Person = { id: string; namn: string }
 type Rad = {
@@ -63,6 +64,7 @@ export function TidsrapportVy({
   kontaktpersoner,
   placeholders,
   block,
+  tidigareDialoger,
 }: {
   periodEtikett: string
   idagLabel: string
@@ -85,6 +87,7 @@ export function TidsrapportVy({
   kontaktpersoner: Kontaktperson[]
   placeholders: OppenPlaceholder[]
   block: Anteckningsblock[]
+  tidigareDialoger: Record<string, TidigareMote[]>
 }) {
   // Kategorifiltret hålls som lokalt state istället för att gå via URL/servern —
   // annars krävs en hel sidladdning (nya Supabase-anrop) för varje klick på en
@@ -203,6 +206,7 @@ export function TidsrapportVy({
           serier={serier}
           kontaktpersoner={kontaktpersoner}
           block={block}
+          tidigareDialoger={tidigareDialoger}
           currentPersonId={null}
           initialDeadline={null}
           onEditSerie={() => router.push('/uppgifter')}

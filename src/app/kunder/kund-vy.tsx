@@ -11,9 +11,21 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { DeleteIconButton } from '@/components/ui/delete-icon-button'
 import { MailtoIconLink } from '@/components/ui/mailto-icon-link'
-import { KundMotesanteckningarSektion, type Mote } from './kund-motesanteckningar-sektion'
 import { KundManuellaAnteckningarSektion } from './kund-manuella-anteckningar-sektion'
 import type { ManuellAnteckning } from './manuell-anteckning-actions'
+import { TidigareMotenSektion, type TidigareMote } from '../uppgifter/tidigare-moten-sektion'
+import { hamtaUppgift } from '../uppgifter/actions'
+import {
+  UppgiftFormular,
+  type Uppgift,
+  type Person,
+  type Typ,
+  type Kategori,
+  type Projekt,
+  type Serie,
+  type Anteckningsblock,
+  type OppenPlaceholder,
+} from '../uppgifter/uppgift-formular'
 
 type Kund = { id: string; namn: string; domains: string[]; zammad_organization_id: number | null }
 type Kontaktperson = {
@@ -46,13 +58,29 @@ function planeratDatum(k: Kontaktperson): string | null {
 export function KundVy({
   kunder,
   kontaktpersoner,
-  motesanteckningar,
   manuellaAnteckningar,
+  placeholders,
+  personer,
+  typer,
+  kategori,
+  projekt,
+  serier,
+  block,
+  tidigareDialoger,
+  currentPersonId,
 }: {
   kunder: Kund[]
   kontaktpersoner: Kontaktperson[]
-  motesanteckningar: Record<string, Mote[]>
   manuellaAnteckningar: Record<string, ManuellAnteckning[]>
+  placeholders: OppenPlaceholder[]
+  personer: Person[]
+  typer: Typ[]
+  kategori: Kategori[]
+  projekt: Projekt[]
+  serier: Serie[]
+  block: Anteckningsblock[]
+  tidigareDialoger: Record<string, TidigareMote[]>
+  currentPersonId: string | null
 }) {
   const [redigerar, setRedigerar] = useState<Kund | 'ny' | null>(null)
   // Klick på en kontaktperson direkt i listan (utan att först öppna kunden)
@@ -154,11 +182,21 @@ export function KundVy({
       {redigerar && (
         <KundFormular
           existing={redigerar === 'ny' ? null : redigerar}
+          kunder={kunder}
           kontaktpersoner={
             redigerar === 'ny' ? [] : kontaktpersoner.filter((k) => k.kund_id === redigerar.id)
           }
-          moten={redigerar === 'ny' ? [] : (motesanteckningar[redigerar.id] ?? [])}
+          allaKontaktpersoner={kontaktpersoner}
           manuellaAnteckningar={redigerar === 'ny' ? [] : (manuellaAnteckningar[redigerar.id] ?? [])}
+          placeholders={placeholders}
+          personer={personer}
+          typer={typer}
+          kategori={kategori}
+          projekt={projekt}
+          serier={serier}
+          block={block}
+          tidigareDialoger={tidigareDialoger}
+          currentPersonId={currentPersonId}
           onClose={() => setRedigerar(null)}
         />
       )}
@@ -176,15 +214,35 @@ export function KundVy({
 
 function KundFormular({
   existing,
+  kunder,
   kontaktpersoner,
-  moten,
+  allaKontaktpersoner,
   manuellaAnteckningar,
+  placeholders,
+  personer,
+  typer,
+  kategori,
+  projekt,
+  serier,
+  block,
+  tidigareDialoger,
+  currentPersonId,
   onClose,
 }: {
   existing: Kund | null
+  kunder: Kund[]
   kontaktpersoner: Kontaktperson[]
-  moten: Mote[]
+  allaKontaktpersoner: Kontaktperson[]
   manuellaAnteckningar: ManuellAnteckning[]
+  placeholders: OppenPlaceholder[]
+  personer: Person[]
+  typer: Typ[]
+  kategori: Kategori[]
+  projekt: Projekt[]
+  serier: Serie[]
+  block: Anteckningsblock[]
+  tidigareDialoger: Record<string, TidigareMote[]>
+  currentPersonId: string | null
   onClose: () => void
 }) {
   const [namn, setNamn] = useState(existing?.namn ?? '')
@@ -194,6 +252,12 @@ function KundFormular({
   const [visaBekraftelse, setVisaBekraftelse] = useState(false)
   const [tarBort, setTarBort] = useState(false)
   const [redigerarKontakt, setRedigerarKontakt] = useState<Kontaktperson | 'ny' | null>(null)
+  const [tidigareUppgift, setTidigareUppgift] = useState<Uppgift | null>(null)
+
+  async function oppnaTidigareUppgift(uppgiftId: string) {
+    const uppgift = await hamtaUppgift(uppgiftId)
+    if (uppgift) setTidigareUppgift(uppgift)
+  }
 
   function laggTillDomain() {
     const d = nyDomain.trim().toLowerCase()
@@ -325,14 +389,19 @@ function KundFormular({
           />
         )}
 
-        {existing && <KundMotesanteckningarSektion moten={moten} />}
-
         {existing && (
           <KundManuellaAnteckningarSektion
             kundId={existing.id}
             anteckningar={manuellaAnteckningar}
             kontaktpersoner={kontaktpersoner}
           />
+        )}
+
+        {existing && (
+          <div className="border-t border-border-subtle pt-4">
+            <h3 className="mb-2 text-sm font-semibold text-stone-500">Tidigare dialog</h3>
+            <TidigareMotenSektion moten={tidigareDialoger[existing.id] ?? []} onOppna={oppnaTidigareUppgift} />
+          </div>
         )}
 
         <div className="flex justify-end gap-2">
@@ -344,6 +413,26 @@ function KundFormular({
           </Button>
         </div>
       </form>
+
+      {tidigareUppgift && (
+        <UppgiftFormular
+          existing={tidigareUppgift}
+          placeholders={placeholders}
+          personer={personer}
+          kunder={kunder}
+          typer={typer}
+          kategori={kategori}
+          projekt={projekt}
+          serier={serier}
+          kontaktpersoner={allaKontaktpersoner}
+          block={block}
+          tidigareDialoger={tidigareDialoger}
+          currentPersonId={currentPersonId}
+          initialDeadline={null}
+          onEditSerie={() => {}}
+          onClose={() => setTidigareUppgift(null)}
+        />
+      )}
     </Modal>
   )
 }

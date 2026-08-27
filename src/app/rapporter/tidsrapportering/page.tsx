@@ -3,6 +3,7 @@ import { AppNav } from '../../nav'
 import { RapporterNav } from '../rapporter-nav'
 import { TidsrapportVy } from './tidsrapport-vy'
 import { enTillRelation } from '@/lib/postgrest'
+import { hamtaTidigareDialogerForKunder } from '../../uppgifter/actions'
 
 // Fältuppsättning som det delade uppgiftsformuläret (src/app/uppgifter/uppgift-formular.tsx)
 // kräver för att kunna öppna en rad direkt från rapporten — samma mönster som
@@ -249,6 +250,8 @@ export default async function TidsrapporteringPage({
       return a.kategoriNamn.localeCompare(b.kategoriNamn, 'sv')
     })
 
+  const tidigareDialoger = await hamtaTidigareDialogerForKunder((kunder ?? []).map((k) => k.id))
+
   const prevAnchor = stegaPeriod(start, period, -1)
   const nextAnchor = stegaPeriod(start, period, 1)
 
@@ -288,6 +291,7 @@ export default async function TidsrapporteringPage({
           kontaktpersoner={kontaktpersoner ?? []}
           placeholders={placeholders ?? []}
           block={block ?? []}
+          tidigareDialoger={tidigareDialoger}
         />
       </main>
     </>

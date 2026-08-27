@@ -3,6 +3,7 @@ import { AppNav } from '../nav'
 import { enTillRelation } from '@/lib/postgrest'
 import { ProjektVy } from './projekt-vy'
 import { PROJEKT_UPPGIFT_FALT } from './uppgift-falt'
+import { hamtaTidigareDialogerForKunder } from '../uppgifter/actions'
 
 export default async function ProjektPage() {
   const supabase = await createClient()
@@ -53,6 +54,8 @@ export default async function ProjektPage() {
     supabase.from('uppgift').select('id, titel, deadline, projekt_id, typ_id').eq('ar_placeholder', true),
     supabase.from('person').select('id, namn').order('namn'),
   ])
+
+  const tidigareDialoger = await hamtaTidigareDialogerForKunder((kunder ?? []).map((k) => k.id))
 
   // Uppgifterna hämtas färdigt här (server-side) istället för att ProjektVy
   // ska hämta dem själv vid öppning — annars syns en fördröjning varje gång
@@ -119,6 +122,7 @@ export default async function ProjektPage() {
           kontaktpersoner={kontaktpersoner ?? []}
           placeholders={placeholders ?? []}
           personer={personer ?? []}
+          tidigareDialoger={tidigareDialoger}
         />
       </main>
     </>

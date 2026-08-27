@@ -3,6 +3,7 @@ import { AppNav } from '../nav'
 import { KanbanBoard } from './kanban-board'
 import { hamtaSvenskaDagar, slaIhopDagar, arHalvdag } from '@/lib/svenska-dagar'
 import { enTillRelation } from '@/lib/postgrest'
+import { hamtaTidigareDialogerForKunder } from './actions'
 
 // All datumräkning görs i UTC för att undvika att lokal tidszon (t.ex. svensk sommartid)
 // får datum att hoppa fram/tillbaka en dag vid konvertering mellan Date och ISO-sträng.
@@ -150,6 +151,8 @@ export default async function UppgifterPage({
     supabase.from('uppgift').select('outlook_series_id, titel, klockslag').not('outlook_series_id', 'is', null),
   ])
 
+  const tidigareDialoger = await hamtaTidigareDialogerForKunder((kunder ?? []).map((k) => k.id))
+
   const redanKopplade = new Set((serier ?? []).map((s) => s.outlook_series_id).filter(Boolean))
   const outlookSerier = Array.from(
     new Map(
@@ -198,6 +201,7 @@ export default async function UppgifterPage({
           outlookSerier={outlookSerier}
           kontaktpersoner={kontaktpersoner ?? []}
           block={block ?? []}
+          tidigareDialoger={tidigareDialoger}
           currentPersonId={aktuellPerson?.id ?? null}
           foretagId={aktuellPerson?.foretag_id ?? null}
           arbetstimmarPerVecka={aktuellPerson?.arbetstimmar_per_vecka ?? 40}

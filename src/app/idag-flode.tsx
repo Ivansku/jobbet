@@ -17,6 +17,7 @@ import type {
   OppenPlaceholder,
   Person,
 } from './uppgifter/uppgift-formular'
+import type { TidigareMote } from './uppgifter/tidigare-moten-sektion'
 import { Eyebrow } from '@/components/ui/eyebrow'
 import type { Dagsflode } from '@/lib/dagsflode'
 
@@ -114,6 +115,7 @@ export function IdagFlode({
   kontaktpersoner,
   placeholders,
   personer,
+  tidigareDialoger,
   currentPersonId,
 }: {
   flode: Dagsflode
@@ -138,6 +140,7 @@ export function IdagFlode({
   kontaktpersoner: Kontaktperson[]
   placeholders: OppenPlaceholder[]
   personer: Person[]
+  tidigareDialoger: Record<string, TidigareMote[]>
   currentPersonId: string
 }) {
   const router = useRouter()
@@ -374,6 +377,7 @@ export function IdagFlode({
           serier={serier}
           kontaktpersoner={kontaktpersoner}
           block={block}
+          tidigareDialoger={tidigareDialoger}
           currentPersonId={currentPersonId}
           initialDeadline={null}
           onEditSerie={() => router.push('/uppgifter')}
