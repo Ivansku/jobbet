@@ -91,10 +91,14 @@ export async function skapaUppgifterFranMall(projektId: string) {
 
   if (!projekt || !projekt.mall_projekt_id) return null
 
+  // Kollar specifikt om mallens uppgifter redan skapats — inte om projektet har
+  // några uppgifter alls, eftersom lösa uppgifter kan ha kopplats till projektet
+  // (t.ex. via "Koppla till placeholder") innan mallen aktiverades.
   const { count } = await supabase
     .from('uppgift')
     .select('id', { count: 'exact', head: true })
     .eq('projekt_id', projektId)
+    .not('mall_uppgift_id', 'is', null)
 
   if (count && count > 0) return null
 

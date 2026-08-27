@@ -54,7 +54,7 @@ type Projekt = {
   projektAnteckningar: { block_id: string; innehall: string }[]
 }
 
-type ProjektUppgift = Uppgift & { ansvarigNamn: string | null }
+type ProjektUppgift = Uppgift & { ansvarigNamn: string | null; mall_uppgift_id: string | null }
 
 const STATUS_LABEL: Record<string, string> = {
   planerat: 'Planerat',
@@ -336,6 +336,7 @@ function ProjektFormular({
   const projektAnteckningsmallId =
     mallar.find((m) => m.id === existing?.mallProjektId)?.anteckningsmall_id ?? null
   const projektMallBlock = block.filter((b) => b.anteckningsmall_id === projektAnteckningsmallId)
+  const harMallUppgifter = uppgifter.some((u) => u.mall_uppgift_id)
 
   async function laddaOmUppgifter() {
     if (!existing) return
@@ -511,24 +512,28 @@ function ProjektFormular({
               </span>
             </div>
 
+            {/* Mallens uppgifter kan aktiveras även när projektet redan har lösa
+                uppgifter kopplade (t.ex. via "Koppla till placeholder") — kollar
+                därför specifikt om någon uppgift kommer från mallen, inte bara om
+                listan är tom. */}
+            {existing.mallProjektId && !harMallUppgifter && (
+              <div className="mb-3 flex flex-col items-start gap-2">
+                <p className="text-xs text-stone-400">
+                  Inga malluppgifter skapade än — mallen är kopplad men väntar på att aktiveras.
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  loading={skapaUppgifterLaddar}
+                  onClick={handleSkapaUppgifterFranMall}
+                >
+                  Skapa uppgifter från mall
+                </Button>
+              </div>
+            )}
+
             {uppgifter.length === 0 ? (
-              existing.mallProjektId ? (
-                <div className="flex flex-col items-start gap-2">
-                  <p className="text-xs text-stone-400">
-                    Inga uppgifter skapade än — mallen är kopplad men väntar på att aktiveras.
-                  </p>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    loading={skapaUppgifterLaddar}
-                    onClick={handleSkapaUppgifterFranMall}
-                  >
-                    Skapa uppgifter från mall
-                  </Button>
-                </div>
-              ) : (
-                <p className="text-xs text-stone-400">Inga uppgifter i projektet ännu.</p>
-              )
+              !existing.mallProjektId && <p className="text-xs text-stone-400">Inga uppgifter i projektet ännu.</p>
             ) : (
               <ul className="divide-y divide-border-subtle overflow-hidden rounded-lg border border-border-subtle">
                 {uppgifter.map((u) => (
