@@ -48,14 +48,24 @@ function parsaAmne(subject: string): { kundNamn: string | null; titel: string } 
 
 // outlook_event_id är Graphs interna ItemId och kan bytas av Exchange för samma
 // möte (t.ex. vid vissa redigeringar/statusuppdateringar), trots att V3-triggern
-// korrekt klassar händelsen som "updated". iCalUId är däremot stabilt över hela
-// mötets livstid och används som fallback när den snabba eventId-matchningen
-// missar — så en redigering aldrig av misstag blir en ny uppgift-rad.
+// korrekt klassar händelsen som "updated". iCalUId används som fallback när den
+// snabba eventId-matchningen missar — så en redigering aldrig av misstag blir en
+// ny uppgift-rad.
+//
+// OBS: för en återkommande serie är iCalUId INTE unikt per förekomst. Exchanges
+// Global Object ID har ett datumsegment som är nollställt för serie-mastern och
+// alla oredigerade förekomster — bara individuellt redigerade förekomster
+// ("exceptions") får ett eget, datumstämplat UId. Alla oredigerade fredagar i
+// samma serie delar alltså exakt samma iCalUId. Skickas datum med (finns inte
+// vid radering, se anropet därifrån) krävs därför även matchande deadline, annars
+// skulle t.ex. en omsparad serie låta 15 förekomster kollidera mot en och samma
+// rad i tur och ordning istället för att skapa 15 separata uppgifter.
 async function hittaUppgiftViaOutlookId(
   supabase: ReturnType<typeof createServiceClient>,
   foretagId: string,
   eventId: string,
-  iCalUId?: string
+  iCalUId?: string,
+  datum?: string
 ) {
   const { data: viaEventId } = await supabase
     .from('uppgift')
@@ -67,12 +77,11 @@ async function hittaUppgiftViaOutlookId(
 
   if (!iCalUId) return null
 
-  const { data: viaIcalUid } = await supabase
-    .from('uppgift')
-    .select('id')
-    .eq('foretag_id', foretagId)
-    .eq('outlook_ical_uid', iCalUId)
-    .maybeSingle()
+  let icalQuery = supabase.from('uppgift').select('id').eq('foretag_id', foretagId).eq('outlook_ical_uid', iCalUId)
+  if (datum) {
+    icalQuery = icalQuery.eq('deadline', datum)
+  }
+  const { data: viaIcalUid } = await icalQuery.maybeSingle()
   return viaIcalUid
 }
 
@@ -403,7 +412,7 @@ export async function POST(request: NextRequest) {
     ...(sortordning !== undefined ? { sortordning } : {}),
   }
 
-  const befintligUppgift = await hittaUppgiftViaOutlookId(supabase, foretagId, eventId, iCalUId)
+  const befintligUppgift = await hittaUppgiftViaOutlookId(supabase, foretagId, eventId, iCalUId, datum)
 
   // Om en uppgift_serie är kopplad mot samma Outlook-serie (satt via
   // Serier-vyn): förekomster adopteras in direkt (samma serie_id, ärver
