@@ -238,16 +238,25 @@ export async function POST(request: NextRequest) {
   // som indata i övrigt, så tenant-gränsen sätts alltid härifrån. epost_outlook
   // finns eftersom inloggnings-mailen (epost, Google) och Outlook-mailen ofta
   // skiljer sig åt — matchar mot båda utan att röra inloggnings-mailen.
-  const { data: viaOutlook } = await supabase
+  const { data: viaOutlook, error: viaOutlookError } = await supabase
     .from('person')
     .select('id, foretag_id')
     .ilike('epost_outlook', ownerEmail)
     .maybeSingle()
-  const { data: viaEpost } = viaOutlook
-    ? { data: null }
+  const { data: viaEpost, error: viaEpostError } = viaOutlook
+    ? { data: null, error: null }
     : await supabase.from('person').select('id, foretag_id').ilike('epost', ownerEmail).maybeSingle()
   const person = viaOutlook ?? viaEpost
 
+  // Skiljer på "personen finns verkligen inte" (404, ingen anledning för
+  // PowerAutomate att försöka igen) och "databasfrågan misslyckades" (503,
+  // PowerAutomates standardpolicy försöker om på 5xx/429 men inte på 4xx —
+  // en tillfällig Supabase-hicka fick annars samma svar som en äkta okänd
+  // användare, och förekomsten gick förlorad permanent tills mötet redigerades
+  // i Outlook igen).
+  if (viaOutlookError || viaEpostError) {
+    return NextResponse.json({ error: 'Databasfel, försök igen' }, { status: 503 })
+  }
   if (!person?.foretag_id) {
     return NextResponse.json({ error: 'Okänd användare' }, { status: 404 })
   }
