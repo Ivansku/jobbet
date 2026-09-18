@@ -417,9 +417,12 @@ export async function uppdateraUppgift(
   revalidatePath('/rapporter/tidsrapportering')
 }
 
-export async function flyttaUppgift(id: string, deadline: string | null, sortordning: number) {
+export async function flyttaUppgift(id: string, deadline: string | null, sortordning: number, status?: string) {
   const supabase = await createClient()
-  await supabase.from('uppgift').update({ deadline, sortordning }).eq('id', id)
+  await supabase
+    .from('uppgift')
+    .update(status ? { deadline, sortordning, status } : { deadline, sortordning })
+    .eq('id', id)
   revalidatePath('/uppgifter')
 }
 

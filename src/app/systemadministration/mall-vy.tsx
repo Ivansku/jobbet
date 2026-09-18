@@ -588,7 +588,9 @@ function MallUppgiftFormular({
             <Select id="mall-uppgift-status" value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="oppen">Öppen</option>
               <option value="pagar">Pågår</option>
+              <option value="kommande">Kommande</option>
               <option value="vantar">Väntar</option>
+              <option value="oplanerad">Oplanerad</option>
               <option value="klar">Klar</option>
             </Select>
           </Field>

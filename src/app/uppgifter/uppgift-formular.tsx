@@ -131,7 +131,9 @@ export const PRIORITET_PILLS = [
 export const STATUS_PILLS = [
   { value: 'oppen', label: 'Öppen' },
   { value: 'pagar', label: 'Pågår' },
+  { value: 'kommande', label: 'Kommande' },
   { value: 'vantar', label: 'Väntar' },
+  { value: 'oplanerad', label: 'Oplanerad' },
   { value: 'klar', label: 'Klar' },
 ]
 

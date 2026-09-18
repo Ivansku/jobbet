@@ -258,7 +258,7 @@ function isoTillUTC(iso: string): number {
 // Servern skickar bara med uppgifter inom veckan som visas (mån-sön) eller utan
 // datum — realtime-händelser har ingen sådan gräns inbyggd (t.ex. genererar
 // Outlook-webhooken eller serie-genereringen ofta förekomster för helt andra
-// veckor). Utan den här kontrollen läcker sånt rakt in i Oplanerad-listan.
+// veckor). Utan den här kontrollen läcker sånt rakt in i de odaterade listorna.
 function inomVisadVecka(deadline: string, mandagTid: number, sondagTid: number): boolean {
   const datum = isoTillUTC(deadline)
   return datum >= mandagTid && datum <= sondagTid
@@ -318,6 +318,18 @@ export function KanbanBoard({
   const [aktivId, setAktivId] = useState<string | null>(null)
   const [redigerarSerie, setRedigerarSerie] = useState<Serie | null>(null)
   const [skaparSerie, setSkaparSerie] = useState(false)
+  // Kommande, Väntande och Oplanerad börjar ihopfällda — hela poängen med
+  // uppdelningen är att sånt du inte kan eller ska påverka just nu inte ska
+  // skapa brus i vardagen.
+  const [oppnaSektioner, setOppnaSektioner] = useState<Record<string, boolean>>({
+    ska_goras: true,
+    kommande: false,
+    vantande: false,
+    oplanerad: false,
+  })
+  function toggleSektion(key: string) {
+    setOppnaSektioner((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
 
   function oppnaSerieRedigering(serieId: string) {
     const serie = serier.find((s) => s.id === serieId)
@@ -444,10 +456,46 @@ export function KanbanBoard({
     return u.deadline && weekDateSet.has(u.deadline) ? u.deadline : null
   }
 
+  // Vilken av de fyra odaterade listorna (eller vilken dag) ett kort faktiskt ska
+  // visas i. Skiljer sig från kolumnForUppgift ovan, som bara avgör deadline-värdet
+  // att spara — odaterade kort har alltid deadline null där, men hör hemma i olika
+  // listor beroende på status (kommande/väntar/oplanerad).
+  function kolumnNyckelForUppgift(u: Uppgift): string {
+    const datum = kolumnForUppgift(u)
+    if (datum) return datum
+    if (u.status === 'kommande') return 'kommande'
+    if (u.status === 'vantar') return 'vantande'
+    if (u.status === 'oplanerad') return 'oplanerad'
+    return 'ska_goras'
+  }
+
+  const STATUS_FOR_NYCKEL: Record<string, string> = {
+    kommande: 'kommande',
+    vantande: 'vantar',
+    oplanerad: 'oplanerad',
+  }
+
+  // Sätter ny status när ett kort dras till Kommande/Väntande/Oplanerad — annars
+  // skulle det inte hamna i listan man släppte det i, eftersom listtillhörigheten
+  // styrs av status och inte av var man släppte. Ska göras återställer bara status
+  // för kort som kom från någon av de tre andra listorna — en pågående eller klar
+  // uppgift ska inte tappa sin status bara för att den sorteras om inom samma lista.
+  function statusVidFlytt(nuvarandeStatus: string, malNyckel: string): string | undefined {
+    const malStatus = STATUS_FOR_NYCKEL[malNyckel]
+    if (malStatus) return nuvarandeStatus === malStatus ? undefined : malStatus
+    if (malNyckel === 'ska_goras' && Object.values(STATUS_FOR_NYCKEL).includes(nuvarandeStatus)) return 'oppen'
+    return undefined
+  }
+
   const kolumner: Kolumn[] = [
+    { key: 'ska_goras', label: 'Ska göras', datum: null },
+    { key: 'kommande', label: 'Kommande', datum: null },
+    { key: 'vantande', label: 'Väntande', datum: null },
     { key: 'oplanerad', label: 'Oplanerad', datum: null },
     ...weekDates.map((datum, i) => ({ key: datum, label: VECKODAGAR[i], datum })),
   ]
+  const bucketKolumner = kolumner.filter((k) => k.datum === null)
+  const dagKolumner = kolumner.filter((k) => k.datum !== null)
   const kolumnNycklar = new Set(kolumner.map((k) => k.key))
 
   // Kolumnen är ett droppbart mål lika stort som hela listan, vilket annars kan "vinna"
@@ -480,28 +528,34 @@ export function KanbanBoard({
     const overId = String(over.id)
     if (id === overId) return
 
+    const draggad = uppgifterVy.find((u) => u.id === id)
+    if (!draggad) return
+
     // Släppt direkt i en kolumn (tom yta eller "+ Ny uppgift"-området) — lägg sist i den listan.
     // Släppt på ett annat kort — kliv in före eller efter det beroende på vilken halva av
     // kortet du släppte på (annars gick det aldrig att flytta ett kort förbi sin närmaste
     // granne, bara "framför" — att släppa ovanpå nästa kort blev då en no-op).
     const kolumnTraff = kolumner.find((k) => k.key === overId)
+    let malNyckel: string
     let malDatum: string | null
     let sorteradeIKolumn: Uppgift[]
     let nyOrdning: number
 
     if (kolumnTraff) {
+      malNyckel = kolumnTraff.key
       malDatum = kolumnTraff.datum
       sorteradeIKolumn = uppgifterVy
-        .filter((u) => u.id !== id && kolumnForUppgift(u) === malDatum)
+        .filter((u) => u.id !== id && kolumnNyckelForUppgift(u) === malNyckel)
         .sort((a, b) => a.sortordning - b.sortordning)
       const sista = sorteradeIKolumn[sorteradeIKolumn.length - 1]
       nyOrdning = sista ? sista.sortordning + 1 : 0
     } else {
       const malUppgift = uppgifterVy.find((u) => u.id === overId)
       if (!malUppgift) return
+      malNyckel = kolumnNyckelForUppgift(malUppgift)
       malDatum = kolumnForUppgift(malUppgift)
       sorteradeIKolumn = uppgifterVy
-        .filter((u) => u.id !== id && kolumnForUppgift(u) === malDatum)
+        .filter((u) => u.id !== id && kolumnNyckelForUppgift(u) === malNyckel)
         .sort((a, b) => a.sortordning - b.sortordning)
       const malIndex = sorteradeIKolumn.findIndex((u) => u.id === overId)
 
@@ -520,12 +574,14 @@ export function KanbanBoard({
         // med det nya kortet infogat på rätt plats, så kollisionen läks ut.
         const omordnad = [...sorteradeIKolumn]
         omordnad.splice(infogaEfter ? malIndex + 1 : malIndex, 0, { ...malUppgift, id })
+        const nyStatus = statusVidFlytt(draggad.status, malNyckel)
         startTransition(() => {
           omordnad.forEach((u, i) => {
             const so = i * 1000
             const deadline = u.id === id ? malDatum : kolumnForUppgift(u)
-            patchUppgiftOptimistiskt({ id: u.id, patch: { deadline, sortordning: so } })
-            flyttaUppgift(u.id, deadline, so)
+            const status = u.id === id ? nyStatus : undefined
+            patchUppgiftOptimistiskt({ id: u.id, patch: status ? { deadline, sortordning: so, status } : { deadline, sortordning: so } })
+            flyttaUppgift(u.id, deadline, so, status)
           })
         })
         return
@@ -540,9 +596,13 @@ export function KanbanBoard({
       }
     }
 
+    const nyStatus = statusVidFlytt(draggad.status, malNyckel)
     startTransition(() => {
-      patchUppgiftOptimistiskt({ id, patch: { deadline: malDatum, sortordning: nyOrdning } })
-      flyttaUppgift(id, malDatum, nyOrdning)
+      patchUppgiftOptimistiskt({
+        id,
+        patch: nyStatus ? { deadline: malDatum, sortordning: nyOrdning, status: nyStatus } : { deadline: malDatum, sortordning: nyOrdning },
+      })
+      flyttaUppgift(id, malDatum, nyOrdning, nyStatus)
     })
   }
 
@@ -654,14 +714,37 @@ export function KanbanBoard({
         </div>
 
         <div className="grid grid-flow-col auto-cols-[85%] items-start gap-4 overflow-x-auto pb-2 snap-x snap-mandatory sm:auto-cols-[280px] md:grid-flow-row md:auto-cols-auto md:grid-cols-6 md:overflow-visible">
-          {kolumner.map((kol) => (
+          <div className="flex snap-start flex-col gap-3">
+            {bucketKolumner.map((kol) => (
+              <ListSektion
+                key={kol.key}
+                kol={kol}
+                today={today}
+                uppgifter={uppgifterVy
+                  .filter((u) => kolumnNyckelForUppgift(u) === kol.key)
+                  .sort((a, b) => a.sortordning - b.sortordning)}
+                expanded={oppnaSektioner[kol.key]}
+                onToggleExpand={() => toggleSektion(kol.key)}
+                personMap={personMap}
+                kundMap={kundMap}
+                typMap={typMap}
+                kategoriMap={kategoriMap}
+                projektFargMap={projektFargMap}
+                onSelect={setRedigerar}
+                onToggleStatus={toggleStatus}
+                onAddNew={kol.key === 'ska_goras' ? oppnaNy : undefined}
+                onHover={setHoveredUppgiftId}
+              />
+            ))}
+          </div>
+          {dagKolumner.map((kol) => (
             <KanbanColumn
               key={kol.key}
               kol={kol}
               dag={kol.datum ? dagInfo[kol.datum] : undefined}
               today={today}
               uppgifter={uppgifterVy
-                .filter((u) => kolumnForUppgift(u) === kol.datum)
+                .filter((u) => kolumnNyckelForUppgift(u) === kol.key)
                 .sort((a, b) => a.sortordning - b.sortordning)}
               personMap={personMap}
               kundMap={kundMap}
@@ -944,6 +1027,114 @@ function KanbanColumn({
   )
 }
 
+function ChevronIcon({ expanded }: { expanded: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={3}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={`h-3 w-3 shrink-0 transition-transform ${expanded ? '' : '-rotate-90'}`}
+    >
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  )
+}
+
+// En av de tre fristående, ihopfällbara listorna (Ska göras/Väntande/Kommande) som
+// delar den första kolumnens plats i rutnätet — till skillnad från KanbanColumn har
+// den ingen egen dag/kapacitet/tidsaxel att räkna på, bara en enkel kort-lista.
+function ListSektion({
+  kol,
+  today,
+  uppgifter,
+  expanded,
+  onToggleExpand,
+  personMap,
+  kundMap,
+  typMap,
+  kategoriMap,
+  projektFargMap,
+  onSelect,
+  onToggleStatus,
+  onAddNew,
+  onHover,
+}: {
+  kol: Kolumn
+  today: string
+  uppgifter: Uppgift[]
+  expanded: boolean
+  onToggleExpand: () => void
+  personMap: Map<string, string>
+  kundMap: Map<string, string>
+  typMap: Map<string, string>
+  kategoriMap: Map<string, string>
+  projektFargMap: Map<string, string | null>
+  onSelect: (u: Uppgift) => void
+  onToggleStatus: (u: Uppgift) => void
+  onAddNew?: (datum: string | null) => void
+  onHover: (id: string | null) => void
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: kol.key })
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex flex-col gap-2 rounded-xl border p-3 transition-colors ${
+        isOver ? 'border-accent-400 bg-accent-50 dark:bg-accent-950/40' : 'border-border-subtle bg-white dark:bg-stone-800/60'
+      }`}
+    >
+      <button
+        type="button"
+        onClick={onToggleExpand}
+        className="flex items-center justify-between gap-2 rounded-lg px-1 py-0.5 text-left transition-colors hover:bg-stone-100 dark:hover:bg-stone-700"
+      >
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-stone-500">
+          <ChevronIcon expanded={expanded} />
+          {kol.label}
+        </span>
+        <span className="shrink-0 text-xs font-medium text-stone-400">{uppgifter.length}</span>
+      </button>
+
+      {expanded && (
+        <div className="flex flex-col gap-2">
+          {uppgifter.length === 0 ? (
+            <p className="py-2 text-center text-xs text-stone-400">Inga uppgifter</p>
+          ) : (
+            uppgifter.map((u) => (
+              <KanbanCard
+                key={u.id}
+                uppgift={u}
+                today={today}
+                personMap={personMap}
+                kundMap={kundMap}
+                typMap={typMap}
+                kategoriMap={kategoriMap}
+                projektFargMap={projektFargMap}
+                onSelect={onSelect}
+                onToggleStatus={onToggleStatus}
+                onHover={onHover}
+              />
+            ))
+          )}
+          {onAddNew && (
+            <button
+              type="button"
+              onClick={() => onAddNew(kol.datum)}
+              className="rounded-lg px-2 py-1.5 text-center text-xs text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-700 dark:hover:text-stone-300"
+            >
+              + Ny uppgift
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Rent visuell "hit får du plats"-markering under en drag — ingen egen dropzon (se
 // planerings-assistenten ovan), man släpper fortfarande på kortet ovanför/under
 // som vanligt. Grön (success-tonerna, samma som Badge tone="success" använder)
@@ -1051,6 +1242,8 @@ function KortInnehall({
 }) {
   const klar = u.status === 'klar'
   const vantar = u.status === 'vantar'
+  const kommande = u.status === 'kommande'
+  const oplanerad = u.status === 'oplanerad'
   const forsenad = !!u.deadline && u.deadline < today && u.status !== 'klar'
   // En redan klarmarkerad uppgift ska inte visas som "sen" — planen höll även om
   // tidsaxel-beräkningen (som inte vet om verklig utförandetid) tror att den inte gjorde det.
@@ -1106,11 +1299,13 @@ function KortInnehall({
           onChange={onToggleStatus ? () => onToggleStatus(u) : undefined}
         />
       </div>
-      {(forsenad || vantar || varning || ansvarigNamn || u.tidsatgang_timmar || harBeskrivning) && (
+      {(forsenad || vantar || kommande || oplanerad || varning || ansvarigNamn || u.tidsatgang_timmar || harBeskrivning) && (
         <div className="mt-1.5 flex items-center justify-between gap-1">
           <div className="flex flex-wrap gap-1">
             {forsenad && <Badge tone="danger">Försenad</Badge>}
             {vantar && <Badge tone="warning">Väntar</Badge>}
+            {kommande && <Badge tone="accent">Kommande</Badge>}
+            {oplanerad && <Badge tone="neutral">Oplanerad</Badge>}
             {varning && tidsaxelPunkt?.forsenadMed !== undefined && (
               <Badge tone="danger">{formatForsening(tidsaxelPunkt.forsenadMed)} sen</Badge>
             )}
