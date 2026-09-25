@@ -13,11 +13,13 @@ import {
   taBortSerieMedUppgifter,
   raknaSerieUppgifter,
   hamtaUppgift,
+  dupliceraUppgift,
 } from './actions'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { DeleteIconButton } from '@/components/ui/delete-icon-button'
+import { DuplicateIconButton } from '@/components/ui/duplicate-icon-button'
 import { Field } from '@/components/ui/field'
 import { Input, Select } from '@/components/ui/input'
 import { MarkdownEditor } from '@/components/ui/markdown-editor'
@@ -349,6 +351,7 @@ export function UppgiftFormular({
   const outlookKopplad = existingSerie ? !!existingSerie.outlook_series_id : !!valtOutlookSeriesId
   const [synkFranDatum, setSynkFranDatum] = useState(existingSerie?.synk_fran_datum ?? '')
   const [sparar, setSparar] = useState(false)
+  const [duplicerar, setDuplicerar] = useState(false)
   const [visaBekraftelse, setVisaBekraftelse] = useState(false)
   const [tarBort, setTarBort] = useState(false)
   const [visaAvslutaSerie, setVisaAvslutaSerie] = useState(false)
@@ -460,6 +463,15 @@ export function UppgiftFormular({
     onClose()
   }
 
+  async function handleDuplicera() {
+    if (!existing) return
+    setDuplicerar(true)
+    await dupliceraUppgift(existing.id)
+    setDuplicerar(false)
+    await onChanged?.()
+    onClose()
+  }
+
   async function handleAvslutaSerie() {
     if (!existingSerie) return
     setSerieArbetar(true)
@@ -553,6 +565,13 @@ export function UppgiftFormular({
           </h2>
           <div className="flex shrink-0 items-center gap-1.5">
             <AnsvarigAvatar personer={personer} value={personId ?? ''} onChange={setPersonId} />
+            {existing && (
+              <DuplicateIconButton
+                label={`Duplicera uppgiften "${existing.titel}"`}
+                loading={duplicerar}
+                onClick={handleDuplicera}
+              />
+            )}
             {existing && (
               <DeleteIconButton
                 label={`Ta bort uppgiften "${existing.titel}"`}

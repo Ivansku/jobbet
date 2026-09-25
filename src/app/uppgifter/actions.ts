@@ -417,6 +417,58 @@ export async function uppdateraUppgift(
   revalidatePath('/rapporter/tidsrapportering')
 }
 
+// Duplicerar en uppgift som en ny fristående post: kopierar kärnfälten och
+// deltagarna, men aldrig serie-kopplingen eller platshållarflaggan — en dubblett
+// ska aldrig räknas som en förekomst av originalets serie eller som en väntande
+// placeholder. Status nollställs alltid till "oppen", oavsett originalets status.
+export async function dupliceraUppgift(id: string) {
+  const foretagId = await currentForetagId()
+  if (!foretagId) return
+
+  const supabase = await createClient()
+  const { data: original } = await supabase
+    .from('uppgift')
+    .select(
+      'titel, beskrivning, person_id, kund_id, typ_id, kategori_id, projekt_id, prioritet, deadline, tidsatgang_timmar, klockslag, uppgift_deltagare(kontaktperson_id)'
+    )
+    .eq('id', id)
+    .single()
+  if (!original) return
+
+  const sortordning =
+    beraknaSortordning(original.deadline, original.klockslag) ??
+    (await sistaSortordningForNyUppgift(supabase, foretagId, original.deadline))
+
+  const { data: nyUppgift } = await supabase
+    .from('uppgift')
+    .insert({
+      foretag_id: foretagId,
+      titel: original.titel,
+      beskrivning: original.beskrivning,
+      person_id: original.person_id,
+      kund_id: original.kund_id,
+      typ_id: original.typ_id,
+      kategori_id: original.kategori_id,
+      projekt_id: original.projekt_id,
+      prioritet: original.prioritet,
+      deadline: original.deadline,
+      status: 'oppen',
+      tidsatgang_timmar: original.tidsatgang_timmar,
+      klockslag: original.klockslag,
+      ar_placeholder: false,
+      sortordning,
+    })
+    .select('id')
+    .single()
+
+  const deltagareIds = (original.uppgift_deltagare ?? []).map((d) => d.kontaktperson_id)
+  if (nyUppgift && deltagareIds.length > 0) {
+    await synkaDeltagare(supabase, nyUppgift.id, foretagId, deltagareIds)
+  }
+
+  revalidatePath('/uppgifter')
+}
+
 export async function flyttaUppgift(id: string, deadline: string | null, sortordning: number, status?: string) {
   const supabase = await createClient()
   await supabase

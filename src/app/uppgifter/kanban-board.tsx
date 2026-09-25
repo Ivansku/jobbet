@@ -18,7 +18,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
-import { flyttaUppgift, uppdateraStatus } from './actions'
+import { flyttaUppgift, uppdateraStatus, dupliceraUppgift } from './actions'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { createClient } from '@/lib/supabase/client'
@@ -647,12 +647,12 @@ export function KanbanBoard({
     setVisaFlyttaFor(null)
   }
 
-  // Ingen synlig indikation i UI:t — medvetet en dold "power user"-genväg.
+  // Ingen synlig indikation i UI:t — medvetet dolda "power user"-genvägar
+  // (hovra kort + tryck "D" för att flytta datum, eller Ctrl+C för att duplicera).
   // Ignorerar tangenttryckningar riktade mot inmatningsfält och när någon annan
-  // dialog redan är öppen, så den inte krockar med text man skriver där.
+  // dialog redan är öppen, så de inte krockar med text man skriver där.
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key.toLowerCase() !== 'd' || e.ctrlKey || e.altKey || e.metaKey) return
       if (!hoveredUppgiftId) return
       if (redigerar || visaTidsatgangFor || visaFlyttaFor || redigerarSerie || skaparSerie) return
       const target = e.target as HTMLElement
@@ -660,8 +660,19 @@ export function KanbanBoard({
 
       const u = uppgifterVy.find((o) => o.id === hoveredUppgiftId)
       if (!u) return
-      e.preventDefault()
-      setVisaFlyttaFor(u)
+
+      if (e.key.toLowerCase() === 'd' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault()
+        setVisaFlyttaFor(u)
+        return
+      }
+
+      if (e.key.toLowerCase() === 'c' && e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault()
+        startTransition(() => {
+          dupliceraUppgift(u.id)
+        })
+      }
     }
 
     window.addEventListener('keydown', handleKeyDown)
