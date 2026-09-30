@@ -102,6 +102,14 @@ function isoVeckonummer(iso: string): number {
   return Math.ceil(((d.getTime() - arsStart.getTime()) / 86400000 + 1) / 7)
 }
 
+// Vilken månad ett datum "hör till" i Flexel-vyn — samma fredagsregel som
+// veckorForManad. Används både för default-landningsmånaden och för hur mycket
+// kvot som räknas som intjänad: är fredagen i innevarande vecka redan i nästa
+// månad (t.ex. onsdag i vecka 40 med fredag i oktober) räknas den månaden som aktuell.
+function manadForDatum(iso: string): string {
+  return manadStart(addDagar(mondagAvVecka(iso), 4))
+}
+
 // En vecka hör till den månad dess fredag ligger i — annars skulle samma ISO-vecka
 // kunna dyka upp ofullständig i två månader i rad. Veckan visas hel (mån–fre) även
 // om måndagen råkar ligga i föregående månad.
@@ -136,7 +144,7 @@ export default async function FlexelPage({
   searchParams: Promise<{ manad?: string; modul?: string }>
 }) {
   const { manad, modul } = await searchParams
-  const manadISO = manadStart(manad ?? todayISODate())
+  const manadISO = manad ? manadStart(manad) : manadForDatum(todayISODate())
   const nastaManadISO = nastaManad(manadISO)
   const foregaendeManadISO = foregaendeManad(manadISO)
   const valdModul = modul ?? 'alla'
@@ -223,7 +231,7 @@ export default async function FlexelPage({
   if (foraldraledigInstallning) {
     const veckokvot = foraldraledigInstallning.veckokvot_timmar ?? STANDARD_VECKOKVOT
     const aktiveradManad = manadStart(formatISODate(new Date(foraldraledigInstallning.created_at)))
-    const aktuellManad = manadStart(todayISODate())
+    const aktuellManad = manadForDatum(todayISODate())
     const justeringSumma = (justeringar ?? []).reduce((sum, j) => sum + j.justering_timmar, 0)
     const uttagetTotalt = (poster ?? [])
       .filter((p) => p.modul === 'foraldraledig')
