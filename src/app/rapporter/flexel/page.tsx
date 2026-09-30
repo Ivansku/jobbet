@@ -236,7 +236,7 @@ export default async function FlexelPage({
     const uttagetTotalt = (poster ?? [])
       .filter((p) => p.modul === 'foraldraledig')
       .reduce((sum, p) => sum + p.timmar, 0)
-    const kvotSaldo = baseKvotSedan(aktiveradManad, aktuellManad, veckokvot) + justeringSumma - uttagetTotalt
+    const kvotSaldo = baseKvotSedan(aktiveradManad, aktuellManad, veckokvot) + justeringSumma + uttagetTotalt
 
     const dennaManadensJustering = (justeringar ?? [])
       .filter((j) => j.manad === manadISO)

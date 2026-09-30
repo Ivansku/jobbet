@@ -81,7 +81,7 @@ function formatTimmar(t: number): string {
 }
 
 function formatPositivTimmar(t: number): string {
-  return Number(Math.max(0, t).toFixed(1)).toString()
+  return Number(Math.abs(t).toFixed(1)).toString()
 }
 
 export function FlexelVy({
@@ -187,7 +187,7 @@ export function FlexelVy({
         {saldon.map((s) => {
           const arForaldraledig = s.modul === 'foraldraledig' && foraldraledigInfo
           const dennaManaden = arForaldraledig
-            ? foraldraledigInfo!.dennaManadensKvot - foraldraledigInfo!.dennaManadensUttag
+            ? foraldraledigInfo!.dennaManadensKvot + foraldraledigInfo!.dennaManadensUttag
             : s.dennaManaden
           const totalSaldo = arForaldraledig ? foraldraledigInfo!.kvotSaldo : s.saldo
           return (
