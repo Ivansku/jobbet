@@ -232,7 +232,13 @@ export default async function FlexelPage({
     const veckokvot = foraldraledigInstallning.veckokvot_timmar ?? STANDARD_VECKOKVOT
     const aktiveradManad = manadStart(formatISODate(new Date(foraldraledigInstallning.created_at)))
     const aktuellManad = manadForDatum(todayISODate())
-    const justeringSumma = (justeringar ?? []).reduce((sum, j) => sum + j.justering_timmar, 0)
+    // Bara justeringar t.o.m. aktuellManad räknas in i totalen — en justering korrigerar
+    // en specifik månads kvotbidrag och ska inte slå igenom innan den månadens kvot
+    // själv räknats in av baseKvotSedan (annars syns t.ex. en förhandsregistrerad
+    // novemberjustering som ett hål i totalen redan i september).
+    const justeringSumma = (justeringar ?? [])
+      .filter((j) => j.manad <= aktuellManad)
+      .reduce((sum, j) => sum + j.justering_timmar, 0)
     const uttagetTotalt = (poster ?? [])
       .filter((p) => p.modul === 'foraldraledig')
       .reduce((sum, p) => sum + p.timmar, 0)
