@@ -331,13 +331,14 @@ export async function avslutaSerie(id: string) {
   const idag = todayISODate()
 
   await supabase.from('uppgift_serie').update({ slut_datum: idag }).eq('id', id)
+  // Även Outlook-synkade förekomster (outlook_event_id satt) raderas — annars
+  // ligger kvarlevor från en avslutad Outlook-serie kvar efter "Avsluta serien".
   await supabase
     .from('uppgift')
     .delete()
     .eq('serie_id', id)
     .eq('status', 'oppen')
     .gt('deadline', idag)
-    .is('outlook_event_id', null)
 
   revalidatePath('/uppgifter')
 }
