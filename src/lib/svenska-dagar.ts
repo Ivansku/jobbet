@@ -1,6 +1,7 @@
 import { plusDagar } from './dagsflode'
 
-// Svenska Dagar 2.1 (api.dryg.net) — öppet API utan nyckel, drivs av Faboul AB.
+// Svenska Dagar 2.1 (sholiday.faboul.se) — öppet API utan nyckel, drivs av Faboul AB.
+// Tidigare värd api.dryg.net svarar sedan nov 2026 med Cloudflare-fel 1014 (403).
 // Ett helt år hämtas och cachas i taget (röda dagar för ett redan varit år ändras
 // aldrig i efterhand) istället för månads-/dagsanrop, så samma cache-post täcker
 // Hem, Uppgifter och Flexel oavsett vilket datumspann respektive sida behöver.
@@ -22,7 +23,7 @@ type ApiDag = {
 export async function hamtaSvenskaDagar(ar: number): Promise<Map<string, SvenskDag>> {
   const karta = new Map<string, SvenskDag>()
   try {
-    const res = await fetch(`https://api.dryg.net/dagar/v2.1/${ar}`, {
+    const res = await fetch(`https://sholiday.faboul.se/dagar/v2.1/${ar}`, {
       next: { revalidate: 60 * 60 * 24 },
     })
     if (!res.ok) return karta
