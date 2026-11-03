@@ -26,12 +26,8 @@ export async function hamtaSvenskaDagar(ar: number): Promise<Map<string, SvenskD
     const res = await fetch(`https://sholiday.faboul.se/dagar/v2.1/${ar}`, {
       next: { revalidate: 60 * 60 * 24 },
     })
-    if (!res.ok) {
-      console.error(`[svenska-dagar] ${ar}: API svarade ${res.status} ${res.statusText}`)
-      return karta
-    }
+    if (!res.ok) return karta
     const data: { dagar: ApiDag[] } = await res.json()
-    console.info(`[svenska-dagar] ${ar}: hämtade ${data.dagar?.length ?? 0} dagar`)
     for (const d of data.dagar) {
       karta.set(d.datum, {
         datum: d.datum,
@@ -40,10 +36,9 @@ export async function hamtaSvenskaDagar(ar: number): Promise<Map<string, SvenskD
         helgdag: d.helgdag ?? null,
       })
     }
-  } catch (err) {
+  } catch {
     // API:et är "as-is" utan garantier — vid fel/timeout visas sidan bara utan
     // namnsdags-/röd dag-information istället för att hela sidladdningen kraschar.
-    console.error(`[svenska-dagar] ${ar}: hämtning misslyckades`, err)
   }
   return karta
 }
