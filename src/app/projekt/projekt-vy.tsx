@@ -31,7 +31,7 @@ import { Field } from '@/components/ui/field'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
-import { Badge } from '@/components/ui/badge'
+import { CollapsibleSection } from '@/components/ui/collapsible-section'
 import { DeleteIconButton } from '@/components/ui/delete-icon-button'
 import { KundValjare } from '../uppgifter/kund-valjare'
 import { PROJEKT_FARGER } from '@/lib/projekt-farg'
@@ -62,16 +62,9 @@ const STATUS_LABEL: Record<string, string> = {
   pausat: 'Pausat',
   avslutat: 'Avslutat',
 }
-const STATUS_TONE: Record<string, 'success' | 'warning' | 'neutral' | 'accent'> = {
-  planerat: 'neutral',
-  aktivt: 'success',
-  pausat: 'warning',
-  avslutat: 'accent',
-}
-
 // Kortens ordning inom varje kolumn: Aktiva → Pausat → Planerat → Avslutat, och
-// inom samma status högst klar-procent överst. Avviker medvetet från STATUS_LABEL/
-// STATUS_TONE-ordningen ovan, som bara styr etikett/färg och inte sorteringen.
+// inom samma status högst klar-procent överst. Avviker medvetet från STATUS_LABEL-
+// ordningen ovan, som bara styr etiketten och inte sorteringen.
 const STATUS_SORTORDNING: Record<string, number> = { aktivt: 0, pausat: 1, planerat: 2, avslutat: 3 }
 
 function projektFramsteg(p: Projekt) {
@@ -174,6 +167,10 @@ export function ProjektVy({
   )
 }
 
+// Ordningen på blocken i varje kolumn. Aktivt är öppet från start; resten är
+// ihopfällda så att sånt som inte är pågående inte skapar brus i vardagen.
+const STATUS_BLOCK = ['aktivt', 'pausat', 'planerat', 'avslutat'] as const
+
 function ProjektKolumn({
   namn,
   projekt,
@@ -185,55 +182,72 @@ function ProjektKolumn({
   onSelect: (p: Projekt) => void
   onAddNew?: () => void
 }) {
+  // Per kolumn och oberoende av varandra — flera block kan vara öppna samtidigt.
+  const [oppna, setOppna] = useState<Record<string, boolean>>({
+    aktivt: true,
+    pausat: false,
+    planerat: false,
+    avslutat: false,
+  })
+
   return (
-    <div className="flex min-h-[160px] w-72 shrink-0 flex-col gap-2 rounded-xl border border-border-subtle bg-white p-3 dark:bg-stone-800/60">
-      <div className="flex items-center justify-between gap-2">
+    <div className="flex min-h-[160px] w-72 shrink-0 flex-col gap-3">
+      <div className="flex items-center justify-between gap-2 px-1">
         <h2 className="truncate text-sm font-semibold text-stone-500">{namn}</h2>
         <span className="shrink-0 text-xs font-medium text-stone-400">{projekt.length}</span>
       </div>
 
-      <div className="flex flex-col gap-2">
-        {projekt.length === 0 ? (
-          <p className="py-4 text-center text-xs text-stone-400">Inga projekt</p>
-        ) : (
-          projekt.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => onSelect(p)}
-              className="flex flex-col gap-1 rounded-lg border border-border-subtle bg-surface p-3 text-left text-sm shadow-sm transition-shadow hover:shadow-md"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="flex min-w-0 items-center gap-1.5">
-                  {p.farg && (
-                    <span
-                      aria-hidden
-                      className={`h-2 w-2 shrink-0 rounded-full ${PROJEKT_FARGER.find((f) => f.value === p.farg)?.dot ?? ''}`}
-                    />
-                  )}
-                  <span className="truncate font-medium">{p.kundNamn ?? 'Internt'}</span>
-                </span>
-                <Badge tone={STATUS_TONE[p.status] ?? 'neutral'}>{STATUS_LABEL[p.status] ?? p.status}</Badge>
-              </div>
-              <div className="flex items-center justify-between gap-2 text-xs text-stone-400">
-                <span className="truncate">{p.namn}</span>
-                <span className="shrink-0">
-                  {p.antalKlara} av {p.antalUppgifter} klara
-                </span>
-              </div>
-            </button>
-          ))
-        )}
-
-        {onAddNew && (
-          <button
-            type="button"
-            onClick={onAddNew}
-            className="mt-auto rounded-lg px-2 py-1.5 text-center text-xs text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-700 dark:hover:text-stone-300"
+      {STATUS_BLOCK.map((status) => {
+        const iBlock = projekt.filter((p) => p.status === status)
+        // Tomma block döljs, utom Aktivt som alltid visas eftersom "+ Nytt projekt" bor där.
+        if (iBlock.length === 0 && !(status === 'aktivt' && onAddNew)) return null
+        return (
+          <CollapsibleSection
+            key={status}
+            label={STATUS_LABEL[status]}
+            count={iBlock.length}
+            expanded={oppna[status]}
+            onToggle={() => setOppna((prev) => ({ ...prev, [status]: !prev[status] }))}
           >
-            + Nytt projekt
-          </button>
-        )}
-      </div>
+            {iBlock.length === 0 ? (
+              <p className="py-2 text-center text-xs text-stone-400">Inga projekt</p>
+            ) : (
+              iBlock.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => onSelect(p)}
+                  className="flex flex-col gap-1 rounded-lg border border-border-subtle bg-surface p-3 text-left text-sm shadow-sm transition-shadow hover:shadow-md"
+                >
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    {p.farg && (
+                      <span
+                        aria-hidden
+                        className={`h-2 w-2 shrink-0 rounded-full ${PROJEKT_FARGER.find((f) => f.value === p.farg)?.dot ?? ''}`}
+                      />
+                    )}
+                    <span className="truncate font-medium">{p.kundNamn ?? 'Internt'}</span>
+                  </span>
+                  <div className="flex items-center justify-between gap-2 text-xs text-stone-400">
+                    <span className="truncate">{p.namn}</span>
+                    <span className="shrink-0">
+                      {p.antalKlara} av {p.antalUppgifter} klara
+                    </span>
+                  </div>
+                </button>
+              ))
+            )}
+            {status === 'aktivt' && onAddNew && (
+              <button
+                type="button"
+                onClick={onAddNew}
+                className="rounded-lg px-2 py-1.5 text-center text-xs text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-700 dark:hover:text-stone-300"
+              >
+                + Nytt projekt
+              </button>
+            )}
+          </CollapsibleSection>
+        )
+      })}
     </div>
   )
 }
