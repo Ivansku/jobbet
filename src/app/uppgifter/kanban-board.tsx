@@ -21,6 +21,7 @@ import {
 import { flyttaUppgift, uppdateraStatus, dupliceraUppgift } from './actions'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { CollapsibleSection } from '@/components/ui/collapsible-section'
 import { createClient } from '@/lib/supabase/client'
 import { ROD_DAG_STREGMONSTER_KLASS, HALVDAG_MASK_KLASS } from '@/lib/svenska-dagar'
 import { SerieVy } from './serie-vy'
@@ -1038,23 +1039,6 @@ function KanbanColumn({
   )
 }
 
-function ChevronIcon({ expanded }: { expanded: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={3}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className={`h-3 w-3 shrink-0 transition-transform ${expanded ? '' : '-rotate-90'}`}
-    >
-      <path d="M6 9l6 6 6-6" />
-    </svg>
-  )
-}
-
 // En av de tre fristående, ihopfällbara listorna (Ska göras/Väntande/Kommande) som
 // delar den första kolumnens plats i rutnätet — till skillnad från KanbanColumn har
 // den ingen egen dag/kapacitet/tidsaxel att räkna på, bara en enkel kort-lista.
@@ -1092,57 +1076,43 @@ function ListSektion({
   const { setNodeRef, isOver } = useDroppable({ id: kol.key })
 
   return (
-    <div
-      ref={setNodeRef}
-      className={`flex flex-col gap-2 rounded-xl border p-3 transition-colors ${
-        isOver ? 'border-accent-400 bg-accent-50 dark:bg-accent-950/40' : 'border-border-subtle bg-white dark:bg-stone-800/60'
-      }`}
+    <CollapsibleSection
+      label={kol.label}
+      count={uppgifter.length}
+      expanded={expanded}
+      onToggle={onToggleExpand}
+      containerRef={setNodeRef}
+      highlighted={isOver}
     >
-      <button
-        type="button"
-        onClick={onToggleExpand}
-        className="flex items-center justify-between gap-2 rounded-lg px-1 py-0.5 text-left transition-colors hover:bg-stone-100 dark:hover:bg-stone-700"
-      >
-        <span className="flex items-center gap-1.5 text-sm font-semibold text-stone-500">
-          <ChevronIcon expanded={expanded} />
-          {kol.label}
-        </span>
-        <span className="shrink-0 text-xs font-medium text-stone-400">{uppgifter.length}</span>
-      </button>
-
-      {expanded && (
-        <div className="flex flex-col gap-2">
-          {uppgifter.length === 0 ? (
-            <p className="py-2 text-center text-xs text-stone-400">Inga uppgifter</p>
-          ) : (
-            uppgifter.map((u) => (
-              <KanbanCard
-                key={u.id}
-                uppgift={u}
-                today={today}
-                personMap={personMap}
-                kundMap={kundMap}
-                typMap={typMap}
-                kategoriMap={kategoriMap}
-                projektFargMap={projektFargMap}
-                onSelect={onSelect}
-                onToggleStatus={onToggleStatus}
-                onHover={onHover}
-              />
-            ))
-          )}
-          {onAddNew && (
-            <button
-              type="button"
-              onClick={() => onAddNew(kol.datum)}
-              className="rounded-lg px-2 py-1.5 text-center text-xs text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-700 dark:hover:text-stone-300"
-            >
-              + Ny uppgift
-            </button>
-          )}
-        </div>
+      {uppgifter.length === 0 ? (
+        <p className="py-2 text-center text-xs text-stone-400">Inga uppgifter</p>
+      ) : (
+        uppgifter.map((u) => (
+          <KanbanCard
+            key={u.id}
+            uppgift={u}
+            today={today}
+            personMap={personMap}
+            kundMap={kundMap}
+            typMap={typMap}
+            kategoriMap={kategoriMap}
+            projektFargMap={projektFargMap}
+            onSelect={onSelect}
+            onToggleStatus={onToggleStatus}
+            onHover={onHover}
+          />
+        ))
       )}
-    </div>
+      {onAddNew && (
+        <button
+          type="button"
+          onClick={() => onAddNew(kol.datum)}
+          className="rounded-lg px-2 py-1.5 text-center text-xs text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-700 dark:hover:text-stone-300"
+        >
+          + Ny uppgift
+        </button>
+      )}
+    </CollapsibleSection>
   )
 }
 
